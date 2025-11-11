@@ -18,12 +18,18 @@ import 'package:permuta_policial/core/api/repositories/mapa_repository.dart';
 import 'package:permuta_policial/core/api/repositories/permutas_repository.dart';
 import 'package:permuta_policial/core/api/repositories/policiais_repository.dart';
 import 'package:permuta_policial/core/api/repositories/parceiros_repository.dart';
+// ==========================================================
+// 1. IMPORTAR O REPOSITÓRIO EM FALTA
+// ==========================================================
+import 'package:permuta_policial/core/api/repositories/novos_soldados_repository.dart';
+
 // Camada de Estado (Providers)
 import 'package:permuta_policial/features/auth/providers/auth_provider.dart';
 import 'package:permuta_policial/features/dashboard/providers/dashboard_provider.dart';
 import 'package:permuta_policial/features/dados/providers/dados_provider.dart';
 import 'package:permuta_policial/features/mapa/providers/mapa_provider.dart';
 import 'package:permuta_policial/features/profile/providers/profile_provider.dart';
+import 'package:permuta_policial/features/novos_soldados/providers/novos_soldados_provider.dart';
 
 
 void main() {
@@ -41,11 +47,9 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         // --- NÍVEL 1: SERVIÇOS DE BAIXO NÍVEL ---
-        // Disponibiliza o StorageService como um singleton.
         Provider<StorageService>(create: (_) => StorageService()),
         
         // --- NÍVEL 2: CAMADA DE DADOS (API) ---
-        // O ApiClient depende do StorageService para obter o token.
         Provider<ApiClient>(
           create: (context) => ApiClient(context.read<StorageService>()),
         ),
@@ -71,9 +75,14 @@ class MyApp extends StatelessWidget {
          Provider<MapaRepository>(
           create: (context) => MapaRepository(context.read<ApiClient>()),
         ),
+        // ==========================================================
+        // 2. ADICIONAR O REPOSITÓRIO EM FALTA AQUI
+        // ==========================================================
+        Provider<NovosSoldadosRepository>(
+          create: (context) => NovosSoldadosRepository(context.read<ApiClient>()),
+        ),
 
         // --- NÍVEL 3: CAMADA DE ESTADO (PROVIDERS) ---
-        // Providers dependem dos Repositórios para buscar/salvar dados.
         ChangeNotifierProvider<AuthProvider>(
           create: (ctx) => AuthProvider(ctx.read<AuthRepository>(), ctx.read<PoliciaisRepository>()),
         ),
@@ -89,6 +98,10 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider<ProfileProvider>(
           create: (ctx) => ProfileProvider(ctx.read<PoliciaisRepository>(), ctx.read<DadosRepository>()),
         ),
+        // Esta linha agora funciona, porque o NovosSoldadosRepository foi fornecido acima
+        ChangeNotifierProvider(create: (context) => NovosSoldadosProvider(
+          context.read<NovosSoldadosRepository>(),
+        )),
         ChangeNotifierProvider<DadosProvider>(
           create: (ctx) => DadosProvider(ctx.read<DadosRepository>()),
         ),

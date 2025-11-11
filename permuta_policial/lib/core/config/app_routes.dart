@@ -11,6 +11,7 @@ import '../../features/profile/screens/completar_perfil_screen.dart';
 import '../../features/splash/screens/splash_screen.dart';
 import '../../features/landing/screens/landing_screen.dart';
 import '../../features/auth/screens/auth_callback_screen.dart';
+import '../../features/novos_soldados/screens/novos_soldados_screen.dart';
 
 
 class AppRoutes {
@@ -23,6 +24,7 @@ class AppRoutes {
   static const String completarPerfil = '/completar-perfil';
   static const String mapa = '/mapa';
   static const String authCallback = '/auth/callback'; 
+  static const String novosSoldadosEscolha = '/novos-soldados-escolha';
 
 
   /// Função estática que gera as rotas da aplicação
@@ -52,6 +54,9 @@ class AppRoutes {
        
       case completarPerfil:
         return MaterialPageRoute(builder: (_) => const CompletarPerfilScreen());
+
+      case novosSoldadosEscolha:
+        return MaterialPageRoute(builder: (_) => const NovosSoldadosScreen());
 
       case mapa:
         // Exemplo de como passar argumentos para uma rota de forma segura
