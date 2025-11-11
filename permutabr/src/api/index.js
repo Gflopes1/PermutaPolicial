@@ -11,6 +11,7 @@ const permutasRoutes = require('../modules/permutas/permutas.routes');
 const dadosRoutes = require('../modules/dados/dados.routes');
 const mapaRoutes = require('../modules/mapa/mapa.routes');
 const adminRoutes = require('../modules/admin/admin.routes');
+const novosSoldadosRoutes = require('../modules/novos-soldados/novos-soldados.routes');
 
 router.get('/', (req, res) => {
     res.json({
@@ -27,5 +28,6 @@ router.use('/permutas', permutasRoutes);
 router.use('/dados', dadosRoutes);
 router.use('/mapa', mapaRoutes);
 router.use('/admin', adminRoutes);
+router.use('/novos-soldados', novosSoldadosRoutes);
 
 module.exports = router;
