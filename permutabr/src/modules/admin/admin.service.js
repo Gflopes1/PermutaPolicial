@@ -44,6 +44,47 @@ class AdminService {
     }
     return { message: 'Policial rejeitado com sucesso.' };
   }
+
+  async getAllPoliciais(page, limit, search) {
+    return adminRepository.findAllPoliciais(page, limit, search);
+  }
+
+  async getAllParceiros() {
+    return adminRepository.findAllParceiros();
+  }
+
+  async createParceiro(parceiro) {
+    const id = await adminRepository.createParceiro(parceiro);
+    // Busca o parceiro criado para retornar completo
+    const parceiros = await adminRepository.findAllParceiros();
+    const novoParceiro = parceiros.find(p => p.id === id);
+    return novoParceiro || { id, ...parceiro };
+  }
+
+  async updateParceiro(id, parceiro) {
+    const success = await adminRepository.updateParceiro(id, parceiro);
+    if (!success) {
+      throw new ApiError(404, 'Parceiro não encontrado.');
+    }
+    return { message: 'Parceiro atualizado com sucesso.' };
+  }
+
+  async deleteParceiro(id) {
+    const success = await adminRepository.deleteParceiro(id);
+    if (!success) {
+      throw new ApiError(404, 'Parceiro não encontrado.');
+    }
+    return { message: 'Parceiro removido com sucesso.' };
+  }
+
+  async getParceirosConfig() {
+    return adminRepository.getParceirosConfig();
+  }
+
+  async updateParceirosConfig(exibirCard) {
+    await adminRepository.updateParceirosConfig(exibirCard);
+    return { message: 'Configuração atualizada com sucesso.' };
+  }
 }
 
 module.exports = new AdminService();

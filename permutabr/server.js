@@ -302,29 +302,15 @@ app.use('/api', apiRoutes);
 console.log('✅ Rotas da API montadas no prefixo /api.');
 
 // 9. Middleware para rotas não encontradas
+const ApiError = require('./src/core/utils/ApiError');
 app.use((req, res, next) => {
     console.log('❌ Rota não encontrada:', req.path);
-    res.status(404).json({
-        error: 'Rota não encontrada',
-        path: req.path,
-        method: req.method
-    });
+    next(ApiError.notFound(`Rota não encontrada: ${req.method} ${req.path}`));
 });
 
-// 10. Error Handler Genérico
-app.use((err, req, res, next) => {
-    console.error('💥 ERRO GLOBAL:', {
-        message: err.message,
-        stack: err.stack,
-        url: req.url,
-        method: req.method
-    });
-
-    res.status(err.statusCode || 500).json({
-        error: err.message || 'Ocorreu um erro interno no servidor.',
-        ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    });
-});
+// 10. Error Handler Genérico (usando o middleware centralizado)
+const errorHandler = require('./src/core/middlewares/errorHandler');
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
 const HOST = '127.0.0.1';

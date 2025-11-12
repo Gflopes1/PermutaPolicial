@@ -52,7 +52,7 @@ class MapaRepository {
     const { id, forca_id } = filters;
     const params = [id];
     let query = `
-        SELECT p.nome as policial_nome, f.sigla as forca_sigla, u.nome as unidade_nome
+        SELECT p.nome as policial_nome, f.sigla as forca_sigla, u.nome as unidade_nome, p.qso
         FROM policiais p
         JOIN forcas_policiais f ON p.forca_id = f.id
         JOIN unidades u ON p.unidade_atual_id = u.id
@@ -70,7 +70,7 @@ class MapaRepository {
     const { id, forca_id } = filters;
     const params = [id];
     let query = `
-        SELECT p.nome as policial_nome, f.sigla as forca_sigla, u.nome as unidade_nome
+        SELECT p.nome as policial_nome, f.sigla as forca_sigla, u.nome as unidade_nome, p.qso
         FROM intencoes i
         JOIN policiais p ON i.policial_id = p.id
         JOIN forcas_policiais f ON p.forca_id = f.id

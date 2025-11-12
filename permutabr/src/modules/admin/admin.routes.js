@@ -42,4 +42,16 @@ router.post(
     adminController.rejeitarPolicial
 );
 
+// Rotas de Usuários
+router.get('/policiais', adminController.getAllPoliciais);
+
+// Rotas de Parceiros
+router.get('/parceiros', adminController.getAllParceiros);
+router.post('/parceiros', adminController.createParceiro);
+router.put('/parceiros/:id', adminController.updateParceiro);
+router.delete('/parceiros/:id', adminController.deleteParceiro);
+router.post('/parceiros/:id/delete', adminController.deleteParceiro); // Alias para compatibilidade com Flutter
+router.get('/parceiros/config', adminController.getParceirosConfig);
+router.put('/parceiros/config', adminController.updateParceirosConfig);
+
 module.exports = router;
