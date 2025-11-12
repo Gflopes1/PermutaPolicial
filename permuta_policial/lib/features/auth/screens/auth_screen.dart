@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:permuta_policial/core/api/repositories/dados_repository.dart';
 import 'package:permuta_policial/core/config/app_routes.dart';
+import 'package:permuta_policial/core/constants/app_constants.dart';
 import 'package:permuta_policial/features/auth/providers/auth_provider.dart';
 import 'package:permuta_policial/features/auth/providers/auth_status.dart';
 import 'package:permuta_policial/shared/widgets/custom_dropdown_search.dart';
@@ -191,19 +192,28 @@ class _AuthScreenState extends State<AuthScreen> {
         return Scaffold(
           body: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
+              padding: const EdgeInsets.all(AppConstants.spacingLG),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 500),
+                constraints: const BoxConstraints(maxWidth: AppConstants.maxFormWidth),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Card(
-                      elevation: 8, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      child: Padding(padding: const EdgeInsets.all(32.0),
-                        child: AnimatedSwitcher(duration: const Duration(milliseconds: 300), child: _buildCurrentForm(isLoading)),
+                      elevation: 8,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          AppConstants.cardBorderRadius,
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppConstants.spacingXL),
+                        child: AnimatedSwitcher(
+                          duration: AppConstants.animationDurationNormal,
+                          child: _buildCurrentForm(isLoading),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: AppConstants.spacingLG),
                     _buildFooter(),
                   ],
                 ),
@@ -233,11 +243,39 @@ class _AuthScreenState extends State<AuthScreen> {
         children: [
           Image.asset('assets/images/logo_tatico.png', height: 100),
           const SizedBox(height: 24),
-          CustomTextField(controller: _emailLoginController, label: 'Email', prefixIcon: Icons.email, keyboardType: TextInputType.emailAddress, validator: (v) => (v?.isEmpty ?? true) ? 'Email é obrigatório' : null),
-          const SizedBox(height: 16),
-          CustomTextField(controller: _passwordLoginController, label: 'Senha', prefixIcon: Icons.lock, obscureText: true, validator: (v) => (v?.isEmpty ?? true) ? 'Senha é obrigatória' : null),
-          const SizedBox(height: 24),
-          SizedBox(width: double.infinity, child: ElevatedButton(onPressed: isLoading ? null : _doLogin, child: isLoading ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white)) : const Text('Entrar'))),
+          CustomTextField(
+            controller: _emailLoginController,
+            label: 'Email',
+            prefixIcon: Icons.email,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.next,
+            validator: (v) => (v?.isEmpty ?? true) ? 'Email é obrigatório' : null,
+          ),
+          const SizedBox(height: AppConstants.spacingMD),
+          CustomTextField(
+            controller: _passwordLoginController,
+            label: 'Senha',
+            prefixIcon: Icons.lock,
+            obscureText: true,
+            textInputAction: TextInputAction.done,
+            onFieldSubmitted: (_) => isLoading ? null : _doLogin(),
+            validator: (v) => (v?.isEmpty ?? true) ? 'Senha é obrigatória' : null,
+          ),
+          const SizedBox(height: AppConstants.spacingLG),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: isLoading ? null : _doLogin,
+              icon: isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(color: Colors.white),
+                    )
+                  : const Icon(Icons.login),
+              label: Text(isLoading ? 'Entrando...' : 'Entrar'),
+            ),
+          ),
           const SizedBox(height: 24),
           Row(
             children: [

@@ -1,6 +1,7 @@
 // /lib/features/mapa/screens/mapa_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:latlong2/latlong.dart';
@@ -76,16 +77,75 @@ class _MapaScreenState extends State<MapaScreen> {
               return const Center(heightFactor: 5, child: Text('Nenhum detalhe encontrado.'));
             }
             final detalhes = snapshot.data!;
-            return ListView.builder(
-              itemCount: detalhes.length,
-              itemBuilder: (context, index) {
-                final detalhe = detalhes[index];
-                return ListTile(
-                  leading: const Icon(Icons.person_outline),
-                  title: Text(detalhe.policialNome),
-                  subtitle: Text('${detalhe.forcaSigla} | ${detalhe.unidadeNome}'),
-                );
-              },
+            return Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.7,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      'Policiais ${provider.tipoVisualizacao == 'saindo' ? 'querendo sair' : 'querendo entrar'}',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                  ),
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: detalhes.length,
+                      itemBuilder: (context, index) {
+                        final detalhe = detalhes[index];
+                        final hasQso = detalhe.qso != null && detalhe.qso!.isNotEmpty;
+                        return ListTile(
+                          leading: const Icon(Icons.person_outline),
+                          title: Text(detalhe.policialNome),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('${detalhe.forcaSigla} | ${detalhe.unidadeNome}'),
+                              if (hasQso)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: InkWell(
+                                    onTap: () {
+                                      Clipboard.setData(ClipboardData(text: detalhe.qso!));
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Número copiado!'),
+                                          backgroundColor: Colors.green,
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    },
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.phone, size: 14, color: Colors.green),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          detalhe.qso!,
+                                          style: const TextStyle(
+                                            color: Colors.green,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Icon(Icons.copy, size: 12, color: Colors.grey),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
             );
           },
         );
@@ -151,7 +211,16 @@ class _MapaScreenState extends State<MapaScreen> {
       children: [
         FlutterMap(
           mapController: _mapController,
-          options: const MapOptions(initialCenter: LatLng(-14.2350, -51.9253), initialZoom: 4.5, minZoom: 3.0, maxZoom: 18.0),
+          options: const MapOptions(
+            initialCenter: LatLng(-14.2350, -51.9253),
+            initialZoom: 4.5,
+            minZoom: 3.0,
+            maxZoom: 18.0,
+            // Trava o norte - não permite rotação do mapa
+            interactionOptions: InteractionOptions(
+              flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+            ),
+          ),
           children: [
             TileLayer(urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
             MarkerClusterLayerWidget(

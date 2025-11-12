@@ -22,6 +22,7 @@ import 'package:permuta_policial/core/api/repositories/parceiros_repository.dart
 // 1. IMPORTAR O REPOSITÓRIO EM FALTA
 // ==========================================================
 import 'package:permuta_policial/core/api/repositories/novos_soldados_repository.dart';
+import 'package:permuta_policial/core/api/repositories/admin_repository.dart';
 
 // Camada de Estado (Providers)
 import 'package:permuta_policial/features/auth/providers/auth_provider.dart';
@@ -30,6 +31,7 @@ import 'package:permuta_policial/features/dados/providers/dados_provider.dart';
 import 'package:permuta_policial/features/mapa/providers/mapa_provider.dart';
 import 'package:permuta_policial/features/profile/providers/profile_provider.dart';
 import 'package:permuta_policial/features/novos_soldados/providers/novos_soldados_provider.dart';
+import 'package:permuta_policial/features/admin/providers/admin_provider.dart';
 
 
 void main() {
@@ -81,6 +83,9 @@ class MyApp extends StatelessWidget {
         Provider<NovosSoldadosRepository>(
           create: (context) => NovosSoldadosRepository(context.read<ApiClient>()),
         ),
+        Provider<AdminRepository>(
+          create: (context) => AdminRepository(context.read<ApiClient>()),
+        ),
 
         // --- NÍVEL 3: CAMADA DE ESTADO (PROVIDERS) ---
         ChangeNotifierProvider<AuthProvider>(
@@ -107,6 +112,9 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider<MapaProvider>(
           create: (ctx) => MapaProvider(ctx.read<MapaRepository>(), ctx.read<DadosRepository>()),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) => AdminProvider(ctx.read<AdminRepository>()),
         ),
       ],
       child: MaterialApp(

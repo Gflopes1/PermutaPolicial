@@ -1,6 +1,7 @@
 // /lib/features/dashboard/widgets/admin_forum_buttons.dart
 
 import 'package:flutter/material.dart';
+import '../../../core/config/app_routes.dart';
 
 class AdminForumButtons extends StatelessWidget {
   final bool isEmbaixador;
@@ -19,8 +20,7 @@ class AdminForumButtons extends StatelessWidget {
                 title: const Text('Painel de Administração'),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () {
-                  // TODO: Criar a rota e a tela de Admin
-                  // Navigator.of(context).pushNamed('/admin');
+                  Navigator.of(context).pushNamed(AppRoutes.admin);
                 },
               ),
             if (isEmbaixador) const Divider(height: 1),
