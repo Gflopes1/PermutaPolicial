@@ -1,6 +1,7 @@
 // /lib/features/dashboard/widgets/admin_forum_buttons.dart
 
 import 'package:flutter/material.dart';
+import '../../forum/screens/forum_list_screen.dart';
 
 class AdminForumButtons extends StatelessWidget {
   final bool isEmbaixador;
@@ -23,12 +24,17 @@ class AdminForumButtons extends StatelessWidget {
                 },
               ),
             if (isEmbaixador) const Divider(height: 1),
-            const ListTile(
-              leading: Icon(Icons.forum_outlined),
-              title: Text('Fórum da Comunidade'),
-              subtitle: Text('Em breve'),
-              trailing: Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: null, // Desabilitado
+            ListTile(
+              leading: const Icon(Icons.forum_outlined),
+              title: const Text('Fórum da Comunidade'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ForumListScreen(),
+                  ),
+                );
+              },
             ),
           ],
         ),

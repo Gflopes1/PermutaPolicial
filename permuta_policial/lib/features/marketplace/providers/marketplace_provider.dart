@@ -30,9 +30,14 @@ class MarketplaceProvider with ChangeNotifier {
 
     try {
       _itens = await _repository.getAll(tipo: tipo, search: search);
-      _errorMessage = null;
+      _errorMessage = null; // Limpa erro se a busca foi bem-sucedida (mesmo que vazia)
     } catch (e) {
-      _errorMessage = e is ApiException ? e.userMessage : 'Erro ao carregar itens.';
+      // Só define erro se for uma exceção real, não apenas lista vazia
+      if (e is ApiException && e.statusCode != 404) {
+        _errorMessage = e.userMessage;
+      } else {
+        _errorMessage = null; // Lista vazia não é erro
+      }
       _itens = [];
     } finally {
       _isLoading = false;
@@ -209,4 +214,5 @@ class MarketplaceProvider with ChangeNotifier {
     }
   }
 }
+
 

@@ -293,6 +293,13 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Sugestão aprovada!')),
                       );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(provider.errorMessage ?? 'Erro ao aprovar sugestão'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
                     }
                   },
                 ),
@@ -304,6 +311,13 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                     if (success) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Sugestão rejeitada.')),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(provider.errorMessage ?? 'Erro ao rejeitar sugestão'),
+                          backgroundColor: Colors.red,
+                        ),
                       );
                     }
                   },
@@ -441,9 +455,15 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
           ),
           ElevatedButton(
             onPressed: () async {
+              if (imagemController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('URL da imagem é obrigatória')),
+                );
+                return;
+              }
               final success = await provider.createParceiro({
-                'imagem_url': imagemController.text,
-                'link_url': linkController.text.isEmpty ? null : linkController.text,
+                'imagem_url': imagemController.text.trim(),
+                'link_url': linkController.text.trim().isEmpty ? null : linkController.text.trim(),
                 'ordem_exibicao': 0,
                 'ativo': true,
               });
@@ -453,6 +473,13 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Anunciante adicionado!')),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(provider.errorMessage ?? 'Erro ao adicionar anunciante'),
+                    backgroundColor: Colors.red,
+                  ),
                 );
               }
             },

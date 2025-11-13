@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:image/image.dart' as img;
 import '../providers/marketplace_provider.dart';
 import '../../../features/dashboard/providers/dashboard_provider.dart';
 import '../../../core/models/marketplace_item.dart';
@@ -53,24 +52,29 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
   }
 
   Future<void> _adicionarFoto() async {
-    if (_fotos.length >= 3) {
+    if (_fotos.length + _fotosExistentes.length >= 3) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Máximo de 3 fotos permitidas')),
       );
       return;
     }
 
-    final XFile? foto = await _picker.pickImage(source: ImageSource.gallery);
-    if (foto != null) {
-      // Comprimir a imagem
-      final bytes = await foto.readAsBytes();
-      final image = img.decodeImage(bytes);
-      if (image != null) {
-        final compressed = img.copyResize(image, width: 1200);
-        final compressedBytes = img.encodeJpg(compressed, quality: 80);
-        final tempFile = File(foto.path);
-        await tempFile.writeAsBytes(compressedBytes);
-        setState(() => _fotos.add(tempFile));
+    try {
+      final XFile? foto = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1200,
+        imageQuality: 80,
+      );
+      
+      if (foto != null) {
+        final file = File(foto.path);
+        setState(() => _fotos.add(file));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao adicionar foto: $e')),
+        );
       }
     }
   }
@@ -320,16 +324,16 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange.shade50,
+                color: Colors.blue.shade50,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.shade200),
+                border: Border.all(color: Colors.blue.shade200),
               ),
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.info_outline, color: Colors.orange),
+                      Icon(Icons.info_outline, color: Colors.blue),
                       SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -342,7 +346,7 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
                   SizedBox(height: 8),
                   Row(
                     children: [
-                      Icon(Icons.schedule, color: Colors.orange, size: 16),
+                      Icon(Icons.schedule, color: Colors.blue, size: 16),
                       SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -379,4 +383,3 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
     );
   }
 }
-

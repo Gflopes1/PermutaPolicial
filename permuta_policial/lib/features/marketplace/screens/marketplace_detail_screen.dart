@@ -219,3 +219,4 @@ class MarketplaceDetailScreen extends StatelessWidget {
   }
 }
 
+
