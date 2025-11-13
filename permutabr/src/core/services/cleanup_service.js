@@ -1,6 +1,6 @@
 // /src/core/services/cleanup_service.js
 
-const db = require('../config/db');
+const db = require('../../config/db');
 const fs = require('fs');
 const path = require('path');
 
@@ -126,4 +126,5 @@ class CleanupService {
 }
 
 module.exports = new CleanupService();
+
 
