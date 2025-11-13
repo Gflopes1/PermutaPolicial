@@ -49,10 +49,19 @@ class _ForumCreateTopicoScreenState extends State<ForumCreateTopicoScreen> {
       conteudo: _conteudoController.text.trim(),
     );
 
-    if (success && mounted) {
+    if (!mounted) return;
+
+    if (success) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Tópico criado com sucesso!')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.errorMessage ?? 'Erro ao criar tópico'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }

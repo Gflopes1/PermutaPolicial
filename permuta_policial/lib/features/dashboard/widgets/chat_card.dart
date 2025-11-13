@@ -1,6 +1,7 @@
 // /lib/features/dashboard/widgets/chat_card.dart
 
 import 'package:flutter/material.dart';
+import '../../chat/screens/chat_list_screen.dart';
 
 class ChatCard extends StatelessWidget {
   const ChatCard({super.key});
@@ -22,11 +23,17 @@ class ChatCard extends StatelessWidget {
               subtitle: const Text('Funcionalidade em desenvolvimento.'),
             ),
             const SizedBox(height: 8),
-            const Align(
+            Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: null, // Desabilitado
-                child: Text('Ver Todas'),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ChatListScreen(),
+                    ),
+                  );
+                },
+                child: const Text('Ver Todas'),
               ),
             ),
           ],

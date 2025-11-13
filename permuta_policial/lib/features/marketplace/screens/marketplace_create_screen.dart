@@ -1,7 +1,8 @@
 // /lib/features/marketplace/screens/marketplace_create_screen.dart
 
-import 'dart:io';
+import 'dart:typed_data'; // Necessário para Uint8List
 import 'package:flutter/material.dart';
+// kIsWeb ainda é útil, mas não para os arquivos
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../providers/marketplace_provider.dart';
@@ -24,7 +25,10 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
   final _descricaoController = TextEditingController();
   final _valorController = TextEditingController();
   String? _tipoSelecionado;
-  final List<File> _fotos = [];
+  
+  // Usamos apenas XFile, que funciona em web e mobile.
+  final List<XFile> _fotosXFile = []; 
+  
   final List<String> _fotosExistentes = [];
   final ImagePicker _picker = ImagePicker();
   bool _isEditMode = false;
@@ -52,7 +56,9 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
   }
 
   Future<void> _adicionarFoto() async {
-    if (_fotos.length + _fotosExistentes.length >= 3) {
+    // A lógica de contagem agora é unificada
+    final totalFotos = _fotosXFile.length + _fotosExistentes.length;
+    if (totalFotos >= 3) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Máximo de 3 fotos permitidas')),
       );
@@ -67,8 +73,10 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
       );
       
       if (foto != null) {
-        final file = File(foto.path);
-        setState(() => _fotos.add(file));
+        setState(() {
+          // Adiciona apenas à lista _fotosXFile
+          _fotosXFile.add(foto);
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -80,7 +88,10 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
   }
 
   void _removerFoto(int index) {
-    setState(() => _fotos.removeAt(index));
+    setState(() {
+      // Remove apenas da lista _fotosXFile
+      _fotosXFile.removeAt(index);
+    });
   }
 
   void _removerFotoExistente(int index) {
@@ -95,7 +106,9 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
       );
       return;
     }
-    if (_fotos.isEmpty && _fotosExistentes.isEmpty) {
+    // Lógica de contagem unificada
+    final totalFotos = _fotosXFile.length + _fotosExistentes.length;
+    if (totalFotos == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Adicione pelo menos uma foto')),
       );
@@ -129,7 +142,8 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
         descricao: _descricaoController.text.trim(),
         valor: valor,
         tipo: _tipoSelecionado!,
-        fotos: _fotos.isNotEmpty ? _fotos : null,
+        fotos: null, // Não usamos mais List<File>
+        fotosXFile: _fotosXFile.isNotEmpty ? _fotosXFile : null, // Envia apenas XFile
       );
 
       if (!mounted) return;
@@ -168,7 +182,8 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
         descricao: _descricaoController.text.trim(),
         valor: valor,
         tipo: _tipoSelecionado!,
-        fotos: _fotos,
+        fotos: [], // Não usamos mais List<File>
+        fotosXFile: _fotosXFile, // Envia apenas XFile
       );
 
       if (!mounted) return;
@@ -254,6 +269,7 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
               spacing: 8,
               runSpacing: 8,
               children: [
+                // Fotos existentes (via URL)
                 ..._fotosExistentes.asMap().entries.map((entry) {
                   final index = entry.key;
                   final fotoUrl = entry.value;
@@ -285,14 +301,34 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
                     ],
                   );
                 }),
-                ..._fotos.asMap().entries.map((entry) {
+                
+                // Fotos novas (XFile, exibidas com FutureBuilder e Image.memory)
+                ..._fotosXFile.asMap().entries.map((entry) {
                   final index = entry.key;
-                  final foto = entry.value;
                   return Stack(
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.file(foto, width: 100, height: 100, fit: BoxFit.cover),
+                        // Este FutureBuilder funciona em AMBAS as plataformas (web e mobile)
+                        child: FutureBuilder<Uint8List>(
+                          future: _fotosXFile[index].readAsBytes(),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData) {
+                              return Image.memory(
+                                snapshot.data!,
+                                width: 100,
+                                height: 100,
+                                fit: BoxFit.cover,
+                              );
+                            }
+                            return Container(
+                              width: 100,
+                              height: 100,
+                              color: Colors.grey[300],
+                              child: const CircularProgressIndicator(),
+                            );
+                          },
+                        ),
                       ),
                       Positioned(
                         top: 0,
@@ -305,7 +341,9 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
                     ],
                   );
                 }),
-                if (_fotosExistentes.length + _fotos.length < 3)
+                
+                // Botão de adicionar
+                if (_fotosExistentes.length + _fotosXFile.length < 3)
                   InkWell(
                     onTap: _adicionarFoto,
                     child: Container(

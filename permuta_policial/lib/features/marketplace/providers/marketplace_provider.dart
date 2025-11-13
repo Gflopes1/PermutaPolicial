@@ -1,6 +1,7 @@
 // /lib/features/marketplace/providers/marketplace_provider.dart
 
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/api/repositories/marketplace_repository.dart';
 import '../../../core/models/marketplace_item.dart';
 import '../../../core/api/api_exception.dart';
@@ -52,9 +53,14 @@ class MarketplaceProvider with ChangeNotifier {
 
     try {
       _meusItens = await _repository.getByUsuario(policialId);
-      _errorMessage = null;
+      _errorMessage = null; // Limpa erro se a busca foi bem-sucedida (mesmo que vazia)
     } catch (e) {
-      _errorMessage = e is ApiException ? e.userMessage : 'Erro ao carregar seus itens.';
+      // Só define erro se for uma exceção real, não apenas lista vazia
+      if (e is ApiException && e.statusCode != 404) {
+        _errorMessage = e.userMessage;
+      } else {
+        _errorMessage = null; // Lista vazia não é erro
+      }
       _meusItens = [];
     } finally {
       _isLoading = false;
@@ -68,6 +74,7 @@ class MarketplaceProvider with ChangeNotifier {
     required double valor,
     required String tipo,
     required List<File> fotos,
+    List<XFile>? fotosXFile,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -79,7 +86,8 @@ class MarketplaceProvider with ChangeNotifier {
         descricao: descricao,
         valor: valor,
         tipo: tipo,
-        fotos: fotos,
+        fotos: fotosXFile == null ? fotos : null,
+        fotosXFile: fotosXFile,
       );
       _errorMessage = null;
       return true;
@@ -99,6 +107,7 @@ class MarketplaceProvider with ChangeNotifier {
     double? valor,
     String? tipo,
     List<File>? fotos,
+    List<XFile>? fotosXFile,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -111,7 +120,8 @@ class MarketplaceProvider with ChangeNotifier {
         descricao: descricao,
         valor: valor,
         tipo: tipo,
-        fotos: fotos,
+        fotos: fotosXFile == null ? fotos : null,
+        fotosXFile: fotosXFile,
       );
       _errorMessage = null;
       return true;

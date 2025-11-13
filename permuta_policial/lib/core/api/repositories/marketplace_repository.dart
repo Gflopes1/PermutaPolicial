@@ -1,8 +1,10 @@
 // /lib/core/api/repositories/marketplace_repository.dart
 
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+import 'package:image_picker/image_picker.dart';
 import '../api_client.dart';
 import '../../models/marketplace_item.dart';
 
@@ -48,33 +50,43 @@ class MarketplaceRepository {
     required String descricao,
     required double valor,
     required String tipo,
-    required List<File> fotos,
+    List<File>? fotos,
+    List<XFile>? fotosXFile,
   }) async {
+    return await _createWithFiles(titulo, descricao, valor, tipo, fotos, fotosXFile);
+  }
+
+  // Método auxiliar que aceita File ou XFile
+  Future<MarketplaceItem> _createWithFiles(
+    String titulo,
+    String descricao,
+    double valor,
+    String tipo,
+    List<File>? fotos,
+    List<XFile>? fotosXFile,
+  ) async {
     final files = <http.MultipartFile>[];
     
-    for (int i = 0; i < fotos.length; i++) {
-      final file = fotos[i];
-      final bytes = await file.readAsBytes();
-      final fileName = file.path.split('/').last;
-      final extension = fileName.split('.').last.toLowerCase();
-      
-      String contentType;
-      if (extension == 'jpg' || extension == 'jpeg') {
-        contentType = 'image/jpeg';
-      } else if (extension == 'png') {
-        contentType = 'image/png';
-      } else if (extension == 'webp') {
-        contentType = 'image/webp';
-      } else {
-        contentType = 'image/jpeg';
+    // Processa fotos File (mobile)
+    if (fotos != null) {
+      for (int i = 0; i < fotos.length; i++) {
+        final file = fotos[i];
+        final bytes = await file.readAsBytes();
+        final fileName = file.path.isNotEmpty && file.path.contains('/') && !file.path.startsWith('/tmp/')
+            ? file.path.split('/').last
+            : 'foto_${i + 1}.jpg';
+        files.add(_createMultipartFile(bytes, fileName));
       }
-      
-      files.add(http.MultipartFile.fromBytes(
-        'fotos',
-        bytes,
-        filename: fileName,
-        contentType: MediaType.parse(contentType),
-      ));
+    }
+    
+    // Processa fotos XFile (web)
+    if (fotosXFile != null) {
+      for (int i = 0; i < fotosXFile.length; i++) {
+        final xFile = fotosXFile[i];
+        final bytes = await xFile.readAsBytes();
+        final fileName = xFile.name.isNotEmpty ? xFile.name : 'foto_${i + 1}.jpg';
+        files.add(_createMultipartFile(bytes, fileName));
+      }
     }
 
     final data = {
@@ -88,6 +100,30 @@ class MarketplaceRepository {
     return MarketplaceItem.fromJson(response as Map<String, dynamic>);
   }
 
+  http.MultipartFile _createMultipartFile(Uint8List bytes, String fileName) {
+    final extension = fileName.contains('.')
+        ? fileName.split('.').last.toLowerCase()
+        : 'jpg';
+    
+    String contentType;
+    if (extension == 'jpg' || extension == 'jpeg') {
+      contentType = 'image/jpeg';
+    } else if (extension == 'png') {
+      contentType = 'image/png';
+    } else if (extension == 'webp') {
+      contentType = 'image/webp';
+    } else {
+      contentType = 'image/jpeg';
+    }
+    
+    return http.MultipartFile.fromBytes(
+      'fotos',
+      bytes,
+      filename: fileName,
+      contentType: MediaType.parse(contentType),
+    );
+  }
+
   Future<MarketplaceItem> update({
     required int id,
     String? titulo,
@@ -95,33 +131,29 @@ class MarketplaceRepository {
     double? valor,
     String? tipo,
     List<File>? fotos,
+    List<XFile>? fotosXFile,
   }) async {
     final files = <http.MultipartFile>[];
     
+    // Processa fotos File (mobile)
     if (fotos != null && fotos.isNotEmpty) {
       for (int i = 0; i < fotos.length; i++) {
         final file = fotos[i];
         final bytes = await file.readAsBytes();
-        final fileName = file.path.split('/').last;
-        final extension = fileName.split('.').last.toLowerCase();
-        
-        String contentType;
-        if (extension == 'jpg' || extension == 'jpeg') {
-          contentType = 'image/jpeg';
-        } else if (extension == 'png') {
-          contentType = 'image/png';
-        } else if (extension == 'webp') {
-          contentType = 'image/webp';
-        } else {
-          contentType = 'image/jpeg';
-        }
-        
-        files.add(http.MultipartFile.fromBytes(
-          'fotos',
-          bytes,
-          filename: fileName,
-          contentType: MediaType.parse(contentType),
-        ));
+        final fileName = file.path.isNotEmpty && file.path.contains('/') && !file.path.startsWith('/tmp/')
+            ? file.path.split('/').last
+            : 'foto_${i + 1}.jpg';
+        files.add(_createMultipartFile(bytes, fileName));
+      }
+    }
+    
+    // Processa fotos XFile (web)
+    if (fotosXFile != null && fotosXFile.isNotEmpty) {
+      for (int i = 0; i < fotosXFile.length; i++) {
+        final xFile = fotosXFile[i];
+        final bytes = await xFile.readAsBytes();
+        final fileName = xFile.name.isNotEmpty ? xFile.name : 'foto_${i + 1}.jpg';
+        files.add(_createMultipartFile(bytes, fileName));
       }
     }
 
