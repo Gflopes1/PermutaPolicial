@@ -18,11 +18,13 @@ import 'package:permuta_policial/core/api/repositories/mapa_repository.dart';
 import 'package:permuta_policial/core/api/repositories/permutas_repository.dart';
 import 'package:permuta_policial/core/api/repositories/policiais_repository.dart';
 import 'package:permuta_policial/core/api/repositories/parceiros_repository.dart';
-// ==========================================================
-// 1. IMPORTAR O REPOSITÓRIO EM FALTA
-// ==========================================================
-import 'package:permuta_policial/core/api/repositories/novos_soldados_repository.dart';
 import 'package:permuta_policial/core/api/repositories/admin_repository.dart';
+import 'package:permuta_policial/core/api/repositories/novos_soldados_repository.dart';
+import 'package:permuta_policial/core/api/repositories/chat_repository.dart';
+import 'package:permuta_policial/core/api/repositories/forum_repository.dart';
+
+// Serviços
+import 'package:permuta_policial/core/services/socket_service.dart';
 
 // Camada de Estado (Providers)
 import 'package:permuta_policial/features/auth/providers/auth_provider.dart';
@@ -32,6 +34,10 @@ import 'package:permuta_policial/features/mapa/providers/mapa_provider.dart';
 import 'package:permuta_policial/features/profile/providers/profile_provider.dart';
 import 'package:permuta_policial/features/novos_soldados/providers/novos_soldados_provider.dart';
 import 'package:permuta_policial/features/admin/providers/admin_provider.dart';
+import 'package:permuta_policial/features/chat/providers/chat_provider.dart';
+import 'package:permuta_policial/features/forum/providers/forum_provider.dart';
+import 'package:permuta_policial/features/marketplace/providers/marketplace_provider.dart';
+import 'package:permuta_policial/core/api/repositories/marketplace_repository.dart';
 
 
 void main() {
@@ -74,17 +80,26 @@ class MyApp extends StatelessWidget {
         Provider<ParceirosRepository>(
           create: (context) => ParceirosRepository(context.read<ApiClient>()),
         ),
+        Provider<AdminRepository>(
+          create: (context) => AdminRepository(context.read<ApiClient>()),
+        ),
          Provider<MapaRepository>(
           create: (context) => MapaRepository(context.read<ApiClient>()),
         ),
-        // ==========================================================
-        // 2. ADICIONAR O REPOSITÓRIO EM FALTA AQUI
-        // ==========================================================
         Provider<NovosSoldadosRepository>(
           create: (context) => NovosSoldadosRepository(context.read<ApiClient>()),
         ),
-        Provider<AdminRepository>(
-          create: (context) => AdminRepository(context.read<ApiClient>()),
+        Provider<ChatRepository>(
+          create: (context) => ChatRepository(context.read<ApiClient>()),
+        ),
+        Provider<ForumRepository>(
+          create: (context) => ForumRepository(context.read<ApiClient>()),
+        ),
+        Provider<MarketplaceRepository>(
+          create: (context) => MarketplaceRepository(context.read<ApiClient>()),
+        ),
+        Provider<SocketService>(
+          create: (context) => SocketService(context.read<StorageService>()),
         ),
 
         // --- NÍVEL 3: CAMADA DE ESTADO (PROVIDERS) ---
@@ -113,8 +128,17 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider<MapaProvider>(
           create: (ctx) => MapaProvider(ctx.read<MapaRepository>(), ctx.read<DadosRepository>()),
         ),
-        ChangeNotifierProvider(
-          create: (ctx) => AdminProvider(ctx.read<AdminRepository>()),
+        ChangeNotifierProvider<AdminProvider>(
+          create: (ctx) => AdminProvider(ctx.read<AdminRepository>(), ctx.read<ParceirosRepository>()),
+        ),
+        ChangeNotifierProvider<ChatProvider>(
+          create: (ctx) => ChatProvider(ctx.read<ChatRepository>(), ctx.read<SocketService>()),
+        ),
+        ChangeNotifierProvider<ForumProvider>(
+          create: (ctx) => ForumProvider(ctx.read<ForumRepository>()),
+        ),
+        ChangeNotifierProvider<MarketplaceProvider>(
+          create: (ctx) => MarketplaceProvider(ctx.read<MarketplaceRepository>()),
         ),
       ],
       child: MaterialApp(

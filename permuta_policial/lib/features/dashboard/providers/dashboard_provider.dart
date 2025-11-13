@@ -9,6 +9,7 @@ import '../../../core/services/storage_service.dart';
 import '../../../core/models/user_profile.dart';
 import '../../../core/models/intencao.dart';
 import '../../../core/models/match_results.dart';
+import '../../../core/api/api_exception.dart';
 
 class DashboardProvider with ChangeNotifier {
   final PoliciaisRepository _policiaisRepository; 
@@ -25,8 +26,18 @@ class DashboardProvider with ChangeNotifier {
   UserProfile? _userData;
   List<Intencao> _intencoes = [];
   FullMatchResults? _matches;
+  List<dynamic> _parceiros = [];
+  bool _exibirCardParceiros = false;
 
-  DashboardProvider(this._policiaisRepository, this._intencoesRepository, this._permutasRepository, this._storageService, ParceirosRepository read);
+  final ParceirosRepository _parceirosRepository;
+
+  DashboardProvider(
+    this._policiaisRepository, 
+    this._intencoesRepository, 
+    this._permutasRepository, 
+    this._storageService, 
+    this._parceirosRepository,
+  );
 
   // Getters atualizados
   bool get isLoadingInitialData => _isLoadingInitialData;
@@ -36,6 +47,8 @@ class DashboardProvider with ChangeNotifier {
   UserProfile? get userData => _userData;
   List<Intencao> get intencoes => _intencoes;
   FullMatchResults? get matches => _matches;
+  List<dynamic> get parceiros => _parceiros;
+  bool get exibirCardParceiros => _exibirCardParceiros;
 
   /// MUDANÇA 2: Renomeado para buscar apenas os dados essenciais.
   Future<void> fetchInitialData() async {
@@ -44,7 +57,16 @@ class DashboardProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      _userData = await _policiaisRepository.getMyProfile();
+      // Busca dados em paralelo
+      final results = await Future.wait([
+        _policiaisRepository.getMyProfile(),
+        _parceirosRepository.getParceirosConfig(),
+      ]);
+
+      _userData = results[0] as UserProfile?;
+      final parceirosConfig = results[1] as Map<String, dynamic>;
+      _exibirCardParceiros = parceirosConfig['exibir_card'] ?? false;
+      _parceiros = parceirosConfig['parceiros'] ?? [];
 
       if (_userData?.unidadeAtualNome != null) {
         _intencoes = await _intencoesRepository.getMyIntentions();
@@ -52,7 +74,11 @@ class DashboardProvider with ChangeNotifier {
         fetchMatches(); 
       }
     } catch (e) {
-      _initialDataError = e.toString();
+      if (e is ApiException) {
+        _initialDataError = e.userMessage;
+      } else {
+        _initialDataError = 'Erro ao carregar dados. Tente novamente.';
+      }
     }
     
     _isLoadingInitialData = false;
@@ -71,7 +97,11 @@ class DashboardProvider with ChangeNotifier {
     try {
       _matches = await _permutasRepository.getMatches();
     } catch (e) {
-      _matchesError = e.toString();
+      if (e is ApiException) {
+        _matchesError = e.userMessage;
+      } else {
+        _matchesError = 'Erro ao buscar combinações. Tente novamente.';
+      }
     }
 
     _isLoadingMatches = false;
@@ -85,7 +115,11 @@ class DashboardProvider with ChangeNotifier {
       await fetchInitialData();
       return true;
     } catch (e) {
-      _initialDataError = e.toString();
+      if (e is ApiException) {
+        _initialDataError = e.userMessage;
+      } else {
+        _initialDataError = 'Erro ao atualizar perfil. Tente novamente.';
+      }
       notifyListeners();
       return false;
     }
@@ -97,7 +131,27 @@ class DashboardProvider with ChangeNotifier {
       await fetchInitialData();
       return true;
     } catch (e) {
-      _initialDataError = "Erro ao salvar intenções: ${e.toString()}";
+      if (e is ApiException) {
+        _initialDataError = e.userMessage;
+      } else {
+        _initialDataError = 'Erro ao salvar intenções. Tente novamente.';
+      }
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> deleteIntencoes() async {
+    try {
+      await _intencoesRepository.deleteMyIntentions();
+      await fetchInitialData();
+      return true;
+    } catch (e) {
+      if (e is ApiException) {
+        _initialDataError = e.userMessage;
+      } else {
+        _initialDataError = 'Erro ao excluir intenções. Tente novamente.';
+      }
       notifyListeners();
       return false;
     }

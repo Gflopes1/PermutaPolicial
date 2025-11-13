@@ -13,7 +13,7 @@ import '../../features/landing/screens/landing_screen.dart';
 import '../../features/auth/screens/auth_callback_screen.dart';
 import '../../features/novos_soldados/screens/novos_soldados_screen.dart';
 import '../../features/admin/screens/admin_screen.dart';
-import '../../features/profile/screens/meus_dados_screen.dart';
+import '../../features/marketplace/screens/marketplace_screen.dart';
 
 
 class AppRoutes {
@@ -28,7 +28,7 @@ class AppRoutes {
   static const String authCallback = '/auth/callback'; 
   static const String novosSoldadosEscolha = '/novos-soldados-escolha';
   static const String admin = '/admin';
-  static const String meusDados = '/meus-dados';
+  static const String marketplace = '/marketplace';
 
 
   /// Função estática que gera as rotas da aplicação
@@ -62,16 +62,16 @@ class AppRoutes {
       case novosSoldadosEscolha:
         return MaterialPageRoute(builder: (_) => const NovosSoldadosScreen());
 
+      case admin:
+        return MaterialPageRoute(builder: (_) => const AdminScreen());
+
+      case marketplace:
+        return MaterialPageRoute(builder: (_) => const MarketplaceScreen());
+
       case mapa:
         // Exemplo de como passar argumentos para uma rota de forma segura
         final isVisitor = settings.arguments as bool? ?? false;
         return MaterialPageRoute(builder: (_) => MapaScreen(isVisitorMode: isVisitor));
-
-      case admin:
-        return MaterialPageRoute(builder: (_) => const AdminScreen());
-
-      case meusDados:
-        return MaterialPageRoute(builder: (_) => const MeusDadosScreen());
       
       case splash:
       default:

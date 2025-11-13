@@ -5,7 +5,6 @@ import 'package:permuta_policial/core/models/analise_vaga.dart';
 import 'package:permuta_policial/core/models/dados_tela_soldado.dart';
 import 'package:permuta_policial/core/models/intencoes_soldado.dart';
 import 'package:permuta_policial/core/models/vaga_edital.dart';
-import 'package:permuta_policial/core/utils/error_message_helper.dart';
 
 // Enum para gerir os diferentes estados de loading da tela
 enum SoldadoScreenStatus {
@@ -83,7 +82,7 @@ class NovosSoldadosProvider extends ChangeNotifier {
 
       _setStatus(SoldadoScreenStatus.idle);
     } on ApiException catch (e) {
-      _setError(ErrorMessageHelper.getFriendlyMessage(e));
+      _setError(e.message);
     }
   }
 
@@ -139,7 +138,7 @@ class NovosSoldadosProvider extends ChangeNotifier {
       
       _setStatus(SoldadoScreenStatus.idle);
     } on ApiException catch (e) {
-      _setError(ErrorMessageHelper.getFriendlyMessage(e));
+      _setError(e.message);
     }
   }
 
@@ -180,10 +179,6 @@ class NovosSoldadosProvider extends ChangeNotifier {
       // Em caso de erro na análise automática, apenas loga
       // (não altera o status principal da tela)
       debugPrint('Erro ao analisar vaga $opmId: ${e.message}');
-      // Mantém a análise como null para indicar que houve erro
-    } catch (e) {
-      // Erro inesperado
-      debugPrint('Erro inesperado ao analisar vaga $opmId: $e');
     } finally {
       switch (choiceNumber) {
         case 1: 

@@ -1,0 +1,382 @@
+// /lib/features/marketplace/screens/marketplace_create_screen.dart
+
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
+import '../providers/marketplace_provider.dart';
+import '../../../features/dashboard/providers/dashboard_provider.dart';
+import '../../../core/models/marketplace_item.dart';
+import '../../../core/api/api_client.dart';
+
+class MarketplaceCreateScreen extends StatefulWidget {
+  final MarketplaceItem? itemToEdit;
+
+  const MarketplaceCreateScreen({super.key, this.itemToEdit});
+
+  @override
+  State<MarketplaceCreateScreen> createState() => _MarketplaceCreateScreenState();
+}
+
+class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _tituloController = TextEditingController();
+  final _descricaoController = TextEditingController();
+  final _valorController = TextEditingController();
+  String? _tipoSelecionado;
+  final List<File> _fotos = [];
+  final List<String> _fotosExistentes = [];
+  final ImagePicker _picker = ImagePicker();
+  bool _isEditMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isEditMode = widget.itemToEdit != null;
+    if (_isEditMode && widget.itemToEdit != null) {
+      final item = widget.itemToEdit!;
+      _tituloController.text = item.titulo;
+      _descricaoController.text = item.descricao;
+      _valorController.text = item.valor.toStringAsFixed(2);
+      _tipoSelecionado = item.tipo;
+      _fotosExistentes.addAll(item.fotos);
+    }
+  }
+
+  @override
+  void dispose() {
+    _tituloController.dispose();
+    _descricaoController.dispose();
+    _valorController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _adicionarFoto() async {
+    if (_fotos.length >= 3) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Máximo de 3 fotos permitidas')),
+      );
+      return;
+    }
+
+    final XFile? foto = await _picker.pickImage(source: ImageSource.gallery);
+    if (foto != null) {
+      // Comprimir a imagem
+      final bytes = await foto.readAsBytes();
+      final image = img.decodeImage(bytes);
+      if (image != null) {
+        final compressed = img.copyResize(image, width: 1200);
+        final compressedBytes = img.encodeJpg(compressed, quality: 80);
+        final tempFile = File(foto.path);
+        await tempFile.writeAsBytes(compressedBytes);
+        setState(() => _fotos.add(tempFile));
+      }
+    }
+  }
+
+  void _removerFoto(int index) {
+    setState(() => _fotos.removeAt(index));
+  }
+
+  void _removerFotoExistente(int index) {
+    setState(() => _fotosExistentes.removeAt(index));
+  }
+
+  Future<void> _salvar() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_tipoSelecionado == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecione o tipo do item')),
+      );
+      return;
+    }
+    if (_fotos.isEmpty && _fotosExistentes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Adicione pelo menos uma foto')),
+      );
+      return;
+    }
+
+    final provider = Provider.of<MarketplaceProvider>(context, listen: false);
+    
+    if (_isEditMode) {
+      final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
+      final user = dashboardProvider.userData;
+
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro ao obter dados do usuário')),
+        );
+        return;
+      }
+
+      final valor = double.tryParse(_valorController.text.replaceAll(',', '.'));
+      if (valor == null || valor <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Valor inválido')),
+        );
+        return;
+      }
+
+      final success = await provider.updateItem(
+        id: widget.itemToEdit!.id,
+        titulo: _tituloController.text.trim(),
+        descricao: _descricaoController.text.trim(),
+        valor: valor,
+        tipo: _tipoSelecionado!,
+        fotos: _fotos.isNotEmpty ? _fotos : null,
+      );
+
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Item atualizado com sucesso! Aguardando aprovação.')),
+        );
+        Navigator.pop(context, true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(provider.errorMessage ?? 'Erro ao atualizar item')),
+        );
+      }
+    } else {
+      final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
+      final user = dashboardProvider.userData;
+
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro ao obter dados do usuário')),
+        );
+        return;
+      }
+
+      final valor = double.tryParse(_valorController.text.replaceAll(',', '.'));
+      if (valor == null || valor <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Valor inválido')),
+        );
+        return;
+      }
+
+      final success = await provider.createItem(
+        titulo: _tituloController.text.trim(),
+        descricao: _descricaoController.text.trim(),
+        valor: valor,
+        tipo: _tipoSelecionado!,
+        fotos: _fotos,
+      );
+
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Item criado com sucesso! Aguardando aprovação.')),
+        );
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(provider.errorMessage ?? 'Erro ao criar item')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final apiClient = Provider.of<ApiClient>(context, listen: false);
+    final baseUrl = apiClient.baseUrl;
+
+    return Scaffold(
+      appBar: AppBar(title: Text(_isEditMode ? 'Editar Anúncio' : 'Criar Anúncio')),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            TextFormField(
+              controller: _tituloController,
+              decoration: const InputDecoration(
+                labelText: 'Título *',
+                border: OutlineInputBorder(),
+              ),
+              validator: (v) => v?.isEmpty ?? true ? 'Título é obrigatório' : null,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _descricaoController,
+              decoration: const InputDecoration(
+                labelText: 'Descrição *',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 5,
+              validator: (v) => v?.isEmpty ?? true ? 'Descrição é obrigatória' : null,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _valorController,
+              decoration: const InputDecoration(
+                labelText: 'Valor (R\$) *',
+                border: OutlineInputBorder(),
+                prefixText: 'R\$ ',
+              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              validator: (v) {
+                if (v?.isEmpty ?? true) return 'Valor é obrigatório';
+                final valor = double.tryParse(v!.replaceAll(',', '.'));
+                if (valor == null || valor <= 0) return 'Valor inválido';
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              initialValue: _tipoSelecionado,
+              decoration: const InputDecoration(
+                labelText: 'Tipo *',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'armas', child: Text('Armas')),
+                DropdownMenuItem(value: 'veiculos', child: Text('Veículos')),
+                DropdownMenuItem(value: 'equipamentos', child: Text('Equipamentos')),
+              ],
+              onChanged: (value) => setState(() => _tipoSelecionado = value),
+              validator: (v) => v == null ? 'Tipo é obrigatório' : null,
+            ),
+            const SizedBox(height: 24),
+            const Text('Fotos (máximo 3) *', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ..._fotosExistentes.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final fotoUrl = entry.value;
+                  return Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          '$baseUrl$fotoUrl',
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            width: 100,
+                            height: 100,
+                            color: Colors.grey[300],
+                            child: const Icon(Icons.image),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: IconButton(
+                          icon: const Icon(Icons.close, color: Colors.red),
+                          onPressed: () => _removerFotoExistente(index),
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+                ..._fotos.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final foto = entry.value;
+                  return Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(foto, width: 100, height: 100, fit: BoxFit.cover),
+                      ),
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: IconButton(
+                          icon: const Icon(Icons.close, color: Colors.red),
+                          onPressed: () => _removerFoto(index),
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+                if (_fotosExistentes.length + _fotos.length < 3)
+                  InkWell(
+                    onTap: _adicionarFoto,
+                    child: Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.add_photo_alternate, size: 48),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.orange),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Importante: Nós do site não participamos da venda, apenas conectamos os interessados. O anúncio será revisado antes de ser publicado.',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.schedule, color: Colors.orange, size: 16),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Os anúncios são excluídos automaticamente após 1 mês da postagem.',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            Consumer<MarketplaceProvider>(
+              builder: (context, provider, child) {
+                return ElevatedButton(
+                  onPressed: provider.isLoading ? null : _salvar,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: provider.isLoading
+                      ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(color: Colors.white),
+                        )
+                      : Text(_isEditMode ? 'Salvar Alterações' : 'Criar Anúncio'),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

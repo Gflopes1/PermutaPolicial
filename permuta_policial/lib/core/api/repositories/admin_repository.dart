@@ -1,99 +1,72 @@
 // /lib/core/api/repositories/admin_repository.dart
 
 import '../api_client.dart';
-import '../../models/parceiro.dart';
 
 class AdminRepository {
   final ApiClient _apiClient;
 
   AdminRepository(this._apiClient);
 
-  // Estatísticas
   Future<Map<String, dynamic>> getEstatisticas() async {
-    final responseData = await _apiClient.get('/api/admin/estatisticas');
-    return responseData as Map<String, dynamic>;
+    return await _apiClient.get('/api/admin/estatisticas');
   }
 
-  // Usuários/Policiais
+  Future<List<Map<String, dynamic>>> getSugestoes() async {
+    final data = await _apiClient.get('/api/admin/sugestoes');
+    return List<Map<String, dynamic>>.from(data);
+  }
+
+  Future<Map<String, dynamic>> aprovarSugestao(int id) async {
+    return await _apiClient.post('/api/admin/sugestoes/$id/aprovar', {});
+  }
+
+  Future<Map<String, dynamic>> rejeitarSugestao(int id) async {
+    return await _apiClient.post('/api/admin/sugestoes/$id/rejeitar', {});
+  }
+
+  Future<List<Map<String, dynamic>>> getVerificacoes() async {
+    final data = await _apiClient.get('/api/admin/verificacoes');
+    return List<Map<String, dynamic>>.from(data);
+  }
+
+  Future<Map<String, dynamic>> verificarPolicial(int id) async {
+    return await _apiClient.post('/api/admin/verificacoes/$id/verificar', {});
+  }
+
+  Future<Map<String, dynamic>> rejeitarPolicial(int id) async {
+    return await _apiClient.post('/api/admin/verificacoes/$id/rejeitar', {});
+  }
+
   Future<Map<String, dynamic>> getAllPoliciais({
-    int page = 1,
+    String? search,
+    String? statusVerificacao,
+    int? forcaId,
     int limit = 50,
-    String search = '',
+    int offset = 0,
   }) async {
-    final queryParams = <String>[];
-    queryParams.add('page=${page.toString()}');
-    queryParams.add('limit=${limit.toString()}');
-    if (search.isNotEmpty) {
-      queryParams.add('search=${Uri.encodeComponent(search)}');
+    final queryParams = <String, String>{
+      'limit': limit.toString(),
+      'offset': offset.toString(),
+    };
+    if (search != null && search.isNotEmpty) {
+      queryParams['search'] = search;
     }
-    final queryString = queryParams.isNotEmpty ? '?${queryParams.join('&')}' : '';
-    final responseData = await _apiClient.get('/api/admin/policiais$queryString');
-    return responseData as Map<String, dynamic>;
+    if (statusVerificacao != null) {
+      queryParams['status_verificacao'] = statusVerificacao;
+    }
+    if (forcaId != null) {
+      queryParams['forca_id'] = forcaId.toString();
+    }
+
+    final queryString = queryParams.entries
+        .map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+
+    return await _apiClient.get('/api/admin/policiais?$queryString');
   }
 
-  // Verificações
-  Future<List<dynamic>> getVerificacoes() async {
-    final responseData = await _apiClient.get('/api/admin/verificacoes');
-    return responseData as List<dynamic>;
-  }
-
-  Future<void> verificarPolicial(int policialId) async {
-    await _apiClient.post('/api/admin/verificacoes/$policialId/verificar', {});
-  }
-
-  Future<void> rejeitarPolicial(int policialId) async {
-    await _apiClient.post('/api/admin/verificacoes/$policialId/rejeitar', {});
-  }
-
-  // Sugestões
-  Future<List<dynamic>> getSugestoes() async {
-    final responseData = await _apiClient.get('/api/admin/sugestoes');
-    return responseData as List<dynamic>;
-  }
-
-  Future<void> aprovarSugestao(int sugestaoId) async {
-    await _apiClient.post('/api/admin/sugestoes/$sugestaoId/aprovar', {});
-  }
-
-  Future<void> rejeitarSugestao(int sugestaoId) async {
-    await _apiClient.post('/api/admin/sugestoes/$sugestaoId/rejeitar', {});
-  }
-
-  // Parceiros
-  Future<List<Parceiro>> getAllParceiros() async {
-    final responseData = await _apiClient.get('/api/admin/parceiros');
-    final List<dynamic> parceirosJson = responseData as List<dynamic>;
-    return parceirosJson.map((json) => Parceiro.fromJson(json)).toList();
-  }
-
-  Future<Parceiro> createParceiro(Map<String, dynamic> parceiro) async {
-    final responseData = await _apiClient.post(
-      '/api/admin/parceiros',
-      parceiro,
-    );
-    return Parceiro.fromJson(responseData);
-  }
-
-  Future<void> updateParceiro(int id, Map<String, dynamic> parceiro) async {
-    await _apiClient.put('/api/admin/parceiros/$id', parceiro);
-  }
-
-  Future<void> deleteParceiro(int id) async {
-    // Usando POST como fallback já que ApiClient não tem DELETE
-    // O backend aceita DELETE, mas para compatibilidade usamos POST
-    await _apiClient.post('/api/admin/parceiros/$id/delete', {});
-  }
-
-  Future<Map<String, dynamic>> getParceirosConfig() async {
-    final responseData = await _apiClient.get('/api/admin/parceiros/config');
-    return responseData as Map<String, dynamic>;
-  }
-
-  Future<void> updateParceirosConfig(bool exibirCard) async {
-    await _apiClient.put(
-      '/api/admin/parceiros/config',
-      {'exibir_card': exibirCard},
-    );
+  Future<Map<String, dynamic>> updatePolicial(int id, Map<String, dynamic> data) async {
+    return await _apiClient.put('/api/admin/policiais/$id', data);
   }
 }
 

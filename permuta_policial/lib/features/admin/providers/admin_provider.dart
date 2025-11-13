@@ -1,225 +1,283 @@
 // /lib/features/admin/providers/admin_provider.dart
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import '../../../core/api/repositories/admin_repository.dart';
-import '../../../core/models/policial_admin.dart';
-import '../../../core/models/parceiro.dart';
+import '../../../core/api/repositories/parceiros_repository.dart';
+import '../../../core/api/api_exception.dart';
 
-class AdminProvider extends ChangeNotifier {
-  final AdminRepository _repository;
+class AdminProvider with ChangeNotifier {
+  final AdminRepository _adminRepository;
+  final ParceirosRepository _parceirosRepository;
 
-  AdminProvider(this._repository);
+  AdminProvider(this._adminRepository, this._parceirosRepository);
 
   // Estado
   bool _isLoading = false;
   String? _errorMessage;
-
-  // Estatísticas
   Map<String, dynamic>? _estatisticas;
-
-  // Usuários
-  List<PolicialAdmin> _policiais = [];
+  List<Map<String, dynamic>> _sugestoes = [];
+  List<Map<String, dynamic>> _verificacoes = [];
+  List<Map<String, dynamic>> _policiais = [];
   int _totalPoliciais = 0;
-  int _currentPage = 1;
-  int _totalPages = 1;
-  String _searchQuery = '';
-
-  // Verificações
-  List<dynamic> _verificacoes = [];
-
-  // Sugestões
-  List<dynamic> _sugestoes = [];
-
-  // Parceiros
-  List<Parceiro> _parceiros = [];
-  bool _exibirCardParceiros = false;
+  List<dynamic> _parceiros = [];
 
   // Getters
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   Map<String, dynamic>? get estatisticas => _estatisticas;
-  List<PolicialAdmin> get policiais => _policiais;
+  List<Map<String, dynamic>> get sugestoes => _sugestoes;
+  List<Map<String, dynamic>> get verificacoes => _verificacoes;
+  List<Map<String, dynamic>> get policiais => _policiais;
   int get totalPoliciais => _totalPoliciais;
-  int get currentPage => _currentPage;
-  int get totalPages => _totalPages;
-  String get searchQuery => _searchQuery;
-  List<dynamic> get verificacoes => _verificacoes;
-  List<dynamic> get sugestoes => _sugestoes;
-  List<Parceiro> get parceiros => _parceiros;
-  bool get exibirCardParceiros => _exibirCardParceiros;
-
-  // Carregar estatísticas
-  Future<void> loadEstatisticas() async {
-    _setLoading(true);
-    try {
-      _estatisticas = await _repository.getEstatisticas();
-      _errorMessage = null;
-    } catch (e) {
-      _errorMessage = e.toString();
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  // Carregar usuários
-  Future<void> loadPoliciais({int page = 1, String search = ''}) async {
-    _setLoading(true);
-    try {
-      final result = await _repository.getAllPoliciais(
-        page: page,
-        limit: 50,
-        search: search,
-      );
-      _policiais = (result['policiais'] as List)
-          .map((json) => PolicialAdmin.fromJson(json))
-          .toList();
-      _totalPoliciais = result['total'] as int;
-      _currentPage = result['page'] as int;
-      _totalPages = result['totalPages'] as int;
-      _searchQuery = search;
-      _errorMessage = null;
-    } catch (e) {
-      _errorMessage = e.toString();
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  // Carregar verificações
-  Future<void> loadVerificacoes() async {
-    _setLoading(true);
-    try {
-      _verificacoes = await _repository.getVerificacoes();
-      _errorMessage = null;
-    } catch (e) {
-      _errorMessage = e.toString();
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  Future<void> verificarPolicial(int policialId) async {
-    try {
-      await _repository.verificarPolicial(policialId);
-      await loadVerificacoes();
-      await loadPoliciais(page: _currentPage, search: _searchQuery);
-    } catch (e) {
-      _errorMessage = e.toString();
-      notifyListeners();
-      rethrow;
-    }
-  }
-
-  Future<void> rejeitarPolicial(int policialId) async {
-    try {
-      await _repository.rejeitarPolicial(policialId);
-      await loadVerificacoes();
-      await loadPoliciais(page: _currentPage, search: _searchQuery);
-    } catch (e) {
-      _errorMessage = e.toString();
-      notifyListeners();
-      rethrow;
-    }
-  }
-
-  // Carregar sugestões
-  Future<void> loadSugestoes() async {
-    _setLoading(true);
-    try {
-      _sugestoes = await _repository.getSugestoes();
-      _errorMessage = null;
-    } catch (e) {
-      _errorMessage = e.toString();
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  Future<void> aprovarSugestao(int sugestaoId) async {
-    try {
-      await _repository.aprovarSugestao(sugestaoId);
-      await loadSugestoes();
-    } catch (e) {
-      _errorMessage = e.toString();
-      notifyListeners();
-      rethrow;
-    }
-  }
-
-  Future<void> rejeitarSugestao(int sugestaoId) async {
-    try {
-      await _repository.rejeitarSugestao(sugestaoId);
-      await loadSugestoes();
-    } catch (e) {
-      _errorMessage = e.toString();
-      notifyListeners();
-      rethrow;
-    }
-  }
-
-  // Carregar parceiros
-  Future<void> loadParceiros() async {
-    _setLoading(true);
-    try {
-      _parceiros = await _repository.getAllParceiros();
-      final config = await _repository.getParceirosConfig();
-      _exibirCardParceiros = config['exibir_card'] as bool? ?? false;
-      _errorMessage = null;
-    } catch (e) {
-      _errorMessage = e.toString();
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  Future<void> createParceiro(Parceiro parceiro) async {
-    try {
-      await _repository.createParceiro(parceiro.toJson());
-      await loadParceiros();
-    } catch (e) {
-      _errorMessage = e.toString();
-      notifyListeners();
-      rethrow;
-    }
-  }
-
-  Future<void> updateParceiro(int id, Parceiro parceiro) async {
-    try {
-      await _repository.updateParceiro(id, parceiro.toJson());
-      await loadParceiros();
-    } catch (e) {
-      _errorMessage = e.toString();
-      notifyListeners();
-      rethrow;
-    }
-  }
-
-  Future<void> deleteParceiro(int id) async {
-    try {
-      await _repository.deleteParceiro(id);
-      await loadParceiros();
-    } catch (e) {
-      _errorMessage = e.toString();
-      notifyListeners();
-      rethrow;
-    }
-  }
-
-  Future<void> updateParceirosConfig(bool exibirCard) async {
-    try {
-      await _repository.updateParceirosConfig(exibirCard);
-      _exibirCardParceiros = exibirCard;
-      notifyListeners();
-    } catch (e) {
-      _errorMessage = e.toString();
-      notifyListeners();
-      rethrow;
-    }
-  }
+  List<dynamic> get parceiros => _parceiros;
 
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();
+  }
+
+  void _setError(String? error) {
+    _errorMessage = error;
+    notifyListeners();
+  }
+
+  Future<void> loadEstatisticas() async {
+    _setLoading(true);
+    _setError(null);
+    try {
+      _estatisticas = await _adminRepository.getEstatisticas();
+    } catch (e) {
+      if (e is ApiException) {
+        _setError(e.userMessage);
+      } else {
+        _setError('Erro ao carregar estatísticas.');
+      }
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> loadSugestoes() async {
+    _setLoading(true);
+    _setError(null);
+    try {
+      _sugestoes = await _adminRepository.getSugestoes();
+    } catch (e) {
+      if (e is ApiException) {
+        _setError(e.userMessage);
+      } else {
+        _setError('Erro ao carregar sugestões.');
+      }
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> aprovarSugestao(int id) async {
+    _setLoading(true);
+    _setError(null);
+    try {
+      await _adminRepository.aprovarSugestao(id);
+      await loadSugestoes();
+      return true;
+    } catch (e) {
+      if (e is ApiException) {
+        _setError(e.userMessage);
+      } else {
+        _setError('Erro ao aprovar sugestão.');
+      }
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> rejeitarSugestao(int id) async {
+    _setLoading(true);
+    _setError(null);
+    try {
+      await _adminRepository.rejeitarSugestao(id);
+      await loadSugestoes();
+      return true;
+    } catch (e) {
+      if (e is ApiException) {
+        _setError(e.userMessage);
+      } else {
+        _setError('Erro ao rejeitar sugestão.');
+      }
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> loadVerificacoes() async {
+    _setLoading(true);
+    _setError(null);
+    try {
+      _verificacoes = await _adminRepository.getVerificacoes();
+    } catch (e) {
+      if (e is ApiException) {
+        _setError(e.userMessage);
+      } else {
+        _setError('Erro ao carregar verificações.');
+      }
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> verificarPolicial(int id) async {
+    _setLoading(true);
+    _setError(null);
+    try {
+      await _adminRepository.verificarPolicial(id);
+      await loadVerificacoes();
+      return true;
+    } catch (e) {
+      if (e is ApiException) {
+        _setError(e.userMessage);
+      } else {
+        _setError('Erro ao verificar policial.');
+      }
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> rejeitarPolicial(int id) async {
+    _setLoading(true);
+    _setError(null);
+    try {
+      await _adminRepository.rejeitarPolicial(id);
+      await loadVerificacoes();
+      return true;
+    } catch (e) {
+      if (e is ApiException) {
+        _setError(e.userMessage);
+      } else {
+        _setError('Erro ao rejeitar policial.');
+      }
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> loadPoliciais({String? search, String? status, int? forcaId, int offset = 0}) async {
+    _setLoading(true);
+    _setError(null);
+    try {
+      final result = await _adminRepository.getAllPoliciais(
+        search: search,
+        statusVerificacao: status,
+        forcaId: forcaId,
+        offset: offset,
+      );
+      _policiais = List<Map<String, dynamic>>.from(result['policiais'] ?? []);
+      _totalPoliciais = result['total'] ?? 0;
+    } catch (e) {
+      if (e is ApiException) {
+        _setError(e.userMessage);
+      } else {
+        _setError('Erro ao carregar policiais.');
+      }
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> updatePolicial(int id, Map<String, dynamic> data) async {
+    _setLoading(true);
+    _setError(null);
+    try {
+      await _adminRepository.updatePolicial(id, data);
+      await loadPoliciais();
+      return true;
+    } catch (e) {
+      if (e is ApiException) {
+        _setError(e.userMessage);
+      } else {
+        _setError('Erro ao atualizar policial.');
+      }
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> loadParceiros() async {
+    _setLoading(true);
+    _setError(null);
+    try {
+      _parceiros = await _parceirosRepository.getAll();
+    } catch (e) {
+      if (e is ApiException) {
+        _setError(e.userMessage);
+      } else {
+        _setError('Erro ao carregar parceiros.');
+      }
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> createParceiro(Map<String, dynamic> data) async {
+    _setLoading(true);
+    _setError(null);
+    try {
+      await _parceirosRepository.create(data);
+      await loadParceiros();
+      return true;
+    } catch (e) {
+      if (e is ApiException) {
+        _setError(e.userMessage);
+      } else {
+        _setError('Erro ao criar parceiro.');
+      }
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> updateParceiro(int id, Map<String, dynamic> data) async {
+    _setLoading(true);
+    _setError(null);
+    try {
+      await _parceirosRepository.update(id, data);
+      await loadParceiros();
+      return true;
+    } catch (e) {
+      if (e is ApiException) {
+        _setError(e.userMessage);
+      } else {
+        _setError('Erro ao atualizar parceiro.');
+      }
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> deleteParceiro(int id) async {
+    _setLoading(true);
+    _setError(null);
+    try {
+      await _parceirosRepository.delete(id);
+      await loadParceiros();
+      return true;
+    } catch (e) {
+      if (e is ApiException) {
+        _setError(e.userMessage);
+      } else {
+        _setError('Erro ao excluir parceiro.');
+      }
+      return false;
+    } finally {
+      _setLoading(false);
+    }
   }
 }
 

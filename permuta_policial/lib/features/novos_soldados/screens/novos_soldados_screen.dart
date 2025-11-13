@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:permuta_policial/core/models/vaga_edital.dart';
-import 'package:permuta_policial/core/constants/app_constants.dart';
 import 'package:permuta_policial/features/novos_soldados/providers/novos_soldados_provider.dart';
 import 'package:permuta_policial/shared/widgets/custom_dropdown_search.dart';
-import 'package:permuta_policial/shared/widgets/error_display_widget.dart';
 import 'package:provider/provider.dart';
-import 'package:permuta_policial/core/api/api_exception.dart';
-import 'package:permuta_policial/core/utils/error_message_helper.dart';
 
 class NovosSoldadosScreen extends StatefulWidget {
   const NovosSoldadosScreen({Key? key}) : super(key: key);
@@ -41,48 +37,53 @@ class _NovosSoldadosScreenState extends State<NovosSoldadosScreen> {
 
   Widget _buildBody(BuildContext context, NovosSoldadosProvider provider) {
     if (provider.status == SoldadoScreenStatus.loading) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: AppConstants.spacingMD),
-            Text('Carregando dados...'),
-          ],
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (provider.status == SoldadoScreenStatus.error) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              Text(
+                'Erro ao carregar dados',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                provider.errorMessage ?? 'Erro desconhecido',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    if (provider.status == SoldadoScreenStatus.error) {
-      return ErrorDisplayWidget(
-        customMessage: provider.errorMessage ?? 'Erro desconhecido',
-        customTitle: 'Erro ao carregar dados',
-        customIcon: Icons.error_outline,
-        onRetry: () => provider.loadDadosTela(),
-      );
-    }
-
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppConstants.spacingMD),
+      padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildInfoCard(provider),
-          const SizedBox(height: AppConstants.spacingLG),
+          const SizedBox(height: 24),
           Text(
             'Minhas 3 Opções de Intenção',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(context).textTheme.titleLarge,
           ),
-          const SizedBox(height: AppConstants.spacingSM),
+          const SizedBox(height: 8),
           Text(
             'A análise é carregada automaticamente ao selecionar cada vaga',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Colors.grey[600],
             ),
           ),
-          const SizedBox(height: AppConstants.spacingMD),
+          const SizedBox(height: 16),
           
           _buildChoiceWithAnalysis(
             context, 
@@ -114,38 +115,7 @@ class _NovosSoldadosScreenState extends State<NovosSoldadosScreen> {
           ),
           
           const SizedBox(height: 32),
-          if (provider.selectedChoice1 == null &&
-              provider.selectedChoice2 == null &&
-              provider.selectedChoice3 == null)
-            _buildEmptyStateHint(),
-          const SizedBox(height: 16),
           _buildSaveButton(provider),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyStateHint() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue[200]!),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.info_outline, color: Colors.blue[700], size: 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Selecione pelo menos uma opção de lotação antes de salvar.',
-              style: TextStyle(
-                color: Colors.blue[900],
-                fontSize: 13,
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -252,27 +222,9 @@ class _NovosSoldadosScreenState extends State<NovosSoldadosScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16.0),
       child: Center(
-        child: Column(
-          children: [
-            Icon(Icons.info_outline, size: 24, color: Colors.grey[400]),
-            const SizedBox(height: 8),
-            Text(
-              'Análise não disponível',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Selecione uma vaga para ver a análise',
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey[500],
-              ),
-            ),
-          ],
+        child: Text(
+          'Não foi possível carregar a análise',
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
       ),
     );
@@ -429,19 +381,14 @@ class _NovosSoldadosScreenState extends State<NovosSoldadosScreen> {
 
   Widget _buildSaveButton(NovosSoldadosProvider provider) {
     bool isLoading = provider.status == SoldadoScreenStatus.saving;
-    bool hasAtLeastOneChoice = provider.selectedChoice1 != null ||
-                               provider.selectedChoice2 != null ||
-                               provider.selectedChoice3 != null;
     
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 16),
-        backgroundColor: hasAtLeastOneChoice
-            ? Theme.of(context).colorScheme.secondary
-            : Colors.grey,
+        backgroundColor: Theme.of(context).colorScheme.secondary,
         foregroundColor: Colors.white,
       ),
-      onPressed: (isLoading || !hasAtLeastOneChoice)
+      onPressed: isLoading
           ? null
           : () async {
               try {
@@ -451,57 +398,18 @@ class _NovosSoldadosScreenState extends State<NovosSoldadosScreen> {
                 
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Row(
-                      children: [
-                        Icon(Icons.check_circle, color: Colors.white),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Text('Intenções salvas com sucesso!'),
-                        ),
-                      ],
-                    ),
+                    content: Text('Intenções salvas com sucesso!'),
                     backgroundColor: Colors.green,
-                    behavior: SnackBarBehavior.floating,
-                    duration: Duration(seconds: 3),
                   ),
                 );
               
-              } on ApiException catch (e) {
-                if (!mounted) return;
-                
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Row(
-                      children: [
-                        const Icon(Icons.error_outline, color: Colors.white),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(ErrorMessageHelper.getFriendlyMessage(e)),
-                        ),
-                      ],
-                    ),
-                    backgroundColor: Colors.red,
-                    behavior: SnackBarBehavior.floating,
-                    duration: const Duration(seconds: 4),
-                  ),
-                );
               } catch (e) {
                 if (!mounted) return;
                 
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Row(
-                      children: [
-                        const Icon(Icons.error_outline, color: Colors.white),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text('Erro ao salvar: ${e.toString()}'),
-                        ),
-                      ],
-                    ),
+                    content: Text('Erro ao salvar: ${e.toString()}'),
                     backgroundColor: Colors.red,
-                    behavior: SnackBarBehavior.floating,
-                    duration: const Duration(seconds: 4),
                   ),
                 );
               }
@@ -512,14 +420,7 @@ class _NovosSoldadosScreenState extends State<NovosSoldadosScreen> {
               width: 24,
               child: CircularProgressIndicator(color: Colors.white),
             )
-          : const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.save, size: 20),
-                SizedBox(width: 8),
-                Text('SALVAR INTENÇÕES'),
-              ],
-            ),
+          : const Text('SALVAR INTENÇÕES'),
     );
   }
 }

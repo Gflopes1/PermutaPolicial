@@ -6,9 +6,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/dashboard_provider.dart';
 import '../../../core/config/app_routes.dart';
-import '../../../core/constants/app_constants.dart';
-import '../../../core/utils/error_message_helper.dart';
-import '../../../shared/widgets/error_display_widget.dart';
 
 // Repositórios e Exceções para o novo card
 import '../../../core/api/api_exception.dart';
@@ -23,10 +20,13 @@ import '../widgets/chat_card.dart';
 import '../widgets/admin_forum_buttons.dart';
 import '../widgets/parceiros_card.dart';
 import '../widgets/mapa_card.dart';
+import '../widgets/marketplace_card.dart';
+import '../../../core/models/parceiro.dart';
 
 // Modais
 import '../../profile/widgets/edit_lotacao_modal.dart';
 import '../../profile/widgets/gerir_intencoes_modal.dart';
+import '../../profile/widgets/meus_dados_modal.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -71,35 +71,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
   
   Future<void> _logout() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirmar Saída'),
-        content: const Text('Tem certeza que deseja sair da sua conta?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Sair'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      final provider = Provider.of<DashboardProvider>(context, listen: false);
-      final navigator = Navigator.of(context);
-      await provider.logout();
-      if (mounted) {
-        navigator.pushReplacementNamed(AppRoutes.auth);
-      }
-    }
+    final provider = Provider.of<DashboardProvider>(context, listen: false);
+    final navigator = Navigator.of(context);
+    await provider.logout();
+    navigator.pushReplacementNamed(AppRoutes.auth);
   }
 
   Future<void> _launchURL(String url) async {
@@ -112,15 +87,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // ==========================================================
-  // NOVA FUNÇÃO
-  // Lógica para verificar o acesso ao módulo de Novos Soldados
+  // FUNÇÃO PARA O CARD DE NOVOS SOLDADOS
+  // (A lógica de clique foi corrigida no Repositório)
   // ==========================================================
   Future<void> _checkAccessAndNavigate() async {
     setState(() {
       _isCheckingAccess = true;
     });
 
-    // Usamos context.read pois estamos dentro de um callback
     final repository = context.read<NovosSoldadosRepository>();
     
     try {
@@ -137,40 +111,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     } on ApiException catch (e) {
       // 3. Se deu erro (401 ou 403), o backend envia a mensagem de erro
+      // (Isto agora deve funcionar graças à correção no repositório)
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline, color: Colors.white),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(ErrorMessageHelper.getFriendlyMessage(e)),
-              ),
-            ],
-          ),
+          content: Text(e.message), // ex: "Acesso restrito. Requer login Microsoft."
           backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          duration: AppConstants.snackBarDurationLong,
         ),
       );
     } catch (e) {
-      // Erro genérico
+      // Erro genérico (o que você estava vendo antes)
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline, color: Colors.white),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text('Erro desconhecido: ${e.toString()}'),
-              ),
-            ],
-          ),
+          content: Text('Erro desconhecido: ${e.toString()}'),
           backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          duration: AppConstants.snackBarDurationLong,
         ),
       );
     } finally {
@@ -192,9 +147,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
             title: Text(provider.userData?.nome ?? 'Painel'),
             actions: [
               IconButton(
-                icon: const Icon(Icons.person),
+                icon: const Icon(Icons.person_outline),
                 tooltip: 'Meus Dados',
-                onPressed: () => Navigator.of(context).pushNamed(AppRoutes.meusDados),
+                onPressed: () {
+                  final provider = Provider.of<DashboardProvider>(context, listen: false);
+                  if (provider.userData != null) {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => ChangeNotifierProvider.value(
+                        value: provider,
+                        child: MeusDadosModal(
+                          userProfile: provider.userData!,
+                          intencoes: provider.intencoes,
+                        ),
+                      ),
+                    );
+                  }
+                },
               ),
               IconButton(
                 icon: const Icon(Icons.help_outline),
@@ -216,40 +185,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildBody(BuildContext context, DashboardProvider provider) {
     if (provider.isLoadingInitialData) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Carregando dados...'),
-          ],
-        ),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
     if (provider.initialDataError != null) {
-      return ErrorDisplayWidget(
-        customMessage: provider.initialDataError!,
-        customTitle: 'Erro ao carregar dados',
-        customIcon: Icons.cloud_off,
-        onRetry: () => provider.fetchInitialData(),
-      );
+      return Center(child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.cloud_off, color: Colors.red, size: 48),
+              const SizedBox(height: 16),
+              Text('Erro ao carregar dados', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 8),
+              Text(provider.initialDataError!, textAlign: TextAlign.center),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () => provider.fetchInitialData(),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Tentar Novamente'),
+              ),
+            ],
+          ),
+      ));
     }
     if (provider.userData == null) {
-      return ErrorDisplayWidget(
-        customMessage: 'Não foi possível carregar os dados do usuário.',
-        customTitle: 'Erro',
-        customIcon: Icons.person_off,
-        onRetry: () => provider.fetchInitialData(),
-      );
+      return const Center(child: Text('Não foi possível carregar os dados do usuário.'));
     }
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < AppConstants.tabletBreakpoint) {
+        if (constraints.maxWidth < 800) {
+          // === LAYOUT DE CELULAR ===
           return _buildMobileLayout(provider);
-        } else if (constraints.maxWidth < AppConstants.desktopBreakpoint) {
-          return _buildTabletLayout(provider);
         } else {
+          // === LAYOUT DE DESKTOP ===
           return _buildDesktopLayout(provider);
         }
       },
@@ -259,36 +227,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildMatchesSection(DashboardProvider provider) {
     if (provider.userData?.unidadeAtualNome == null) return const SizedBox.shrink();
     if (provider.isLoadingMatches) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(AppConstants.spacingLG),
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(),
-                const SizedBox(height: AppConstants.spacingMD),
-                Text(
-                  'Buscando permutas...',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
+      return const Card(child: Center(heightFactor: 5, child: Column(mainAxisSize: MainAxisSize.min, children: [CircularProgressIndicator(), SizedBox(height: 16), Text('Buscando permutas...')])));
     }
     if (provider.matchesError != null) {
       return Card(
+        color: Theme.of(context).colorScheme.errorContainer,
         child: Padding(
-          padding: const EdgeInsets.all(AppConstants.spacingMD),
-          child: ErrorDisplayWidget(
-            customMessage: provider.matchesError!,
-            customTitle: 'Erro ao buscar permutas',
-            customIcon: Icons.warning_amber_rounded,
-            compact: true,
-            onRetry: () => provider.fetchMatches(),
-          ),
+          padding: const EdgeInsets.all(16.0),
+          child: Column(children: [
+            const Icon(Icons.warning_amber_rounded), const SizedBox(height: 8),
+            const Text('Erro ao buscar permutas', style: TextStyle(fontWeight: FontWeight.bold)), const SizedBox(height: 8),
+            Text(provider.matchesError!, textAlign: TextAlign.center), const SizedBox(height: 16),
+            ElevatedButton.icon(onPressed: () => provider.fetchMatches(), icon: const Icon(Icons.refresh), label: const Text('Tentar Novamente'))
+          ]),
         ),
       );
     }
@@ -299,279 +250,186 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // ==========================================================
-  // NOVO WIDGET
-  // O card para o simulador de novos soldados
+  // WIDGET DO CARD DE NOVOS SOLDADOS
+  // (Nenhuma alteração aqui, apenas a chamada a ele foi movida)
   // ==========================================================
   Widget _buildNovosSoldadosCard(BuildContext context) {
     final theme = Theme.of(context);
     
     return Card(
-      elevation: AppConstants.cardElevation,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppConstants.cardBorderRadius),
-      ),
       child: Padding(
-        padding: const EdgeInsets.all(AppConstants.spacingMD),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.sim_card_outlined,
-                  color: theme.primaryColor,
-                  size: 28,
-                ),
-                const SizedBox(width: AppConstants.spacingSM),
-                Expanded(
-                  child: Text(
-                    'Simulador de Vagas (Novos Soldados)',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppConstants.spacingSM),
+            Text('Escolha de Vagas - Novos Soldados', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 8),
             Text(
-              'Simule suas 3 opções de escolha de OPM com base na sua classificação no curso.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.textTheme.bodySmall?.color,
-              ),
+              'Simule 3 opções de escolha de OPM com base na sua classificação no curso.',
+              style: theme.textTheme.bodyMedium,
             ),
-            const SizedBox(height: AppConstants.spacingMD),
+            const SizedBox(height: 16),
             // Caixa de aviso sobre o login
             Container(
-              padding: const EdgeInsets.all(AppConstants.spacingSM + 4),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: theme.primaryColor.withAlpha(10),
+                color: theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: theme.primaryColor.withAlpha(30),
-                  width: 1,
-                ),
+                border: Border.all(color: theme.primaryColor.withAlpha(122))
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.shield_outlined,
-                    color: theme.primaryColor,
-                    size: 20,
-                  ),
-                  const SizedBox(width: AppConstants.spacingSM),
+                  Icon(Icons.shield_outlined, color: theme.primaryColor, size: 20),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       'Acesso somente utilizando login via e-mail funcional (Microsoft).',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: theme.textTheme.bodySmall,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: AppConstants.spacingMD),
+            const SizedBox(height: 16),
             // Botão de Acesso
-            ElevatedButton.icon(
+            ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.primaryColor,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(
-                    AppConstants.buttonBorderRadius,
-                  ),
-                ),
+                padding: const EdgeInsets.symmetric(vertical: 12),
               ),
-              onPressed: _isCheckingAccess ? null : _checkAccessAndNavigate,
-              icon: _isCheckingAccess
+              onPressed: _isCheckingAccess ? null : _checkAccessAndNavigate, 
+              child: _isCheckingAccess
                   ? const SizedBox(
                       height: 20,
                       width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : const Icon(Icons.play_arrow),
-              label: Text(
-                _isCheckingAccess ? 'Verificando acesso...' : 'ACESSAR SIMULADOR',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ),
+                  : const Text('ACESSAR AMBIENTE'),
+            )
           ],
         ),
       ),
     );
   }
 
+  // ==========================================================
+  // LAYOUT MOBILE ATUALIZADO
+  // ==========================================================
   Widget _buildMobileLayout(DashboardProvider provider) {
     final perfilIncompleto = provider.userData?.unidadeAtualNome == null;
     return RefreshIndicator(
       onRefresh: () => provider.fetchInitialData(),
       child: ListView(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppConstants.spacingMD,
-          vertical: AppConstants.spacingLG,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         children: [
-          if (perfilIncompleto)
+          if (perfilIncompleto) 
             BoasVindasCard(
-              onCompletarPerfil: () => Navigator.of(context)
-                  .pushNamed(AppRoutes.completarPerfil),
+              onCompletarPerfil: () => Navigator.of(context).pushNamed(AppRoutes.completarPerfil),
             ),
-          if (perfilIncompleto) const SizedBox(height: AppConstants.spacingMD),
-          MinhaLotacaoCard(
-            userProfile: provider.userData!,
-            onEdit: _showEditLotacaoModal,
-          ),
-          const SizedBox(height: AppConstants.spacingMD),
+          if (perfilIncompleto) const SizedBox(height: 16),
+          
+          if (provider.userData != null)
+            MinhaLotacaoCard(
+              userProfile: provider.userData!,
+              onEdit: _showEditLotacaoModal,
+            ),
+          const SizedBox(height: 16),
+
+          _buildNovosSoldadosCard(context),
+          const SizedBox(height: 16),
+          
           MinhasIntencoesCard(
             intencoes: provider.intencoes,
             onEdit: _showEditIntencoesModal,
           ),
-          const SizedBox(height: AppConstants.spacingMD),
+          const SizedBox(height: 16),
+          
           _buildMatchesSection(provider),
-          const SizedBox(height: AppConstants.spacingMD),
-          _buildNovosSoldadosCard(context),
-          const SizedBox(height: AppConstants.spacingMD),
+          const SizedBox(height: 16),
+          
+          const MarketplaceCard(),
+          const SizedBox(height: 16),
           const MapaCard(),
-          const SizedBox(height: AppConstants.spacingMD),
+          const SizedBox(height: 16),
           const ChatCard(),
-          const SizedBox(height: AppConstants.spacingMD),
-          AdminForumButtons(
-            isEmbaixador: provider.userData!.isEmbaixador,
-          ),
-          const SizedBox(height: AppConstants.spacingMD),
-          const ParceirosCard(parceiros: []),
+          const SizedBox(height: 16),
+          if (provider.userData != null)
+            AdminForumButtons(isEmbaixador: provider.userData!.isEmbaixador),
+          if (provider.userData != null) const SizedBox(height: 16),
+          if (provider.exibirCardParceiros && provider.parceiros.isNotEmpty)
+            ParceirosCard(parceiros: provider.parceiros.map((p) => Parceiro.fromJson(p)).toList()),
+          if (provider.exibirCardParceiros && provider.parceiros.isNotEmpty) const SizedBox(height: 16),
         ],
       ),
     );
   }
 
-  Widget _buildTabletLayout(DashboardProvider provider) {
-    final perfilIncompleto = provider.userData?.unidadeAtualNome == null;
-    return RefreshIndicator(
-      onRefresh: () => provider.fetchInitialData(),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppConstants.spacingLG),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: AppConstants.maxContentWidth),
-            child: Column(
-              children: [
-                if (perfilIncompleto)
-                  BoasVindasCard(
-                    onCompletarPerfil: () => Navigator.of(context)
-                        .pushNamed(AppRoutes.completarPerfil),
-                  ),
-                if (perfilIncompleto)
-                  const SizedBox(height: AppConstants.spacingMD),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        children: [
-                          MinhaLotacaoCard(
-                            userProfile: provider.userData!,
-                            onEdit: _showEditLotacaoModal,
-                          ),
-                          const SizedBox(height: AppConstants.spacingMD),
-                          MinhasIntencoesCard(
-                            intencoes: provider.intencoes,
-                            onEdit: _showEditIntencoesModal,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: AppConstants.spacingMD),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          const ChatCard(),
-                          const SizedBox(height: AppConstants.spacingMD),
-                          AdminForumButtons(
-                            isEmbaixador: provider.userData!.isEmbaixador,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppConstants.spacingMD),
-                _buildMatchesSection(provider),
-                const SizedBox(height: AppConstants.spacingMD),
-                _buildNovosSoldadosCard(context),
-                const SizedBox(height: AppConstants.spacingMD),
-                const MapaCard(),
-                const SizedBox(height: AppConstants.spacingMD),
-                const ParceirosCard(parceiros: []),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
+  // ==========================================================
+  // LAYOUT DESKTOP ATUALIZADO
+  // ==========================================================
   Widget _buildDesktopLayout(DashboardProvider provider) {
     final perfilIncompleto = provider.userData?.unidadeAtualNome == null;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // --- BARRA LATERAL (ESQUERDA) ---
         SizedBox(
-          width: AppConstants.sidebarWidth,
+          width: 380,
           child: ListView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppConstants.spacingLG,
-              vertical: AppConstants.spacingXL,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
             children: [
-              MinhaLotacaoCard(
-                userProfile: provider.userData!,
-                onEdit: _showEditLotacaoModal,
-              ),
-              const SizedBox(height: AppConstants.spacingMD),
+              if (provider.userData != null)
+                MinhaLotacaoCard(
+                  userProfile: provider.userData!,
+                  onEdit: _showEditLotacaoModal,
+                ),
+              if (provider.userData != null) const SizedBox(height: 20),
+            
+              _buildNovosSoldadosCard(context),
+              const SizedBox(height: 20),
+
               MinhasIntencoesCard(
                 intencoes: provider.intencoes,
                 onEdit: _showEditIntencoesModal,
-              ),
-              const SizedBox(height: AppConstants.spacingMD),
-              const ChatCard(),
-              const SizedBox(height: AppConstants.spacingMD),
-              AdminForumButtons(
-                isEmbaixador: provider.userData!.isEmbaixador,
-              ),
-              const SizedBox(height: AppConstants.spacingMD),
-              const ParceirosCard(parceiros: []),
+              ), 
+              const SizedBox(height: 20),
+            
+              const MarketplaceCard(),
+              const SizedBox(height: 20),
+              const ChatCard(), 
+              const SizedBox(height: 20),
+            
+              if (provider.userData != null)
+                AdminForumButtons(isEmbaixador: provider.userData!.isEmbaixador),
+              if (provider.userData != null) const SizedBox(height: 20),
+            
+              if (provider.exibirCardParceiros && provider.parceiros.isNotEmpty)
+                ParceirosCard(parceiros: provider.parceiros.map((p) => Parceiro.fromJson(p)).toList()),
+              if (provider.exibirCardParceiros && provider.parceiros.isNotEmpty) const SizedBox(height: 20),
             ],
           ),
         ),
+        
         const VerticalDivider(width: 1, thickness: 1),
+        
+        // --- CONTEÚDO PRINCIPAL (DIREITA) ---
         Expanded(
           child: RefreshIndicator(
             onRefresh: () => provider.fetchInitialData(),
             child: ListView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppConstants.spacingLG,
-                vertical: AppConstants.spacingXL,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
               children: [
                 if (perfilIncompleto)
                   BoasVindasCard(
-                    onCompletarPerfil: () => Navigator.of(context)
-                        .pushNamed(AppRoutes.completarPerfil),
+                    onCompletarPerfil: () => Navigator.of(context).pushNamed(AppRoutes.completarPerfil),
                   ),
-                if (perfilIncompleto)
-                  const SizedBox(height: AppConstants.spacingMD),
-                _buildMatchesSection(provider),
-                const SizedBox(height: AppConstants.spacingMD),
-                _buildNovosSoldadosCard(context),
-                const SizedBox(height: AppConstants.spacingMD),
+                if (perfilIncompleto) const SizedBox(height: 20),
+              
+                _buildMatchesSection(provider), 
+                const SizedBox(height: 20),
+              
+                const MarketplaceCard(),
+                const SizedBox(height: 20),
                 const MapaCard(),
               ],
             ),

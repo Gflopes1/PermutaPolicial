@@ -157,6 +157,47 @@ class _GerirIntencoesModalState extends State<GerirIntencoesModal> {
     }
   }
 
+  Future<void> _excluirIntencoes() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar exclusão'),
+        content: const Text('Deseja realmente excluir todas as suas intenções? Esta ação não pode ser desfeita.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    setState(() => _isSaving = true);
+    final provider = Provider.of<DashboardProvider>(context, listen: false);
+    final navigator = Navigator.of(context);
+
+    final success = await provider.deleteIntencoes();
+
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Intenções excluídas com sucesso!'), backgroundColor: Colors.green),
+      );
+      navigator.pop();
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(provider.initialDataError ?? 'Falha ao excluir.'), backgroundColor: Colors.red),
+      );
+      setState(() => _isSaving = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -180,6 +221,11 @@ class _GerirIntencoesModalState extends State<GerirIntencoesModal> {
         TextButton(
           onPressed: _isSaving ? null : () => Navigator.of(context).pop(), 
           child: const Text('Cancelar')
+        ),
+        TextButton.icon(
+          onPressed: _isSaving ? null : _excluirIntencoes,
+          icon: const Icon(Icons.delete_outline, color: Colors.red),
+          label: const Text('Excluir Todas', style: TextStyle(color: Colors.red)),
         ),
         ElevatedButton(
           onPressed: _isSaving ? null : _salvarIntencoes,

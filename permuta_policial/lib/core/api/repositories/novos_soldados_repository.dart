@@ -1,4 +1,7 @@
 import 'package:permuta_policial/core/api/api_client.dart';
+import 'package:permuta_policial/core/api/api_exception.dart';
+
+// 1. IMPORTA OS NOVOS MODELS QUE ACABÁMOS DE CRIAR
 import 'package:permuta_policial/core/models/dados_tela_soldado.dart';
 import 'package:permuta_policial/core/models/analise_vaga.dart';
 
@@ -8,38 +11,67 @@ class NovosSoldadosRepository {
 
   // ----------------------------------------------------
   // MÉTODO PARA VERIFICAR O ACESSO
-  // (Este pode continuar a devolver um Map, pois é simples)
   // ----------------------------------------------------
   Future<Map<String, dynamic>> checkAccess() async {
-    final response = await _apiClient.get('/api/novos-soldados/check-access');
-    return response as Map<String, dynamic>;
+    try {
+      // === CORREÇÃO: Adicionado /api ===
+      final response = await _apiClient.get('/api/novos-soldados/check-access');
+      return response as Map<String, dynamic>;
+    } on ApiException {
+      rethrow;
+    }
   }
 
-  /// Busca os dados da tela (vagas disponíveis e intenções salvas)
+  // ----------------------------------------------------
+  // MÉTODO PARA BUSCAR OS DADOS DA TELA (Atualizado)
+  // ----------------------------------------------------
   Future<DadosTelaSoldado> getDadosTela() async {
-    final response = await _apiClient.get('/api/novos-soldados/dados-tela');
-    return DadosTelaSoldado.fromJson(response as Map<String, dynamic>);
+    try {
+      // === CORREÇÃO: Adicionado /api ===
+      final response = await _apiClient.get('/api/novos-soldados/dados-tela');
+      
+      return DadosTelaSoldado.fromJson(response as Map<String, dynamic>);
+      
+    } on ApiException {
+      rethrow;
+    }
   }
 
-  /// Salva as 3 intenções de lotação
+  // ----------------------------------------------------
+  // MÉTODO PARA SALVAR AS INTENÇÕES (Sem alteração no retorno)
+  // ----------------------------------------------------
   Future<void> salvarIntencoes({
     int? opmId1,
     int? opmId2,
     int? opmId3,
   }) async {
-    await _apiClient.post(
-      '/api/novos-soldados/salvar-intencoes',
-      {
-        'escolha_1_id': opmId1,
-        'escolha_2_id': opmId2,
-        'escolha_3_id': opmId3,
-      },
-    );
+    try {
+      // === CORREÇÃO: Adicionado /api ===
+      await _apiClient.post(
+        '/api/novos-soldados/salvar-intencoes',
+        {
+          'escolha_1_id': opmId1,
+          'escolha_2_id': opmId2,
+          'escolha_3_id': opmId3,
+        },
+      );
+    } on ApiException {
+      rethrow;
+    }
   }
 
-  /// Analisa uma vaga específica retornando informações de competição
+  // ----------------------------------------------------
+  // MÉTODO PARA ANALISAR UMA VAGA (Atualizado)
+  // ----------------------------------------------------
   Future<AnaliseVaga> analisarVaga(int opmId) async {
-    final response = await _apiClient.get('/api/novos-soldados/analise-vaga/$opmId');
-    return AnaliseVaga.fromJson(response as Map<String, dynamic>);
+    try {
+      // === CORREÇÃO: Adicionado /api ===
+      final response = await _apiClient.get('/api/novos-soldados/analise-vaga/$opmId');
+      
+      return AnaliseVaga.fromJson(response as Map<String, dynamic>);
+
+    } on ApiException {
+      rethrow;
+    }
   }
 }

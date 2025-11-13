@@ -1,7 +1,6 @@
 // /lib/features/mapa/screens/mapa_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:latlong2/latlong.dart';
@@ -61,91 +60,213 @@ class _MapaScreenState extends State<MapaScreen> {
   // Mostra os detalhes do município em um BottomSheet
   void _showDetalhesModal(BuildContext context, PontoMapa ponto) async {
     final provider = Provider.of<MapaProvider>(context, listen: false);
+    final tipo = provider.tipoVisualizacao;
+    
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) {
         return FutureBuilder<List<DetalheMunicipio>>(
           future: provider.fetchMunicipioDetails(ponto.municipioId),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(heightFactor: 5, child: CircularProgressIndicator());
+              return const SizedBox(
+                height: 200,
+                child: Center(child: CircularProgressIndicator()),
+              );
             }
             if (snapshot.hasError) {
-              return Center(heightFactor: 5, child: Text('Erro: ${snapshot.error}'));
+              return SizedBox(
+                height: 200,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                      const SizedBox(height: 16),
+                      Text('Erro: ${snapshot.error}'),
+                    ],
+                  ),
+                ),
+              );
             }
             if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return const Center(heightFactor: 5, child: Text('Nenhum detalhe encontrado.'));
+              return const SizedBox(
+                height: 200,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.info_outline, size: 48),
+                      SizedBox(height: 16),
+                      Text('Nenhum detalhe encontrado.'),
+                    ],
+                  ),
+                ),
+              );
             }
             final detalhes = snapshot.data!;
-            return Container(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.7,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Text(
-                      'Policiais ${provider.tipoVisualizacao == 'saindo' ? 'querendo sair' : 'querendo entrar'}',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+            return DraggableScrollableSheet(
+              initialChildSize: 0.7,
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              expand: false,
+              builder: (context, scrollController) {
+                return Column(
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 12, bottom: 8),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                  ),
-                  Flexible(
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: detalhes.length,
-                      itemBuilder: (context, index) {
-                        final detalhe = detalhes[index];
-                        final hasQso = detalhe.qso != null && detalhe.qso!.isNotEmpty;
-                        return ListTile(
-                          leading: const Icon(Icons.person_outline),
-                          title: Text(detalhe.policialNome),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('${detalhe.forcaSigla} | ${detalhe.unidadeNome}'),
-                              if (hasQso)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: InkWell(
-                                    onTap: () {
-                                      Clipboard.setData(ClipboardData(text: detalhe.qso!));
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Número copiado!'),
-                                          backgroundColor: Colors.green,
-                                          behavior: SnackBarBehavior.floating,
-                                        ),
-                                      );
-                                    },
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.phone, size: 14, color: Colors.green),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          detalhe.qso!,
-                                          style: const TextStyle(
-                                            color: Colors.green,
-                                            fontWeight: FontWeight.w500,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Text(
+                        tipo == 'saindo' 
+                          ? 'Policiais querendo sair de ${ponto.nome}'
+                          : tipo == 'vindo'
+                            ? 'Policiais querendo vir para ${ponto.nome}'
+                            : 'Detalhes de ${ponto.nome}',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        controller: scrollController,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: detalhes.length,
+                        itemBuilder: (context, index) {
+                          final detalhe = detalhes[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.person, size: 24),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          detalhe.policialNome,
+                                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                            fontWeight: FontWeight.bold,
                                           ),
                                         ),
-                                        const SizedBox(width: 4),
-                                        const Icon(Icons.copy, size: 12, color: Colors.grey),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                            ],
-                          ),
-                        );
-                      },
+                                  const SizedBox(height: 12),
+                                  if (detalhe.qso != null && detalhe.qso!.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 8),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.phone, size: 20, color: Colors.green),
+                                          const SizedBox(width: 8),
+                                          SelectableText(
+                                            detalhe.qso!,
+                                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.green[700],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  const Divider(),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(Icons.location_on, size: 20, color: Colors.red),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Onde está:',
+                                              style: Theme.of(context).textTheme.bodySmall,
+                                            ),
+                                            Text(
+                                              detalhe.municipioAtual != null && detalhe.estadoAtual != null
+                                                ? '${detalhe.municipioAtual}, ${detalhe.estadoAtual}'
+                                                : detalhe.unidadeNome ?? 'Não informado',
+                                              style: Theme.of(context).textTheme.bodyMedium,
+                                            ),
+                                            if (detalhe.unidadeNome != null)
+                                              Text(
+                                                detalhe.unidadeNome!,
+                                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                  fontStyle: FontStyle.italic,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(
+                                        tipo == 'saindo' ? Icons.arrow_upward : Icons.arrow_downward,
+                                        size: 20,
+                                        color: tipo == 'saindo' ? Colors.orange : Colors.blue,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              tipo == 'saindo' ? 'Quer sair para:' : 'Quer vir para:',
+                                              style: Theme.of(context).textTheme.bodySmall,
+                                            ),
+                                            if (tipo == 'saindo' && detalhe.destinosDesejados != null)
+                                              Text(
+                                                detalhe.destinosDesejados!,
+                                                style: Theme.of(context).textTheme.bodyMedium,
+                                              )
+                                            else if (tipo == 'vindo' && detalhe.municipioDesejado != null)
+                                              Text(
+                                                '${detalhe.municipioDesejado}, ${detalhe.estadoDesejado ?? ""}',
+                                                style: Theme.of(context).textTheme.bodyMedium,
+                                              )
+                                            else
+                                              const Text('Não especificado'),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Chip(
+                                    label: Text(detalhe.forcaSigla),
+                                    avatar: const Icon(Icons.shield, size: 18),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                );
+              },
             );
           },
         );
@@ -216,9 +337,8 @@ class _MapaScreenState extends State<MapaScreen> {
             initialZoom: 4.5,
             minZoom: 3.0,
             maxZoom: 18.0,
-            // Trava o norte - não permite rotação do mapa
             interactionOptions: InteractionOptions(
-              flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+              flags: InteractiveFlag.all & ~InteractiveFlag.rotate, // Desabilita rotação (trava norte)
             ),
           ),
           children: [

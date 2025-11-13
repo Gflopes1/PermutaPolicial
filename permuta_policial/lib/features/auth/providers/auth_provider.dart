@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../core/api/repositories/auth_repository.dart';
 import '../../../core/api/repositories/policiais_repository.dart';
 import '../../../core/models/user_profile.dart';
+import '../../../core/api/api_exception.dart';
 import 'auth_status.dart';
 
 class AuthProvider with ChangeNotifier {
@@ -44,7 +45,11 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      if (e is ApiException) {
+        _errorMessage = e.userMessage;
+      } else {
+        _errorMessage = 'Erro ao fazer login. Tente novamente.';
+      }
       _status = AuthStatus.unauthenticated;
       notifyListeners();
       return false;
@@ -81,7 +86,11 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
       return response['message'];
     } catch (e) {
-      _errorMessage = e.toString();
+      if (e is ApiException) {
+        _errorMessage = e.userMessage;
+      } else {
+        _errorMessage = 'Erro ao registrar. Tente novamente.';
+      }
       _status = AuthStatus.unauthenticated;
       notifyListeners();
       return null;
@@ -98,7 +107,11 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      if (e is ApiException) {
+        _errorMessage = e.userMessage;
+      } else {
+        _errorMessage = 'Erro ao confirmar email. Tente novamente.';
+      }
       _status = AuthStatus.unauthenticated;
       notifyListeners();
       return false;
@@ -111,7 +124,11 @@ class AuthProvider with ChangeNotifier {
       await _authRepository.requestPasswordReset(email);
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      if (e is ApiException) {
+        _errorMessage = e.userMessage;
+      } else {
+        _errorMessage = 'Erro ao solicitar recuperação. Tente novamente.';
+      }
       notifyListeners();
       return false;
     }
@@ -123,7 +140,11 @@ class AuthProvider with ChangeNotifier {
       final response = await _authRepository.validateResetCode(email, code);
       return response['token_recuperacao'];
     } catch (e) {
-      _errorMessage = e.toString();
+      if (e is ApiException) {
+        _errorMessage = e.userMessage;
+      } else {
+        _errorMessage = 'Código inválido. Verifique e tente novamente.';
+      }
       notifyListeners();
       return null;
     }
@@ -135,7 +156,11 @@ class AuthProvider with ChangeNotifier {
       await _authRepository.resetPassword(tempToken, newPassword);
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      if (e is ApiException) {
+        _errorMessage = e.userMessage;
+      } else {
+        _errorMessage = 'Erro ao redefinir senha. Tente novamente.';
+      }
       notifyListeners();
       return false;
     }

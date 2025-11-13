@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:permuta_policial/core/api/repositories/dados_repository.dart';
 import 'package:permuta_policial/core/config/app_routes.dart';
-import 'package:permuta_policial/core/constants/app_constants.dart';
 import 'package:permuta_policial/features/auth/providers/auth_provider.dart';
 import 'package:permuta_policial/features/auth/providers/auth_status.dart';
 import 'package:permuta_policial/shared/widgets/custom_dropdown_search.dart';
@@ -147,13 +146,13 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _doLoginComMicrosoft() async {
-  debugPrint('🔵 Iniciando login com Microsoft...');
-  final baseUrl = Provider.of<ApiClient>(context, listen: false).baseUrl;
-  final microsoftAuthUrl = Uri.parse('$baseUrl/api/auth/microsoft');
+    debugPrint('🔵 Iniciando login com Microsoft...');
+    final baseUrl = Provider.of<ApiClient>(context, listen: false).baseUrl;
+    final microsoftAuthUrl = Uri.parse('$baseUrl/api/auth/microsoft');
 
-  if (!await launchUrl(microsoftAuthUrl, webOnlyWindowName: '_self')) {
-    _showMessage('Não foi possível iniciar o login com Microsoft.');
-  }
+    if (!await launchUrl(microsoftAuthUrl, webOnlyWindowName: '_self')) {
+      _showMessage('Não foi possível iniciar o login com Microsoft.');
+    }
   }
 
   // --- HELPERS ---
@@ -181,8 +180,6 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
-  
-
   // --- BUILD ---
   @override
   Widget build(BuildContext context) {
@@ -192,28 +189,24 @@ class _AuthScreenState extends State<AuthScreen> {
         return Scaffold(
           body: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(AppConstants.spacingLG),
+              padding: const EdgeInsets.all(24.0),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: AppConstants.maxFormWidth),
+                constraints: const BoxConstraints(maxWidth: 500),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Card(
-                      elevation: 8,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          AppConstants.cardBorderRadius,
-                        ),
-                      ),
+                      elevation: 8, 
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       child: Padding(
-                        padding: const EdgeInsets.all(AppConstants.spacingXL),
+                        padding: const EdgeInsets.all(32.0),
                         child: AnimatedSwitcher(
-                          duration: AppConstants.animationDurationNormal,
-                          child: _buildCurrentForm(isLoading),
+                          duration: const Duration(milliseconds: 300), 
+                          child: _buildCurrentForm(isLoading)
                         ),
                       ),
                     ),
-                    const SizedBox(height: AppConstants.spacingLG),
+                    const SizedBox(height: 24),
                     _buildFooter(),
                   ],
                 ),
@@ -239,42 +232,35 @@ class _AuthScreenState extends State<AuthScreen> {
     return Form(
       key: _formKeyLogin,
       child: Column(
-        key: const ValueKey('login_form'), mainAxisSize: MainAxisSize.min,
+        key: const ValueKey('login_form'), 
+        mainAxisSize: MainAxisSize.min,
         children: [
           Image.asset('assets/images/logo_tatico.png', height: 100),
           const SizedBox(height: 24),
           CustomTextField(
-            controller: _emailLoginController,
-            label: 'Email',
-            prefixIcon: Icons.email,
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.next,
-            validator: (v) => (v?.isEmpty ?? true) ? 'Email é obrigatório' : null,
+            controller: _emailLoginController, 
+            label: 'Email', 
+            prefixIcon: Icons.email, 
+            keyboardType: TextInputType.emailAddress, 
+            validator: (v) => (v?.isEmpty ?? true) ? 'Email é obrigatório' : null
           ),
-          const SizedBox(height: AppConstants.spacingMD),
+          const SizedBox(height: 16),
           CustomTextField(
-            controller: _passwordLoginController,
-            label: 'Senha',
-            prefixIcon: Icons.lock,
-            obscureText: true,
-            textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => isLoading ? null : _doLogin(),
-            validator: (v) => (v?.isEmpty ?? true) ? 'Senha é obrigatória' : null,
+            controller: _passwordLoginController, 
+            label: 'Senha', 
+            prefixIcon: Icons.lock, 
+            obscureText: true, 
+            validator: (v) => (v?.isEmpty ?? true) ? 'Senha é obrigatória' : null
           ),
-          const SizedBox(height: AppConstants.spacingLG),
+          const SizedBox(height: 24),
           SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: isLoading ? null : _doLogin,
-              icon: isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(color: Colors.white),
-                    )
-                  : const Icon(Icons.login),
-              label: Text(isLoading ? 'Entrando...' : 'Entrar'),
-            ),
+            width: double.infinity, 
+            child: ElevatedButton(
+              onPressed: isLoading ? null : _doLogin, 
+              child: isLoading 
+                ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white)) 
+                : const Text('Entrar')
+            )
           ),
           const SizedBox(height: 24),
           Row(
@@ -282,7 +268,10 @@ class _AuthScreenState extends State<AuthScreen> {
               const Expanded(child: Divider()),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Text('OU', style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color)),
+                child: Text(
+                  'OU', 
+                  style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color)
+                ),
               ),
               const Expanded(child: Divider()),
             ],
@@ -292,14 +281,17 @@ class _AuthScreenState extends State<AuthScreen> {
             width: double.infinity,
             height: 50,
             child: OutlinedButton.icon(
-              icon: Image.asset('assets/images/google_logo.png', height: 24, width: 24), // Você precisará de uma imagem do logo do Google
-              label: const Text('Entrar com Google', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+              icon: Image.asset('assets/images/google_logo.png', height: 24, width: 24),
+              label: const Text(
+                'Entrar com Google', 
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)
+              ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white,
                 side: const BorderSide(color: Colors.white54),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              onPressed: isLoading ? null : _doLoginComGoogle, // Chama a nova função
+              onPressed: isLoading ? null : _doLoginComGoogle,
             ),
           ),
           const SizedBox(height: 16),
@@ -307,8 +299,11 @@ class _AuthScreenState extends State<AuthScreen> {
             width: double.infinity,
             height: 50,
             child: OutlinedButton.icon(
-              icon: Image.asset('assets/images/microsoft_logo.png', height: 22, width: 22), // Você precisará de uma imagem do logo
-              label: const Text('Entrar com Email Funcional (Recomendado)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              icon: Image.asset('assets/images/microsoft_logo.png', height: 22, width: 22),
+              label: const Text(
+                'Entrar com Email Funcional (Recomendado)', 
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)
+              ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white,
                 side: const BorderSide(color: Colors.white54),
@@ -317,12 +312,70 @@ class _AuthScreenState extends State<AuthScreen> {
               onPressed: isLoading ? null : _doLoginComMicrosoft,
             ),
           ),
+          const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              TextButton(onPressed: isLoading ? null : () => setState(() => _uiState = 'registo'), child: const Text('Criar conta')),
-              TextButton(onPressed: isLoading ? null : () => setState(() => _uiState = 'recuperar_passo1'), child: const Text('Esqueceu a senha?')),
+              TextButton(
+                onPressed: isLoading ? null : () => setState(() => _uiState = 'registo'), 
+                child: const Text('Criar conta')
+              ),
+              TextButton(
+                onPressed: isLoading ? null : () => setState(() => _uiState = 'recuperar_passo1'), 
+                child: const Text('Esqueceu a senha?')
+              ),
             ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface.withAlpha(128),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outline.withAlpha(77)
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start, 
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline, 
+                      size: 20, 
+                      color: Theme.of(context).colorScheme.primary
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Apenas emails com domínios da segurança pública são permitidos.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(context).textTheme.bodyMedium?.color
+                        )
+                      )
+                    ),
+                  ]
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.support_agent, size: 18),
+                    label: const Text('Falar com Suporte'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.primary,
+                      side: BorderSide(
+                        color: Theme.of(context).colorScheme.outline.withAlpha(77)
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    onPressed: () => _launchURL('https://wa.me/555186200626'),
+                  ),
+                ),
+              ]
+            ),
           ),
         ],
       ),
@@ -334,27 +387,121 @@ class _AuthScreenState extends State<AuthScreen> {
     return Form(
       key: _formKeyRegisto,
       child: Column(
-        key: const ValueKey('register_form'), mainAxisSize: MainAxisSize.min,
+        key: const ValueKey('register_form'), 
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text('Criar Nova Conta', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 24),
-          CustomTextField(controller: _nomeRegistoController, label: 'Nome Completo', prefixIcon: Icons.person, validator: (v) => (v?.isEmpty ?? true) ? 'Nome é obrigatório' : null),
+          CustomTextField(
+            controller: _nomeRegistoController, 
+            label: 'Nome Completo', 
+            prefixIcon: Icons.person, 
+            validator: (v) => (v?.isEmpty ?? true) ? 'Nome é obrigatório' : null
+          ),
           const SizedBox(height: 16),
-          CustomTextField(controller: _idRegistoController, label: 'ID Funcional', prefixIcon: Icons.badge, validator: (v) => (v?.isEmpty ?? true) ? 'ID Funcional é obrigatório' : null),
+          CustomTextField(
+            controller: _idRegistoController, 
+            label: 'ID Funcional', 
+            prefixIcon: Icons.badge, 
+            validator: (v) => (v?.isEmpty ?? true) ? 'ID Funcional é obrigatório' : null
+          ),
           const SizedBox(height: 16),
-          CustomDropdownSearch<dynamic>(label: 'Força Policial', asyncItems: (_) => dadosRepo.getForcas(), itemAsString: (item) => "${item.sigla} - ${item.nome}", onChanged: (value) => setState(() => _forcaSelecionadaRegisto = value)),
+          CustomDropdownSearch<dynamic>(
+            label: 'Força Policial', 
+            asyncItems: (_) => dadosRepo.getForcas(), 
+            itemAsString: (item) => "${item.sigla} - ${item.nome}", 
+            onChanged: (value) => setState(() => _forcaSelecionadaRegisto = value)
+          ),
           const SizedBox(height: 16),
-          CustomTextField(controller: _emailRegistoController, label: 'Email', prefixIcon: Icons.email, keyboardType: TextInputType.emailAddress, validator: (v) => (v?.isEmpty ?? true) ? 'Email é obrigatório' : null),
+          CustomTextField(
+            controller: _emailRegistoController, 
+            label: 'Email', 
+            prefixIcon: Icons.email, 
+            keyboardType: TextInputType.emailAddress, 
+            validator: (v) {
+              if (v?.isEmpty ?? true) return 'Email é obrigatório';
+              if (!v!.contains('@')) return 'Email inválido';
+              return null;
+            }
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface.withAlpha(128),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outline.withAlpha(77)
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline, 
+                  size: 20, 
+                  color: Theme.of(context).colorScheme.primary
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Apenas emails com domínios da segurança pública são permitidos. Isso ajuda a manter os dados seguros e exclusivos para profissionais da área.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(context).textTheme.bodyMedium?.color
+                    )
+                  )
+                ),
+              ]
+            ),
+          ),
           const SizedBox(height: 16),
-          CustomTextField(controller: _qsoRegistoController, label: 'Telefone (QSO)', prefixIcon: Icons.phone, keyboardType: TextInputType.phone, validator: (v) => (v?.isEmpty ?? true) ? 'Telefone é obrigatório' : null),
+          CustomTextField(
+            controller: _qsoRegistoController, 
+            label: 'Telefone', 
+            prefixIcon: Icons.phone, 
+            keyboardType: TextInputType.phone, 
+            validator: (v) => (v?.isEmpty ?? true) ? 'Telefone é obrigatório' : null
+          ),
           const SizedBox(height: 16),
-          CustomTextField(controller: _senhaRegistoController, label: 'Senha', prefixIcon: Icons.lock, obscureText: true, validator: (v) { if (v == null || v.length < 8) return 'Mínimo 8 caracteres'; return null; }),
+          CustomTextField(
+            controller: _senhaRegistoController, 
+            label: 'Senha', 
+            prefixIcon: Icons.lock, 
+            obscureText: true, 
+            validator: (v) { 
+              if (v == null || v.length < 8) return 'Mínimo 8 caracteres'; 
+              return null; 
+            }
+          ),
           const SizedBox(height: 16),
-          CustomTextField(controller: _confirmarSenhaRegistoController, label: 'Confirmar Senha', prefixIcon: Icons.lock_outline, obscureText: true, validator: (v) => v != _senhaRegistoController.text ? 'As senhas não coincidem' : null),
-          CheckboxListTile(title: const Text('Li e aceito os Termos de Uso.', style: TextStyle(fontSize: 14)), value: _consentimentoLGPD, onChanged: (value) => setState(() => _consentimentoLGPD = value ?? false), controlAffinity: ListTileControlAffinity.leading, contentPadding: EdgeInsets.zero),
+          CustomTextField(
+            controller: _confirmarSenhaRegistoController, 
+            label: 'Confirmar Senha', 
+            prefixIcon: Icons.lock_outline, 
+            obscureText: true, 
+            validator: (v) => v != _senhaRegistoController.text ? 'As senhas não coincidem' : null
+          ),
+          CheckboxListTile(
+            title: const Text('Li e aceito os Termos de Uso.', style: TextStyle(fontSize: 14)), 
+            value: _consentimentoLGPD, 
+            onChanged: (value) => setState(() => _consentimentoLGPD = value ?? false), 
+            controlAffinity: ListTileControlAffinity.leading, 
+            contentPadding: EdgeInsets.zero
+          ),
           const SizedBox(height: 24),
-          SizedBox(width: double.infinity, child: ElevatedButton(onPressed: isLoading ? null : _doRegister, child: isLoading ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white)) : const Text('Criar Conta'))),
-          TextButton(onPressed: isLoading ? null : () => setState(() => _uiState = 'login'), child: const Text('Já tenho uma conta')),
+          SizedBox(
+            width: double.infinity, 
+            child: ElevatedButton(
+              onPressed: isLoading ? null : _doRegister, 
+              child: isLoading 
+                ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white)) 
+                : const Text('Criar Conta')
+            )
+          ),
+          TextButton(
+            onPressed: isLoading ? null : () => setState(() => _uiState = 'login'), 
+            child: const Text('Já tenho uma conta')
+          ),
         ],
       ),
     );
@@ -364,16 +511,34 @@ class _AuthScreenState extends State<AuthScreen> {
     return Form(
       key: _formKeyConfirmarEmail,
       child: Column(
-        key: const ValueKey('confirm_form'), mainAxisSize: MainAxisSize.min,
+        key: const ValueKey('confirm_form'), 
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text('Verificar Email', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 16),
           Text('Enviamos um código de 6 dígitos para ${_emailRegistoController.text}.', textAlign: TextAlign.center),
           const SizedBox(height: 24),
-          CustomTextField(controller: _codigoConfirmacaoController, label: 'Código de 6 dígitos', prefixIcon: Icons.pin, keyboardType: TextInputType.number, validator: (v) => (v?.length ?? 0) != 6 ? 'Código inválido' : null),
+          CustomTextField(
+            controller: _codigoConfirmacaoController, 
+            label: 'Código de 6 dígitos', 
+            prefixIcon: Icons.pin, 
+            keyboardType: TextInputType.number, 
+            validator: (v) => (v?.length ?? 0) != 6 ? 'Código inválido' : null
+          ),
           const SizedBox(height: 24),
-          SizedBox(width: double.infinity, child: ElevatedButton(onPressed: isLoading ? null : _doConfirmEmail, child: isLoading ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white)) : const Text('Confirmar'))),
-          TextButton(onPressed: isLoading ? null : () => setState(() => _uiState = 'login'), child: const Text('Voltar ao Login')),
+          SizedBox(
+            width: double.infinity, 
+            child: ElevatedButton(
+              onPressed: isLoading ? null : _doConfirmEmail, 
+              child: isLoading 
+                ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white)) 
+                : const Text('Confirmar')
+            )
+          ),
+          TextButton(
+            onPressed: isLoading ? null : () => setState(() => _uiState = 'login'), 
+            child: const Text('Voltar ao Login')
+          ),
         ],
       ),
     );
@@ -383,16 +548,34 @@ class _AuthScreenState extends State<AuthScreen> {
     return Form(
       key: _formKeyRecuperar1,
       child: Column(
-        key: const ValueKey('req_reset_form'), mainAxisSize: MainAxisSize.min,
+        key: const ValueKey('req_reset_form'), 
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text('Recuperar Senha', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 16),
           const Text('Informe seu e-mail para receber o código de recuperação.', textAlign: TextAlign.center),
           const SizedBox(height: 24),
-          CustomTextField(controller: _emailRecuperarController, label: 'Email', prefixIcon: Icons.email, keyboardType: TextInputType.emailAddress, validator: (v) => (v?.isEmpty ?? true) ? 'Email é obrigatório' : null),
+          CustomTextField(
+            controller: _emailRecuperarController, 
+            label: 'Email', 
+            prefixIcon: Icons.email, 
+            keyboardType: TextInputType.emailAddress, 
+            validator: (v) => (v?.isEmpty ?? true) ? 'Email é obrigatório' : null
+          ),
           const SizedBox(height: 24),
-          SizedBox(width: double.infinity, child: ElevatedButton(onPressed: isLoading ? null : _doRequestReset, child: isLoading ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white)) : const Text('Enviar Código'))),
-          TextButton(onPressed: isLoading ? null : () => setState(() => _uiState = 'login'), child: const Text('Voltar ao Login')),
+          SizedBox(
+            width: double.infinity, 
+            child: ElevatedButton(
+              onPressed: isLoading ? null : _doRequestReset, 
+              child: isLoading 
+                ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white)) 
+                : const Text('Enviar Código')
+            )
+          ),
+          TextButton(
+            onPressed: isLoading ? null : () => setState(() => _uiState = 'login'), 
+            child: const Text('Voltar ao Login')
+          ),
         ],
       ),
     );
@@ -402,30 +585,80 @@ class _AuthScreenState extends State<AuthScreen> {
     return Form(
       key: _formKeyRecuperar2,
       child: Column(
-        key: const ValueKey('reset_form'), mainAxisSize: MainAxisSize.min,
+        key: const ValueKey('reset_form'), 
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text('Redefinir Senha', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 24),
-          CustomTextField(controller: _codigoRecuperarController, label: 'Código de Recuperação', prefixIcon: Icons.pin, keyboardType: TextInputType.number, validator: (v) => (v?.length ?? 0) != 6 ? 'Código inválido' : null),
+          CustomTextField(
+            controller: _codigoRecuperarController, 
+            label: 'Código de Recuperação', 
+            prefixIcon: Icons.pin, 
+            keyboardType: TextInputType.number, 
+            validator: (v) => (v?.length ?? 0) != 6 ? 'Código inválido' : null
+          ),
           const SizedBox(height: 16),
-          CustomTextField(controller: _novaSenhaController, label: 'Nova Senha', prefixIcon: Icons.lock, obscureText: true, validator: (v) => (v?.length ?? 0) < 8 ? 'Mínimo 8 caracteres' : null),
+          CustomTextField(
+            controller: _novaSenhaController, 
+            label: 'Nova Senha', 
+            prefixIcon: Icons.lock, 
+            obscureText: true, 
+            validator: (v) => (v?.length ?? 0) < 8 ? 'Mínimo 8 caracteres' : null
+          ),
           const SizedBox(height: 16),
-          CustomTextField(controller: _confirmarNovaSenhaController, label: 'Confirmar Nova Senha', prefixIcon: Icons.lock_outline, obscureText: true, validator: (v) => v != _novaSenhaController.text ? 'As senhas não coincidem' : null),
+          CustomTextField(
+            controller: _confirmarNovaSenhaController, 
+            label: 'Confirmar Nova Senha', 
+            prefixIcon: Icons.lock_outline, 
+            obscureText: true, 
+            validator: (v) => v != _novaSenhaController.text ? 'As senhas não coincidem' : null
+          ),
           const SizedBox(height: 24),
-          SizedBox(width: double.infinity, child: ElevatedButton(onPressed: isLoading ? null : _doValidateAndReset, child: isLoading ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white)) : const Text('Redefinir Senha'))),
-          TextButton(onPressed: isLoading ? null : () => setState(() => _uiState = 'login'), child: const Text('Voltar ao Login')),
+          SizedBox(
+            width: double.infinity, 
+            child: ElevatedButton(
+              onPressed: isLoading ? null : _doValidateAndReset, 
+              child: isLoading 
+                ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white)) 
+                : const Text('Redefinir Senha')
+            )
+          ),
+          TextButton(
+            onPressed: isLoading ? null : () => setState(() => _uiState = 'login'), 
+            child: const Text('Voltar ao Login')
+          ),
         ],
       ),
     );
   }
 
   Widget _buildFooter() {
-    return Wrap(
-      alignment: WrapAlignment.center, spacing: 16, runSpacing: 8,
+    return Column(
       children: [
-        TextButton(onPressed: () => _launchURL('https://brasil.permutapolicial.com.br/termos.html'), child: const Text('Termos de Uso', style: TextStyle(color: Colors.white70, fontSize: 13))),
-        const Text('|', style: TextStyle(color: Colors.white70)),
-        TextButton(onPressed: () => _launchURL('https://brasil.permutapolicial.com.br/privacidade.html'), child: const Text('Política de Privacidade', style: TextStyle(color: Colors.white70, fontSize: 13))),
+        Wrap(
+          alignment: WrapAlignment.center, 
+          spacing: 16, 
+          runSpacing: 8,
+          children: [
+            TextButton(
+              onPressed: () => _launchURL('https://br.permutapolicial.com.br/termos.html'), 
+              child: const Text('Termos de Uso', style: TextStyle(color: Colors.white70, fontSize: 13))
+            ),
+            const Text('|', style: TextStyle(color: Colors.white70)),
+            TextButton(
+              onPressed: () => _launchURL('https://br.permutapolicial.com.br/privacidade.html'), 
+              child: const Text('Política de Privacidade', style: TextStyle(color: Colors.white70, fontSize: 13))
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'contato@permutapolicial.com.br',
+          style: TextStyle(
+            color: Colors.white70.withAlpha(179),
+            fontSize: 12,
+          ),
+        ),
       ],
     );
   }

@@ -23,4 +23,10 @@ class IntencoesRepository {
     final responseData = await _apiClient.put('/api/intencoes/me', payload);
     return responseData;
   }
+
+  /// Exclui todas as intenções do usuário.
+  Future<Map<String, dynamic>> deleteMyIntentions() async {
+    final responseData = await _apiClient.delete('/api/intencoes/me');
+    return responseData;
+  }
 }
