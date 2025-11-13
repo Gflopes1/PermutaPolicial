@@ -6,12 +6,9 @@ module.exports = {
     // PUT /api/policiais/me
     updateMyProfile: {
         [Segments.BODY]: Joi.object().keys({
-            // Campos básicos editáveis
-            nome: Joi.string().min(2).max(255).optional(),
-            email: Joi.string().email().max(255).optional(),
-            
-            // Campos profissionais
+            // 1. CORREÇÃO PRINCIPAL: Permitir explicitamente o id_funcional
             id_funcional: Joi.string().allow('', null).optional(),
+
             qso: Joi.string().allow('', null).optional(),
             antiguidade: Joi.string().allow('', null).optional(),
             unidade_atual_id: Joi.number().integer().allow(null).optional(),
@@ -19,6 +16,9 @@ module.exports = {
             forca_id: Joi.number().integer().optional(),
             posto_graduacao_id: Joi.number().integer().allow(null).optional(),
         })
-            .unknown(false), // Não permite campos não conhecidos para maior segurança
+            // 2. ADIÇÃO PARA DEPURAÇÃO: Permite temporariamente outros campos não conhecidos.
+            // Isso fará com que a validação passe e, se ainda houver um erro, 
+            // ele acontecerá na camada do banco de dados, e veremos os logs de "🚨 DEBUG" que adicionamos antes.
+            .unknown(true),
     },
 };

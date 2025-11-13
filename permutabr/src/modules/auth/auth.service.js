@@ -11,10 +11,40 @@ const generateSixDigitCode = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
+// Lista de domínios permitidos da segurança pública
+const DOMINIOS_PERMITIDOS = [
+    'pm.al.gov.br', 'pm.ap.gov.br', 'pm.am.gov.br', 'pm.ba.gov.br', 'pm.ce.gov.br',
+    'pm.df.gov.br', 'pm.es.gov.br', 'pm.go.gov.br', 'pm.ma.gov.br', 'pm.mt.gov.br',
+    'pm.ms.gov.br', 'pm.mg.gov.br', 'pm.pa.gov.br', 'pm.pb.gov.br', 'pm.pr.gov.br',
+    'pm.pe.gov.br', 'pm.pi.gov.br', 'pm.rj.gov.br', 'pm.rn.gov.br', 'bm.rs.gov.br',
+    'pm.ro.gov.br', 'pm.rr.gov.br', 'pm.sc.gov.br', 'policiamilitar.sp.gov.br',
+    'pm.se.gov.br', 'pm.to.gov.br',
+    'pc.al.gov.br', 'pc.ap.gov.br', 'pc.am.gov.br', 'pc.ba.gov.br', 'pc.ce.gov.br',
+    'pc.df.gov.br', 'pc.es.gov.br', 'pc.go.gov.br', 'pc.ma.gov.br', 'pc.mt.gov.br',
+    'pc.ms.gov.br', 'pc.mg.gov.br', 'pc.pa.gov.br', 'pc.pb.gov.br', 'pc.pr.gov.br',
+    'pc.pe.gov.br', 'pc.pi.gov.br', 'pc.rj.gov.br', 'pc.rn.gov.br', 'pc.rs.gov.br',
+    'pc.ro.gov.br', 'pc.rr.gov.br', 'pc.sc.gov.br', 'policiacivil.sp.gov.br',
+    'pc.se.gov.br', 'pc.to.gov.br',
+    'pf.gov.br', 'prf.gov.br'
+];
+
+function validarDominioEmail(email) {
+    if (!email || typeof email !== 'string') {
+        return false;
+    }
+    const dominio = email.toLowerCase().split('@')[1];
+    return DOMINIOS_PERMITIDOS.includes(dominio);
+}
+
 class AuthService {
 
     async registrar(dadosDoUsuario) {
         const { nome, id_funcional, forca_id, email, qso, senha } = dadosDoUsuario;
+
+        // Validação de domínio
+        if (!validarDominioEmail(email)) {
+            throw new ApiError(400, 'Apenas emails com domínios da segurança pública são permitidos. Isso garante a segurança das informações dos policiais.', null, 'INVALID_EMAIL_DOMAIN');
+        }
 
         const connection = await db.getConnection();
         try {
@@ -23,7 +53,7 @@ class AuthService {
             const [existing] = await connection.execute('SELECT id, status_verificacao FROM policiais WHERE email = ?', [email]);
             if (existing.length > 0) {
                 if (existing[0].status_verificacao !== 'AGUARDANDO_VERIFICACAO_EMAIL') {
-                    throw new ApiError(409, 'Este e-mail já está cadastrado e verificado.'); // 409 Conflict
+                    throw new ApiError(409, 'Este e-mail já está cadastrado e verificado.', null, 'EMAIL_ALREADY_EXISTS');
                 }
                 await connection.execute('DELETE FROM policiais WHERE id = ?', [existing[0].id]);
             }
@@ -67,11 +97,17 @@ class AuthService {
             [email, codigo]
         );
 
-        if (rows.length === 0) throw new ApiError(400, 'Código inválido ou já utilizado.');
+        if (rows.length === 0) {
+            throw new ApiError(400, 'Código inválido ou já utilizado.', null, 'INVALID_CODE');
+        }
 
         const recuperacao = rows[0];
-        if (new Date() > new Date(recuperacao.expira_em)) throw new ApiError(400, 'Código expirado. Por favor, registre-se novamente.');
-        if (recuperacao.status_verificacao !== 'AGUARDANDO_VERIFICACAO_EMAIL') throw new ApiError(400, 'Este e-mail já foi verificado.');
+        if (new Date() > new Date(recuperacao.expira_em)) {
+            throw new ApiError(400, 'Código expirado. Por favor, registre-se novamente.', null, 'EXPIRED_CODE');
+        }
+        if (recuperacao.status_verificacao !== 'AGUARDANDO_VERIFICACAO_EMAIL') {
+            throw new ApiError(400, 'Este e-mail já foi verificado.', null, 'ALREADY_VERIFIED');
+        }
 
         await db.execute(`UPDATE policiais SET status_verificacao = 'VERIFICADO' WHERE id = ?`, [recuperacao.policial_id]);
         await db.execute('UPDATE codigos_recuperacao SET usado = TRUE WHERE id = ?', [recuperacao.id]);
@@ -141,10 +177,14 @@ class AuthService {
             [email, codigo]
         );
 
-        if (rows.length === 0) throw new ApiError(400, 'Código inválido ou expirado.');
+        if (rows.length === 0) {
+            throw new ApiError(400, 'Código inválido ou expirado.', null, 'INVALID_CODE');
+        }
 
         const recuperacao = rows[0];
-        if (new Date() > new Date(recuperacao.expira_em)) throw new ApiError(400, 'Código expirado.');
+        if (new Date() > new Date(recuperacao.expira_em)) {
+            throw new ApiError(400, 'Código expirado.', null, 'EXPIRED_CODE');
+        }
 
         const token = jwt.sign(
             { policial_id: recuperacao.policial_id, tipo: 'recuperacao' },

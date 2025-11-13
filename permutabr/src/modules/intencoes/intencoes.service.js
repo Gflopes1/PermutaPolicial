@@ -14,6 +14,11 @@ class IntencoesService {
     await intencoesRepository.replaceAll(policialId, intencoes);
     return { message: 'Intenções atualizadas com sucesso.' };
   }
+
+  async deleteByPolicialId(policialId) {
+    await intencoesRepository.deleteAll(policialId);
+    return { message: 'Intenções excluídas com sucesso.' };
+  }
 }
 
 module.exports = new IntencoesService();

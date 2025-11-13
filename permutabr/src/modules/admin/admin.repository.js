@@ -70,108 +70,87 @@ class AdminRepository {
     return result.affectedRows > 0;
   }
 
-  async findAllPoliciais(page = 1, limit = 50, search = '') {
-    const offset = (page - 1) * limit;
+  async findAllPoliciais(filters = {}) {
     let query = `
       SELECT 
         p.id, p.nome, p.email, p.id_funcional, p.qso, p.status_verificacao,
-        p.embaixador, p.criado_em, p.posto_graduacao_id,
+        p.criado_em, p.embaixador,
         f.sigla as forca_sigla, f.nome as forca_nome,
-        pg.nome as posto_graduacao_nome,
-        u.nome as unidade_atual_nome,
-        m.nome as municipio_atual_nome,
-        e.sigla as estado_atual_sigla
+        u.nome as unidade_atual,
+        m.nome as municipio_atual,
+        e.sigla as estado_atual
       FROM policiais p
       LEFT JOIN forcas_policiais f ON p.forca_id = f.id
-      LEFT JOIN postos_graduacoes pg ON p.posto_graduacao_id = pg.id
       LEFT JOIN unidades u ON p.unidade_atual_id = u.id
       LEFT JOIN municipios m ON u.municipio_id = m.id
       LEFT JOIN estados e ON m.estado_id = e.id
+      WHERE 1=1
     `;
     const params = [];
 
-    if (search) {
-      query += ` WHERE p.nome LIKE ? OR p.email LIKE ? OR p.id_funcional LIKE ?`;
-      const searchTerm = `%${search}%`;
+    if (filters.status_verificacao) {
+      query += ' AND p.status_verificacao = ?';
+      params.push(filters.status_verificacao);
+    }
+    if (filters.forca_id) {
+      query += ' AND p.forca_id = ?';
+      params.push(filters.forca_id);
+    }
+    if (filters.search) {
+      query += ' AND (p.nome LIKE ? OR p.email LIKE ? OR p.id_funcional LIKE ?)';
+      const searchTerm = `%${filters.search}%`;
       params.push(searchTerm, searchTerm, searchTerm);
     }
 
-    query += ` ORDER BY p.criado_em DESC LIMIT ? OFFSET ?`;
-    params.push(limit, offset);
+    query += ' ORDER BY p.criado_em DESC LIMIT ? OFFSET ?';
+    params.push(filters.limit || 50, filters.offset || 0);
 
-    const [policiais] = await db.execute(query, params);
+    const [policiais] = await db.query(query, params);
+    return policiais;
+  }
 
-    // Contar total
-    let countQuery = 'SELECT COUNT(*) as total FROM policiais p';
-    const countParams = [];
-    if (search) {
-      countQuery += ` WHERE p.nome LIKE ? OR p.email LIKE ? OR p.id_funcional LIKE ?`;
-      const searchTerm = `%${search}%`;
-      countParams.push(searchTerm, searchTerm, searchTerm);
+  async countPoliciais(filters = {}) {
+    let query = 'SELECT COUNT(*) as total FROM policiais WHERE 1=1';
+    const params = [];
+
+    if (filters.status_verificacao) {
+      query += ' AND status_verificacao = ?';
+      params.push(filters.status_verificacao);
     }
-    const [countResult] = await db.execute(countQuery, countParams);
+    if (filters.forca_id) {
+      query += ' AND forca_id = ?';
+      params.push(filters.forca_id);
+    }
+    if (filters.search) {
+      query += ' AND (nome LIKE ? OR email LIKE ? OR id_funcional LIKE ?)';
+      const searchTerm = `%${filters.search}%`;
+      params.push(searchTerm, searchTerm, searchTerm);
+    }
 
-    return {
-      policiais,
-      total: countResult[0].total,
-      page,
-      limit,
-      totalPages: Math.ceil(countResult[0].total / limit),
-    };
+    const [result] = await db.query(query, params);
+    return result[0].total;
   }
 
-  async findAllParceiros() {
-    const [parceiros] = await db.query(`
-      SELECT id, imagem_url, link_url, ordem, ativo, criado_em
-      FROM parceiros
-      ORDER BY ordem ASC, criado_em DESC
-    `);
-    return parceiros;
-  }
-
-  async createParceiro(parceiro) {
-    const { imagem_url, link_url, ordem, ativo } = parceiro;
-    const [result] = await db.execute(
-      'INSERT INTO parceiros (imagem_url, link_url, ordem, ativo) VALUES (?, ?, ?, ?)',
-      [imagem_url, link_url || null, ordem || 0, ativo !== false]
-    );
-    return result.insertId;
-  }
-
-  async updateParceiro(id, parceiro) {
-    const { imagem_url, link_url, ordem, ativo } = parceiro;
-    const [result] = await db.execute(
-      'UPDATE parceiros SET imagem_url = ?, link_url = ?, ordem = ?, ativo = ? WHERE id = ?',
-      [imagem_url, link_url || null, ordem || 0, ativo !== false, id]
-    );
-    return result.affectedRows > 0;
-  }
-
-  async deleteParceiro(id) {
-    const [result] = await db.execute('DELETE FROM parceiros WHERE id = ?', [id]);
-    return result.affectedRows > 0;
-  }
-
-  async getParceirosConfig() {
-    const [config] = await db.query("SELECT valor FROM configuracoes WHERE chave = 'exibir_card_parceiros'");
-    const exibirCard = config.length > 0 && config[0].valor === '1';
+  async updatePolicial(policialId, updateData) {
+    const allowedFields = ['status_verificacao', 'embaixador', 'forca_id', 'unidade_atual_id'];
+    const fieldsToUpdate = {};
     
-    const parceiros = await this.findAllParceiros();
-    const parceirosAtivos = parceiros.filter(p => p.ativo);
+    for (const field of allowedFields) {
+      if (updateData[field] !== undefined) {
+        fieldsToUpdate[field] = updateData[field];
+      }
+    }
 
-    return {
-      exibir_card: exibirCard,
-      parceiros: parceirosAtivos,
-    };
-  }
+    if (Object.keys(fieldsToUpdate).length === 0) {
+      return false;
+    }
 
-  async updateParceirosConfig(exibirCard) {
-    const [result] = await db.execute(
-      `INSERT INTO configuracoes (chave, valor) VALUES ('exibir_card_parceiros', ?)
-       ON DUPLICATE KEY UPDATE valor = ?`,
-      [exibirCard ? '1' : '0', exibirCard ? '1' : '0']
-    );
-    return true;
+    const setClause = Object.keys(fieldsToUpdate).map(key => `${key} = ?`).join(', ');
+    const values = [...Object.values(fieldsToUpdate), policialId];
+    const query = `UPDATE policiais SET ${setClause} WHERE id = ?`;
+
+    const [result] = await db.execute(query, values);
+    return result.affectedRows > 0;
   }
 }
 

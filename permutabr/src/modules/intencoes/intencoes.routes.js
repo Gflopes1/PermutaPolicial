@@ -16,6 +16,7 @@ router.route('/me')
   .put(
     celebrate(intencoesValidation.updateMyIntentions),
     intencoesController.updateMyIntentions
-  );
+  )
+  .delete(intencoesController.deleteMyIntentions);
 
 module.exports = router;

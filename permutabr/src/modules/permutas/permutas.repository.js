@@ -8,12 +8,14 @@ class PermutasRepository {
     // MUDANÇA: 'filters' foi removido da assinatura da função.
     async findInteressados({ profile, forcaCondition, forcaParams }) {
         try {
-            console.log('🔍 DEBUG PROFILE no findInteressados:');
-            console.log('   Unidade ID:', profile.unidade_atual_id);
-            console.log('   Município ID:', profile.municipio_id);
-            console.log('   Estado ID:', profile.estado_id);
-            console.log('   Força Condition:', forcaCondition);
-            console.log('   Força Params:', forcaParams);
+            if (process.env.NODE_ENV === 'development') {
+                console.log('🔍 DEBUG PROFILE no findInteressados:');
+                console.log('   Unidade ID:', profile.unidade_atual_id);
+                console.log('   Município ID:', profile.municipio_id);
+                console.log('   Estado ID:', profile.estado_id);
+                console.log('   Força Condition:', forcaCondition);
+                console.log('   Força Params:', forcaParams);
+            }
 
             let query = `
       SELECT DISTINCT 
@@ -54,17 +56,25 @@ class PermutasRepository {
                 profile.estado_id          // para ESTADO
             ];
 
-            console.log('📋 Query params:', params);
+            if (process.env.NODE_ENV === 'development') {
+                console.log('📋 Query params:', params);
+            }
 
             query += ' ORDER BY i.prioridade ASC';
 
             const [rows] = await db.execute(query, params);
-            console.log('✅ Interessados encontrados:', rows.length);
+            
+            if (process.env.NODE_ENV === 'development') {
+                console.log('✅ Interessados encontrados:', rows.length);
+            }
+            
             return rows;
         } catch (error) {
-            console.error('💥 ERRO DETALHADO:', error.message);
-            console.error('   Stack:', error.stack);
-            throw new ApiError(500, 'Ocorreu um erro no servidor ao buscar por interessados.');
+            console.error('💥 ERRO ao buscar interessados:', error.message);
+            if (process.env.NODE_ENV === 'development') {
+                console.error('   Stack:', error.stack);
+            }
+            throw new ApiError(500, 'Ocorreu um erro no servidor ao buscar por interessados.', null, 'DATABASE_ERROR');
         }
     }
 
@@ -104,8 +114,11 @@ class PermutasRepository {
             const [rows] = await db.execute(query, params);
             return rows;
         } catch (error) {
-            console.error('ERRO NA QUERY FINDDIRETAS:', error);
-            throw new ApiError(500, 'Ocorreu um erro no servidor ao buscar por permutas diretas.');
+            console.error('💥 ERRO ao buscar permutas diretas:', error.message);
+            if (process.env.NODE_ENV === 'development') {
+                console.error('   Stack:', error.stack);
+            }
+            throw new ApiError(500, 'Ocorreu um erro no servidor ao buscar por permutas diretas.', null, 'DATABASE_ERROR');
         }
     }
 
@@ -168,8 +181,11 @@ class PermutasRepository {
             const [rows] = await db.execute(query, [profile.id]);
             return rows;
         } catch (error) {
-            console.error('ERRO NA QUERY FINDTRIANGULARES:', error);
-            throw new ApiError(500, 'Ocorreu um erro no servidor ao buscar por permutas triangulares.');
+            console.error('💥 ERRO ao buscar permutas triangulares:', error.message);
+            if (process.env.NODE_ENV === 'development') {
+                console.error('   Stack:', error.stack);
+            }
+            throw new ApiError(500, 'Ocorreu um erro no servidor ao buscar por permutas triangulares.', null, 'DATABASE_ERROR');
         }
     }
 }

@@ -25,4 +25,9 @@ module.exports = {
     (req) => intencoesService.updateByPolicialId(req.user.id, req.body.intencoes),
     200
   ),
+
+  deleteMyIntentions: handleRequest(
+    (req) => intencoesService.deleteByPolicialId(req.user.id),
+    200
+  ),
 };

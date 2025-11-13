@@ -7,7 +7,7 @@ module.exports = async (req, res, next) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return next(ApiError.unauthorized('Token não fornecido. Acesso negado.'));
+        return next(new ApiError(401, 'Token não fornecido. Acesso negado.'));
     }
 
     const token = authHeader.split(' ')[1];
@@ -17,7 +17,7 @@ module.exports = async (req, res, next) => {
         const policialId = decoded.policial_id; // Padronizado para usar apenas policial_id
 
         if (!policialId) {
-            return next(ApiError.unauthorized('Token inválido: sem ID de usuário.'));
+            return next(new ApiError(401, 'Token inválido: sem ID de usuário.'));
         }
 
         // --- CORREÇÃO APLICADA AQUI ---
@@ -26,7 +26,7 @@ module.exports = async (req, res, next) => {
         const [rows] = await db.execute('SELECT * FROM policiais WHERE id = ?', [policialId]);
 
         if (rows.length === 0) {
-            return next(ApiError.unauthorized('Usuário do token não encontrado.'));
+            return next(new ApiError(401, 'Usuário do token não encontrado.'));
         }
 
         // Anexamos o objeto completo do usuário à requisição.
@@ -36,8 +36,8 @@ module.exports = async (req, res, next) => {
         next();
     } catch (error) {
         if (error.name === 'TokenExpiredError') {
-            return next(ApiError.unauthorized('Sessão expirada. Faça login novamente.'));
+            return next(new ApiError(401, 'Token expirado.'));
         }
-        return next(ApiError.unauthorized('Token inválido. Faça login novamente.'));
+        return next(new ApiError(401, 'Token inválido.'));
     }
 };

@@ -52,7 +52,7 @@ class PoliciaisService {
             // Verifica se o erro é de entrada duplicada do MySQL/MariaDB
             if (error.code === 'ER_DUP_ENTRY') {
                 // Lança um erro específico e amigável que será convertido para um status 409
-                throw new ApiError(409, 'Este ID Funcional/Matrícula já está em uso nesta Força Policial. Verifique os dados e tente novamente.');
+                throw new ApiError(409, 'Este ID Funcional/Matrícula já está em uso nesta Força Policial. Verifique os dados e tente novamente.', null, 'DUPLICATE_ENTRY');
             }
             // Se for outro tipo de erro, lança-o para ser tratado pelo handler geral
             throw error;

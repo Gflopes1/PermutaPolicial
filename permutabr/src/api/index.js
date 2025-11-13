@@ -12,6 +12,10 @@ const dadosRoutes = require('../modules/dados/dados.routes');
 const mapaRoutes = require('../modules/mapa/mapa.routes');
 const adminRoutes = require('../modules/admin/admin.routes');
 const novosSoldadosRoutes = require('../modules/novos-soldados/novos-soldados.routes');
+const parceirosRoutes = require('../modules/parceiros/parceiros.routes');
+const chatRoutes = require('../modules/chat/chat.routes');
+const forumRoutes = require('../modules/forum/forum.routes');
+const marketplaceRoutes = require('../modules/marketplace/marketplace.routes');
 
 router.get('/', (req, res) => {
     res.json({
@@ -29,5 +33,9 @@ router.use('/dados', dadosRoutes);
 router.use('/mapa', mapaRoutes);
 router.use('/admin', adminRoutes);
 router.use('/novos-soldados', novosSoldadosRoutes);
+router.use('/parceiros', parceirosRoutes);
+router.use('/chat', chatRoutes);
+router.use('/forum', forumRoutes);
+router.use('/marketplace', marketplaceRoutes);
 
 module.exports = router;

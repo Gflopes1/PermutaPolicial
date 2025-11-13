@@ -61,6 +61,11 @@ class IntencoesRepository {
       connection.release();
     }
   }
+
+  async deleteAll(policialId) {
+    const [result] = await db.execute('DELETE FROM intencoes WHERE policial_id = ?', [policialId]);
+    return result.affectedRows;
+  }
 }
 
 module.exports = new IntencoesRepository();
