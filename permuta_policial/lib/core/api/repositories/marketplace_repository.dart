@@ -1,7 +1,9 @@
 // /lib/core/api/repositories/marketplace_repository.dart
 
 import 'dart:io';
+// ignore: unnecessary_import
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
@@ -26,21 +28,29 @@ class MarketplaceRepository {
     final uri = Uri.parse('$_baseUrl/api/marketplace').replace(queryParameters: queryParams);
     final response = await _apiClient.get(uri.toString().replaceFirst(_baseUrl, ''));
     
+    debugPrint('getAll response type: ${response.runtimeType}');
+    debugPrint('getAll response: $response');
+    
     if (response is List) {
-      return (response as List<Map<String, dynamic>>).map((item) => MarketplaceItem.fromJson(item)).toList();
+      return response.map((item) => MarketplaceItem.fromJson(item as Map<String, dynamic>)).toList();
     }
     return [];
   }
 
   Future<MarketplaceItem> getById(int id) async {
     final response = await _apiClient.get('/api/marketplace/$id');
+    debugPrint('getById response: $response');
     return MarketplaceItem.fromJson(response as Map<String, dynamic>);
   }
 
   Future<List<MarketplaceItem>> getByUsuario(int policialId) async {
     final response = await _apiClient.get('/api/marketplace/usuario/$policialId');
+    
+    debugPrint('getByUsuario response type: ${response.runtimeType}');
+    debugPrint('getByUsuario response: $response');
+    
     if (response is List) {
-      return (response as List<Map<String, dynamic>>).map((item) => MarketplaceItem.fromJson(item)).toList();
+      return response.map((item) => MarketplaceItem.fromJson(item as Map<String, dynamic>)).toList();
     }
     return [];
   }
@@ -56,7 +66,6 @@ class MarketplaceRepository {
     return await _createWithFiles(titulo, descricao, valor, tipo, fotos, fotosXFile);
   }
 
-  // Método auxiliar que aceita File ou XFile
   Future<MarketplaceItem> _createWithFiles(
     String titulo,
     String descricao,
@@ -97,6 +106,9 @@ class MarketplaceRepository {
     };
 
     final response = await _apiClient.postMultipart('/api/marketplace', data, files);
+    debugPrint('create response type: ${response.runtimeType}');
+    debugPrint('create response: $response');
+    
     return MarketplaceItem.fromJson(response as Map<String, dynamic>);
   }
 
@@ -157,7 +169,7 @@ class MarketplaceRepository {
       }
     }
 
-    final data = <String, String>{};
+    final data = <String, dynamic>{};
     if (titulo != null) data['titulo'] = titulo;
     if (descricao != null) data['descricao'] = descricao;
     if (valor != null) data['valor'] = valor.toStringAsFixed(2);
@@ -167,6 +179,7 @@ class MarketplaceRepository {
         ? await _apiClient.put('/api/marketplace/$id', data)
         : await _apiClient.putMultipart('/api/marketplace/$id', data, files);
     
+    debugPrint('update response: $response');
     return MarketplaceItem.fromJson(response as Map<String, dynamic>);
   }
 
@@ -185,19 +198,24 @@ class MarketplaceRepository {
     final uri = Uri.parse('$_baseUrl/api/marketplace/admin/todos').replace(queryParameters: queryParams);
     final response = await _apiClient.get(uri.toString().replaceFirst(_baseUrl, ''));
     
+    debugPrint('getAllAdmin response type: ${response.runtimeType}');
+    debugPrint('getAllAdmin response: $response');
+    
     if (response is List) {
-      return (response as List<Map<String, dynamic>>).map((item) => MarketplaceItem.fromJson(item)).toList();
+      return response.map((item) => MarketplaceItem.fromJson(item as Map<String, dynamic>)).toList();
     }
     return [];
   }
 
   Future<MarketplaceItem> aprovar(int id) async {
     final response = await _apiClient.put('/api/marketplace/admin/$id/aprovar', {});
+    debugPrint('aprovar response: $response');
     return MarketplaceItem.fromJson(response as Map<String, dynamic>);
   }
 
   Future<MarketplaceItem> rejeitar(int id) async {
     final response = await _apiClient.put('/api/marketplace/admin/$id/rejeitar', {});
+    debugPrint('rejeitar response: $response');
     return MarketplaceItem.fromJson(response as Map<String, dynamic>);
   }
 
@@ -205,4 +223,3 @@ class MarketplaceRepository {
     await _apiClient.delete('/api/marketplace/admin/$id');
   }
 }
-

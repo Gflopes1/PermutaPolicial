@@ -1,8 +1,8 @@
 // /lib/features/marketplace/screens/marketplace_create_screen.dart
 
-import 'dart:typed_data'; // Necessário para Uint8List
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-// kIsWeb ainda é útil, mas não para os arquivos
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../providers/marketplace_provider.dart';
@@ -26,9 +26,7 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
   final _valorController = TextEditingController();
   String? _tipoSelecionado;
   
-  // Usamos apenas XFile, que funciona em web e mobile.
   final List<XFile> _fotosXFile = []; 
-  
   final List<String> _fotosExistentes = [];
   final ImagePicker _picker = ImagePicker();
   bool _isEditMode = false;
@@ -56,29 +54,41 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
   }
 
   Future<void> _adicionarFoto() async {
-    // A lógica de contagem agora é unificada
     final totalFotos = _fotosXFile.length + _fotosExistentes.length;
     if (totalFotos >= 3) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Máximo de 3 fotos permitidas')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Máximo de 3 fotos permitidas')),
+        );
+      }
       return;
     }
 
     try {
-      final XFile? foto = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1200,
-        imageQuality: 80,
-      );
+      // Tenta usar pickImage com tratamento especial para Web
+      XFile? foto;
+      
+      if (kIsWeb) {
+        // Na web, use pickImage sem maxWidth/imageQuality
+        foto = await _picker.pickImage(
+          source: ImageSource.gallery,
+        );
+      } else {
+        // No mobile, pode usar maxWidth e imageQuality
+        foto = await _picker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 1200,
+          imageQuality: 80,
+        );
+      }
       
       if (foto != null) {
         setState(() {
-          // Adiciona apenas à lista _fotosXFile
-          _fotosXFile.add(foto);
+          _fotosXFile.add(foto!);
         });
       }
     } catch (e) {
+      debugPrint('Erro ao adicionar foto: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro ao adicionar foto: $e')),
@@ -89,7 +99,6 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
 
   void _removerFoto(int index) {
     setState(() {
-      // Remove apenas da lista _fotosXFile
       _fotosXFile.removeAt(index);
     });
   }
@@ -106,7 +115,7 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
       );
       return;
     }
-    // Lógica de contagem unificada
+    
     final totalFotos = _fotosXFile.length + _fotosExistentes.length;
     if (totalFotos == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -116,88 +125,61 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
     }
 
     final provider = Provider.of<MarketplaceProvider>(context, listen: false);
-    
+    final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
+    final user = dashboardProvider.userData;
+
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Erro ao obter dados do usuário')),
+      );
+      return;
+    }
+
+    final valor = double.tryParse(_valorController.text.replaceAll(',', '.'));
+    if (valor == null || valor <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Valor inválido')),
+      );
+      return;
+    }
+
+    bool success;
     if (_isEditMode) {
-      final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
-      final user = dashboardProvider.userData;
-
-      if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro ao obter dados do usuário')),
-        );
-        return;
-      }
-
-      final valor = double.tryParse(_valorController.text.replaceAll(',', '.'));
-      if (valor == null || valor <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Valor inválido')),
-        );
-        return;
-      }
-
-      final success = await provider.updateItem(
+      success = await provider.updateItem(
         id: widget.itemToEdit!.id,
         titulo: _tituloController.text.trim(),
         descricao: _descricaoController.text.trim(),
         valor: valor,
         tipo: _tipoSelecionado!,
-        fotos: null, // Não usamos mais List<File>
-        fotosXFile: _fotosXFile.isNotEmpty ? _fotosXFile : null, // Envia apenas XFile
+        fotos: null,
+        fotosXFile: _fotosXFile.isNotEmpty ? _fotosXFile : null,
       );
-
-      if (!mounted) return;
-
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Item atualizado com sucesso! Aguardando aprovação.')),
-        );
-        Navigator.pop(context, true);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(provider.errorMessage ?? 'Erro ao atualizar item')),
-        );
-      }
     } else {
-      final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
-      final user = dashboardProvider.userData;
-
-      if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro ao obter dados do usuário')),
-        );
-        return;
-      }
-
-      final valor = double.tryParse(_valorController.text.replaceAll(',', '.'));
-      if (valor == null || valor <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Valor inválido')),
-        );
-        return;
-      }
-
-      final success = await provider.createItem(
+      success = await provider.createItem(
         titulo: _tituloController.text.trim(),
         descricao: _descricaoController.text.trim(),
         valor: valor,
         tipo: _tipoSelecionado!,
-        fotos: [], // Não usamos mais List<File>
-        fotosXFile: _fotosXFile, // Envia apenas XFile
+        fotos: [],
+        fotosXFile: _fotosXFile,
       );
+    }
 
-      if (!mounted) return;
+    if (!mounted) return;
 
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Item criado com sucesso! Aguardando aprovação.')),
-        );
-        Navigator.pop(context);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(provider.errorMessage ?? 'Erro ao criar item')),
-        );
-      }
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_isEditMode 
+            ? 'Item atualizado com sucesso! Aguardando aprovação.' 
+            : 'Item criado com sucesso! Aguardando aprovação.'),
+        ),
+      );
+      Navigator.pop(context, true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(provider.errorMessage ?? 'Erro ao salvar item')),
+      );
     }
   }
 
@@ -249,7 +231,7 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              initialValue: _tipoSelecionado,
+              value: _tipoSelecionado,
               decoration: const InputDecoration(
                 labelText: 'Tipo *',
                 border: OutlineInputBorder(),
@@ -263,13 +245,16 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
               validator: (v) => v == null ? 'Tipo é obrigatório' : null,
             ),
             const SizedBox(height: 24),
-            const Text('Fotos (máximo 3) *', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text(
+              'Fotos (máximo 3) *',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                // Fotos existentes (via URL)
+                // Fotos existentes
                 ..._fotosExistentes.asMap().entries.map((entry) {
                   final index = entry.key;
                   final fotoUrl = entry.value;
@@ -302,17 +287,34 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
                   );
                 }),
                 
-                // Fotos novas (XFile, exibidas com FutureBuilder e Image.memory)
+                // Fotos novas
                 ..._fotosXFile.asMap().entries.map((entry) {
                   final index = entry.key;
                   return Stack(
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        // Este FutureBuilder funciona em AMBAS as plataformas (web e mobile)
                         child: FutureBuilder<Uint8List>(
                           future: _fotosXFile[index].readAsBytes(),
                           builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return Container(
+                                width: 100,
+                                height: 100,
+                                color: Colors.grey[300],
+                                child: const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              );
+                            }
+                            if (snapshot.hasError) {
+                              return Container(
+                                width: 100,
+                                height: 100,
+                                color: Colors.grey[300],
+                                child: const Icon(Icons.error),
+                              );
+                            }
                             if (snapshot.hasData) {
                               return Image.memory(
                                 snapshot.data!,
@@ -325,7 +327,7 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
                               width: 100,
                               height: 100,
                               color: Colors.grey[300],
-                              child: const CircularProgressIndicator(),
+                              child: const Icon(Icons.image),
                             );
                           },
                         ),
@@ -364,7 +366,7 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
               decoration: BoxDecoration(
                 color: Colors.blue.shade50,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
+                border: Border.all(color: const Color.fromARGB(255, 5, 70, 122)),
               ),
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -409,7 +411,10 @@ class _MarketplaceCreateScreenState extends State<MarketplaceCreateScreen> {
                       ? const SizedBox(
                           height: 24,
                           width: 24,
-                          child: CircularProgressIndicator(color: Colors.white),
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
                         )
                       : Text(_isEditMode ? 'Salvar Alterações' : 'Criar Anúncio'),
                 );

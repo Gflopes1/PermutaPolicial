@@ -36,7 +36,7 @@ class ApiClient {
   Future<Map<String, String>> _getHeaders({String? token}) async {
     final finalToken = token ?? await _storageService.getToken();
     return {
-      'Content-Type': 'application/json; charset=UTF-O',
+      'Content-Type': 'application/json; charset=UTF-8', // CORRIGIDO: UTF-8
       if (finalToken != null) 'Authorization': 'Bearer $finalToken',
     };
   }
@@ -83,6 +83,8 @@ class ApiClient {
   }
 
   Future<dynamic> post(String endpoint, Map<String, dynamic> data, {String? token}) async {
+    debugPrint('POST: $_baseUrl$endpoint'); // ADICIONADO: Log para debug
+    debugPrint('POST Body: ${json.encode(data)}'); // ADICIONADO: Log do body
     try {
       final uri = Uri.parse('$_baseUrl$endpoint');
       final response = await _httpClient
@@ -92,6 +94,8 @@ class ApiClient {
             body: json.encode(data),
           )
           .timeout(_timeoutDuration);
+      debugPrint('POST Response Status: ${response.statusCode}'); // ADICIONADO: Log da resposta
+      debugPrint('POST Response Body: ${response.body}'); // ADICIONADO: Log do body
       return _handleResponse(response);
     } on SocketException {
       throw ApiException(
@@ -103,12 +107,14 @@ class ApiClient {
         message: 'Erro de comunicação com o servidor: ${e.message}',
         code: 'HTTP_ERROR',
       );
-    } on FormatException {
+    } on FormatException catch (e) {
+      debugPrint('FormatException em POST: $e'); // ADICIONADO: Log do erro
       throw ApiException(
         message: 'Resposta inválida do servidor. Tente novamente.',
         code: 'INVALID_RESPONSE',
       );
     } catch (e) {
+      debugPrint('Erro não tratado em POST: $e'); // ADICIONADO: Log do erro
       if (e is ApiException) rethrow;
       if (e.toString().contains('timeout') || e.toString().contains('TimeoutException')) {
         throw ApiException(
@@ -124,6 +130,7 @@ class ApiClient {
   }
 
   Future<dynamic> put(String endpoint, Map<String, dynamic> data, {String? token}) async {
+    debugPrint('PUT: $_baseUrl$endpoint'); // ADICIONADO: Log para debug
     try {
       final uri = Uri.parse('$_baseUrl$endpoint');
       final response = await _httpClient
@@ -165,10 +172,14 @@ class ApiClient {
   }
 
   dynamic _handleResponse(http.Response response) {
+    debugPrint('Response Status Code: ${response.statusCode}'); // ADICIONADO: Log
+    debugPrint('Response Body: ${response.body}'); // ADICIONADO: Log
+    
     try {
       final jsonBody = json.decode(utf8.decode(response.bodyBytes));
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
+        // Retorna os dados diretos se existir o campo 'data', senão retorna o corpo inteiro
         return jsonBody['data'] ?? jsonBody;
       } else {
         // Extrai informações do erro da resposta
@@ -184,17 +195,23 @@ class ApiClient {
           details: errorDetails != null ? Map<String, dynamic>.from(errorDetails) : null,
         );
       }
-    } on FormatException {
+    } on FormatException catch (e) {
+      debugPrint('Erro ao decodificar JSON: $e'); // ADICIONADO: Log do erro
+      debugPrint('Response body que causou erro: ${response.body}'); // ADICIONADO: Log
       // Se não conseguir decodificar o JSON, lança uma exceção genérica
       throw ApiException(
         message: 'Resposta inválida do servidor. Tente novamente.',
         statusCode: response.statusCode,
         code: 'INVALID_RESPONSE',
       );
+    } catch (e) {
+      debugPrint('Erro não tratado em _handleResponse: $e'); // ADICIONADO: Log
+      rethrow;
     }
   }
 
   Future<dynamic> delete(String endpoint, {String? token}) async {
+    debugPrint('DELETE: $_baseUrl$endpoint'); // ADICIONADO: Log para debug
     try {
       final uri = Uri.parse('$_baseUrl$endpoint');
       final response = await _httpClient

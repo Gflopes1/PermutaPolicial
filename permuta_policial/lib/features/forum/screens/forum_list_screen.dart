@@ -24,6 +24,7 @@ class _ForumListScreenState extends State<ForumListScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = Provider.of<ForumProvider>(context, listen: false);
       provider.loadCategorias();
+      provider.loadTopicos(null);
     });
   }
 
@@ -91,10 +92,8 @@ class _ForumListScreenState extends State<ForumListScreen> {
                         ? IconButton(
                             icon: const Icon(Icons.clear),
                             onPressed: () {
-                              _searchController.clear();
-                              if (provider.categoriaSelecionada != null) {
-                                provider.loadTopicos(provider.categoriaSelecionada!);
-                              }
+                              _searchController.clear();                             
+                                provider.loadTopicos(provider.categoriaSelecionada);
                             },
                           )
                         : null,
@@ -102,12 +101,12 @@ class _ForumListScreenState extends State<ForumListScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  onChanged: (value) {
+                  onChanged: (value) { // CORREÇÃO AQUI
                     setState(() {});
                     if (value.length >= 3) {
                       provider.searchTopicos(value);
-                    } else if (value.isEmpty && provider.categoriaSelecionada != null) {
-                      provider.loadTopicos(provider.categoriaSelecionada!);
+                    } else if (value.isEmpty) { // CORREÇÃO AQUI
+                      provider.loadTopicos(provider.categoriaSelecionada);
                     }
                   },
                   onSubmitted: (value) {
@@ -155,10 +154,8 @@ class _ForumListScreenState extends State<ForumListScreen> {
                             child: Text('Nenhum tópico encontrado.\nSeja o primeiro a criar um!'),
                           )
                         : RefreshIndicator(
-                            onRefresh: () async {
-                              if (provider.categoriaSelecionada != null) {
-                                await provider.loadTopicos(provider.categoriaSelecionada!);
-                              }
+                            onRefresh: () async { // CORREÇÃO AQUI
+                              await provider.loadTopicos(provider.categoriaSelecionada); // CORREÇÃO AQUI
                             },
                             child: ListView.builder(
                               padding: const EdgeInsets.all(16),

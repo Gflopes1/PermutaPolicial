@@ -14,12 +14,21 @@ class ForumRepository {
   }
 
   // Tópicos
-  Future<List<dynamic>> getTopicos({required int categoriaId, int? limit, int? offset}) async {
-    final queryParams = <String, String>{'categoria_id': categoriaId.toString()};
+  Future<List<dynamic>> getTopicos({int? categoriaId, int? limit, int? offset}) async {
+    // Permite que categoriaId seja nulo
+    final queryParams = <String, String>{};
+    
+    // Só adiciona categoria_id se não for nulo
+    if (categoriaId != null) {
+      queryParams['categoria_id'] = categoriaId.toString();
+    }
     if (limit != null) queryParams['limit'] = limit.toString();
     if (offset != null) queryParams['offset'] = offset.toString();
-    
-    final queryString = '?${queryParams.entries.map((e) => '${e.key}=${e.value}').join('&')}';
+
+    final queryString = queryParams.isEmpty
+        ? '' // Se não houver parâmetros, não envia '?'
+        : '?${queryParams.entries.map((e) => '${e.key}=${e.value}').join('&')}';
+        
     final response = await _apiClient.get('/api/forum/topicos$queryString');
     return response as List<dynamic>;
   }

@@ -344,74 +344,75 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         Expanded(
           child: provider.isLoading && provider.parceiros.isEmpty
               ? const Center(child: CircularProgressIndicator())
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: provider.parceiros.length,
-                  itemBuilder: (context, index) {
-                    final parceiro = provider.parceiros[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      child: ListTile(
-                        leading: Image.network(
-                          parceiro['imagem_url'] ?? '',
-                          width: 50,
-                          height: 50,
-                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.image),
-                        ),
-                        title: Text('ID: ${parceiro['id']}'),
-                        subtitle: Text('Link: ${parceiro['link_url'] ?? 'N/A'}'),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit),
-                              onPressed: () => _showEditParceiroDialog(context, provider, parceiro),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () async {
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: const Text('Confirmar exclusão'),
-                                    content: const Text('Deseja realmente excluir este anunciante?'),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.of(ctx).pop(false),
-                                        child: const Text('Cancelar'),
-                                      ),
-                                      ElevatedButton(
-                                        onPressed: () => Navigator.of(ctx).pop(true),
-                                        child: const Text('Excluir'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                if (!mounted) return;
-                                if (confirm == true) {
-                                  final success = await provider.deleteParceiro(parceiro['id']);
-                                  if (!mounted) return;
-                                  if (success) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Anunciante excluído!')),
-                                    );
-                                  }
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
+              : provider.parceiros.isEmpty
+                  ? const Center(child: Text('Nenhum anunciante cadastrado.'))
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: provider.parceiros.length,
+                      itemBuilder: (context, index) {
+                        final parceiro = provider.parceiros[index];
+                        return _buildParceiroCard(context, provider, parceiro);
+                      },
+                    ),
         ),
       ],
     );
   }
 
+  Widget _buildParceiroCard(BuildContext context, AdminProvider provider, dynamic parceiro) {
+    // Extrai os dados com segurança
+    final int id = parceiro['id'] is int ? parceiro['id'] : int.tryParse(parceiro['id']?.toString() ?? '0') ?? 0;
+    final String imagemUrl = parceiro['imagem_url']?.toString() ?? '';
+    final String? linkUrl = parceiro['link_url']?.toString();
+    final int ordem = parceiro['ordem'] is int ? parceiro['ordem'] : int.tryParse(parceiro['ordem']?.toString() ?? '0') ?? 0;
+    final bool ativo = parceiro['ativo'] == 1 || parceiro['ativo'] == true;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: ListTile(
+        leading: imagemUrl.isNotEmpty
+            ? Image.network(
+                imagemUrl,
+                width: 50,
+                height: 50,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => const Icon(Icons.image, size: 50),
+              )
+            : const Icon(Icons.image, size: 50),
+        title: Text('ID: $id ${!ativo ? "(Inativo)" : ""}'),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Link: ${linkUrl ?? 'Nenhum'}'),
+            Text('Ordem: $ordem'),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () => _showEditParceiroDialog(
+                context,
+                provider,
+                id,
+                imagemUrl,
+                linkUrl,
+                ordem,
+                ativo,
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: () => _confirmarExclusaoParceiro(context, provider, id),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showEditPolicialDialog(BuildContext context, AdminProvider provider, Map<String, dynamic> policial) {
-    // Implementar diálogo de edição
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -430,114 +431,238 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   void _showAddParceiroDialog(BuildContext context, AdminProvider provider) {
     final imagemController = TextEditingController();
     final linkController = TextEditingController();
+    final ordemController = TextEditingController(text: '0');
+    bool ativo = true;
     
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Adicionar Anunciante'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: imagemController,
-              decoration: const InputDecoration(labelText: 'URL da Imagem'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Adicionar Anunciante'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: imagemController,
+                  decoration: const InputDecoration(
+                    labelText: 'URL da Imagem *',
+                    hintText: 'https://exemplo.com/imagem.png',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: linkController,
+                  decoration: const InputDecoration(
+                    labelText: 'URL do Link (opcional)',
+                    hintText: 'https://exemplo.com',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: ordemController,
+                  decoration: const InputDecoration(
+                    labelText: 'Ordem de Exibição',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 12),
+                CheckboxListTile(
+                  title: const Text('Ativo'),
+                  value: ativo,
+                  onChanged: (value) {
+                    setState(() {
+                      ativo = value ?? true;
+                    });
+                  },
+                ),
+              ],
             ),
-            TextField(
-              controller: linkController,
-              decoration: const InputDecoration(labelText: 'URL do Link (opcional)'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (imagemController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('URL da imagem é obrigatória')),
+                  );
+                  return;
+                }
+                
+                final success = await provider.createParceiro({
+                  'imagem_url': imagemController.text.trim(),
+                  'link_url': linkController.text.trim().isEmpty ? null : linkController.text.trim(),
+                  'ordem_exibicao': int.tryParse(ordemController.text) ?? 0,
+                  'ativo': ativo,
+                });
+                
+                if (!mounted) return;
+                if (success) {
+                  Navigator.of(ctx).pop();
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Anunciante adicionado!')),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(provider.errorMessage ?? 'Erro ao adicionar anunciante'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Adicionar'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (imagemController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('URL da imagem é obrigatória')),
-                );
-                return;
-              }
-              final success = await provider.createParceiro({
-                'imagem_url': imagemController.text.trim(),
-                'link_url': linkController.text.trim().isEmpty ? null : linkController.text.trim(),
-                'ordem_exibicao': 0,
-                'ativo': true,
-              });
-              if (!mounted) return;
-              if (success) {
-                Navigator.of(ctx).pop();
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Anunciante adicionado!')),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(provider.errorMessage ?? 'Erro ao adicionar anunciante'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            child: const Text('Adicionar'),
-          ),
-        ],
       ),
     );
   }
 
-  void _showEditParceiroDialog(BuildContext context, AdminProvider provider, Map<String, dynamic> parceiro) {
-    final imagemController = TextEditingController(text: parceiro['imagem_url'] ?? '');
-    final linkController = TextEditingController(text: parceiro['link_url'] ?? '');
+  void _showEditParceiroDialog(
+    BuildContext context,
+    AdminProvider provider,
+    int id,
+    String imagemUrl,
+    String? linkUrl,
+    int ordem,
+    bool ativo,
+  ) {
+    final imagemController = TextEditingController(text: imagemUrl);
+    final linkController = TextEditingController(text: linkUrl ?? '');
+    final ordemController = TextEditingController(text: ordem.toString());
+    bool ativoLocal = ativo;
     
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Editar Anunciante'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: imagemController,
-              decoration: const InputDecoration(labelText: 'URL da Imagem'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Editar Anunciante'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: imagemController,
+                  decoration: const InputDecoration(
+                    labelText: 'URL da Imagem *',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: linkController,
+                  decoration: const InputDecoration(
+                    labelText: 'URL do Link (opcional)',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: ordemController,
+                  decoration: const InputDecoration(
+                    labelText: 'Ordem de Exibição',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 12),
+                CheckboxListTile(
+                  title: const Text('Ativo'),
+                  value: ativoLocal,
+                  onChanged: (value) {
+                    setState(() {
+                      ativoLocal = value ?? true;
+                    });
+                  },
+                ),
+              ],
             ),
-            TextField(
-              controller: linkController,
-              decoration: const InputDecoration(labelText: 'URL do Link (opcional)'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (imagemController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('URL da imagem é obrigatória')),
+                  );
+                  return;
+                }
+                
+                final success = await provider.updateParceiro(id, {
+                  'imagem_url': imagemController.text.trim(),
+                  'link_url': linkController.text.trim().isEmpty ? null : linkController.text.trim(),
+                  'ordem_exibicao': int.tryParse(ordemController.text) ?? ordem,
+                  'ativo': ativoLocal,
+                });
+                
+                if (!mounted) return;
+                if (success) {
+                  Navigator.of(ctx).pop();
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Anunciante atualizado!')),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(provider.errorMessage ?? 'Erro ao atualizar anunciante'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Salvar'),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _confirmarExclusaoParceiro(BuildContext context, AdminProvider provider, int id) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar exclusão'),
+        content: const Text('Deseja realmente excluir este anunciante?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
+            onPressed: () => Navigator.of(ctx).pop(false),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () async {
-              final success = await provider.updateParceiro(parceiro['id'], {
-                'imagem_url': imagemController.text,
-                'link_url': linkController.text.isEmpty ? null : linkController.text,
-                'ordem_exibicao': parceiro['ordem_exibicao'] ?? 0,
-                'ativo': parceiro['ativo'] ?? true,
-              });
-              if (!mounted) return;
-              if (success) {
-                Navigator.of(ctx).pop();
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Anunciante atualizado!')),
-                );
-              }
-            },
-            child: const Text('Salvar'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Excluir'),
           ),
         ],
       ),
     );
+    
+    if (!mounted) return;
+    if (confirm == true) {
+      final success = await provider.deleteParceiro(id);
+      if (!mounted) return;
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Anunciante excluído!')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(provider.errorMessage ?? 'Erro ao excluir anunciante'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildMarketplaceTab() {
@@ -735,4 +860,3 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     );
   }
 }
-

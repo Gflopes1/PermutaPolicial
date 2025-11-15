@@ -43,7 +43,8 @@ class ForumProvider with ChangeNotifier {
   }
 
   // Carrega tópicos de uma categoria
-  Future<void> loadTopicos(int categoriaId, {bool refresh = false}) async {
+  Future<void> loadTopicos(int? categoriaId, {bool refresh = false}) async {
+    // Aceita categoriaId nulo
     if (!refresh) {
       _isLoading = true;
       _errorMessage = null;
@@ -51,8 +52,8 @@ class ForumProvider with ChangeNotifier {
     }
 
     try {
-      _categoriaSelecionada = categoriaId;
-      _topicos = await _forumRepository.getTopicos(categoriaId: categoriaId);
+      _categoriaSelecionada = categoriaId; // Armazena o ID nulo ou o da categoria
+      _topicos = await _forumRepository.getTopicos(categoriaId: categoriaId); // Passa o ID (ou nulo)
     } catch (e) {
       _errorMessage = 'Erro ao carregar tópicos: ${e.toString()}';
     }

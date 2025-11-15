@@ -1,56 +1,43 @@
 // /lib/core/api/repositories/parceiros_repository.dart
 
 import '../api_client.dart';
-import '../../models/parceiro.dart';
 
 class ParceirosRepository {
   final ApiClient _apiClient;
 
   ParceirosRepository(this._apiClient);
 
-  /// Busca a configuração e a lista de parceiros da API (público).
+  /// Obtém a configuração dos parceiros (público)
   Future<Map<String, dynamic>> getParceirosConfig() async {
-    final responseData = await _apiClient.get('/api/parceiros');
-
-    final bool exibirCard = responseData['exibir_card'] ?? false;
-    final List<dynamic> parceirosJson = responseData['parceiros'] ?? [];
-
-    final List<Parceiro> parceirosList = parceirosJson
-        .map((json) => Parceiro.fromJson(json))
-        .toList();
-
-    return {
-      'exibir_card': exibirCard,
-      'parceiros': parceirosList,
-    };
+    final response = await _apiClient.get('/api/parceiros');
+    return response;
   }
 
-  // Métodos de admin
-  Future<List<Parceiro>> getAll() async {
-    final data = await _apiClient.get('/api/parceiros/admin');
-    return (data as List).map((json) => Parceiro.fromJson(json)).toList();
+  /// Obtém todos os parceiros (admin)
+  Future<List<dynamic>> getAll() async {
+    final response = await _apiClient.get('/api/parceiros/admin');
+    return response as List<dynamic>;
   }
 
-  Future<Parceiro> getById(int id) async {
-    final data = await _apiClient.get('/api/parceiros/admin/$id');
-    return Parceiro.fromJson(data);
+  /// Cria um novo parceiro
+  Future<Map<String, dynamic>> create(Map<String, dynamic> data) async {
+    final response = await _apiClient.post('/api/parceiros/admin', data,);
+    return response;
   }
 
-  Future<Parceiro> create(Map<String, dynamic> parceiroData) async {
-    final data = await _apiClient.post('/api/parceiros/admin', parceiroData);
-    return Parceiro.fromJson(data);
+  /// Atualiza um parceiro existente
+  Future<Map<String, dynamic>> update(int id, Map<String, dynamic> data) async {
+    final response = await _apiClient.put('/api/parceiros/admin/$id', data);
+    return response;
   }
 
-  Future<Parceiro> update(int id, Map<String, dynamic> parceiroData) async {
-    final data = await _apiClient.put('/api/parceiros/admin/$id', parceiroData);
-    return Parceiro.fromJson(data);
-  }
-
+  /// Deleta um parceiro
   Future<void> delete(int id) async {
     await _apiClient.delete('/api/parceiros/admin/$id');
   }
 
-  Future<Map<String, dynamic>> updateConfig(bool exibirCard) async {
-    return await _apiClient.put('/api/parceiros/admin/config', {'exibir_card': exibirCard});
+  /// Atualiza a configuração de exibição do card
+  Future<void> updateConfig(bool exibirCard) async {
+    await _apiClient.post('/api/parceiros/admin/config', {'exibir_card': exibirCard});
   }
 }

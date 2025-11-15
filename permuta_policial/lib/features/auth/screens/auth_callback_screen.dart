@@ -2,13 +2,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-// ... outras importações
 import '../../../core/config/app_routes.dart';
 import '../../../core/services/storage_service.dart';
 import '../providers/auth_provider.dart';
 
-
-// O corpo da classe State permanece o mesmo, com os logs que adicionamos antes
 class AuthCallbackScreen extends StatefulWidget {
   final String? token;
   final bool completarPerfil;
@@ -17,28 +14,48 @@ class AuthCallbackScreen extends StatefulWidget {
     required this.token,
     this.completarPerfil = false,
   });
+  
   @override
   State<AuthCallbackScreen> createState() => _AuthCallbackScreenState();
 }
 
 class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
   String _statusMessage = 'Processando autenticação...';
+  bool _isProcessing = false;
   
   @override
   void initState() {
     super.initState();
-    _handleAuthCallback();
+    // ✅ Adiciona delay para garantir que o context está pronto
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_isProcessing) {
+        _handleAuthCallback();
+      }
+    });
   }
 
   Future<void> _handleAuthCallback() async {
-    // A lógica com os logs que adicionamos na resposta anterior permanece aqui
+    // ✅ Previne execução múltipla
+    if (_isProcessing) {
+      debugPrint("⚠️ AuthCallbackScreen: Já está processando, ignorando chamada duplicada.");
+      return;
+    }
+    
+    _isProcessing = true;
+    
+    debugPrint("═══════════════════════════════════════");
     debugPrint("✅ AuthCallbackScreen: Iniciando _handleAuthCallback.");
-    final token = widget.token;
+    debugPrint("📍 Token recebido: ${widget.token?.substring(0, 15) ?? 'NULL'}...");
+    debugPrint("📍 Completar perfil: ${widget.completarPerfil}");
+    debugPrint("═══════════════════════════════════════");
     
     if (!mounted) return;
+    
     setState(() {
       _statusMessage = 'Validando token...';
     });
+    
+    final token = widget.token;
     
     if (token == null || token.isEmpty) {
       debugPrint("❌ AuthCallbackScreen: Token é nulo ou vazio. Redirecionando para /auth.");
@@ -52,17 +69,22 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
       return;
     }
 
-    debugPrint("🔑 AuthCallbackScreen: Token recebido: ${token.substring(0, 15)}...");
+    debugPrint("🔑 AuthCallbackScreen: Token válido: ${token.substring(0, 15)}...");
 
     try {
       final storage = Provider.of<StorageService>(context, listen: false);
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
+      if (!mounted) return;
+      
       setState(() {
         _statusMessage = 'Salvando credenciais...';
       });
+      
       await storage.saveToken(token);
       debugPrint("💾 AuthCallbackScreen: Token salvo no armazenamento.");
+      
+      if (!mounted) return;
       
       setState(() {
         _statusMessage = 'Carregando perfil do usuário...';
@@ -70,20 +92,31 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
 
       debugPrint("📞 AuthCallbackScreen: Chamando updateAuthenticationState...");
       final success = await authProvider.updateAuthenticationState(token: token);
-      debugPrint("🏁 AuthCallbackScreen: updateAuthenticationState retornou: $success");
+      debugPrint("📊 AuthCallbackScreen: updateAuthenticationState retornou: $success");
 
       if (!mounted) return;
 
       if (success) {
         debugPrint("👍 AuthCallbackScreen: Sucesso! Verificando para onde navegar...");
+        
         setState(() {
-          _statusMessage = 'Redirecionando para o painel...';
+          _statusMessage = 'Autenticação concluída! Redirecionando...';
         });
-        await Future.delayed(const Duration(milliseconds: 500));
+        
+        // ✅ Delay para garantir que o estado está atualizado
+        await Future.delayed(const Duration(milliseconds: 800));
         
         if (!mounted) return;
 
-        if (widget.completarPerfil || authProvider.user?.unidadeAtualNome == null) {
+        // ✅ Verifica se precisa completar perfil
+        final needsCompletion = widget.completarPerfil || 
+                                authProvider.user?.unidadeAtualNome == null;
+        
+        debugPrint("📋 AuthCallbackScreen: Precisa completar perfil? $needsCompletion");
+        debugPrint("   - widget.completarPerfil: ${widget.completarPerfil}");
+        debugPrint("   - user.unidadeAtualNome: ${authProvider.user?.unidadeAtualNome}");
+        
+        if (needsCompletion) {
           debugPrint("🚀 AuthCallbackScreen: Navegando para /completar-perfil.");
           Navigator.of(context).pushReplacementNamed(AppRoutes.completarPerfil);
         } else {
@@ -108,24 +141,23 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
           arguments: 'Erro ao processar autenticação: $e'
         );
       }
+    } finally {
+      _isProcessing = false;
     }
   }
 
-
-  // --- MUDANÇA APENAS AQUI ---
   @override
   Widget build(BuildContext context) {
-    // Esta UI é intencionalmente diferente da SplashScreen para confirmação.
     return Scaffold(
-      backgroundColor: Colors.indigo[900], // Cor de fundo diferente
+      backgroundColor: Colors.indigo[900],
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.sync_lock, color: Colors.white, size: 50), // Ícone diferente
+            const Icon(Icons.sync_lock, color: Colors.white, size: 50),
             const SizedBox(height: 32),
             const Text(
-              'Tela de Callback', // Título diferente
+              'Processando Autenticação',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 24,

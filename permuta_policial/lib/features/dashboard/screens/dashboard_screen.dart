@@ -86,57 +86,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // ==========================================================
-  // FUNÇÃO PARA O CARD DE NOVOS SOLDADOS
-  // (A lógica de clique foi corrigida no Repositório)
-  // ==========================================================
-  Future<void> _checkAccessAndNavigate() async {
-    setState(() {
-      _isCheckingAccess = true;
-    });
+Future<void> _checkAccessAndNavigate() async {
+  setState(() {
+    _isCheckingAccess = true;
+  });
 
-    final repository = context.read<NovosSoldadosRepository>();
+  final repository = context.read<NovosSoldadosRepository>();
+  
+  try {
+    // 🔍 Verifique se o usuário está autenticado
+    final provider = context.read<DashboardProvider>();
+    if (provider.userData == null) {
+      throw ApiException(message: 'Usuário não autenticado');
+    }
     
-    try {
-      // 1. Tenta aceder à rota protegida
-      await repository.checkAccess();
-      
-      // 2. Se deu 200 OK (passou nos pré-requisitos)
-      if (!mounted) return;
-      
-      // Navega para a tela de escolha
-      Navigator.of(context).pushNamed(
-        AppRoutes.novosSoldadosEscolha,
-      );
+    await repository.checkAccess();
+    
+    if (!mounted) return;
+    
+    Navigator.of(context).pushNamed(
+      AppRoutes.novosSoldadosEscolha,
+    );
 
-    } on ApiException catch (e) {
-      // 3. Se deu erro (401 ou 403), o backend envia a mensagem de erro
-      // (Isto agora deve funcionar graças à correção no repositório)
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message), // ex: "Acesso restrito. Requer login Microsoft."
-          backgroundColor: Colors.red,
-        ),
-      );
-    } catch (e) {
-      // Erro genérico (o que você estava vendo antes)
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro desconhecido: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isCheckingAccess = false;
-        });
-      }
+  } on ApiException catch (e) {
+    if (!mounted) return;
+    
+    // 📝 Mensagem mais amigável para erro de autenticação
+    String message = e.message;
+    if (e.statusCode == 401 || e.statusCode == 403) {
+      message = 'Você não tem permissão para acessar esta funcionalidade. '
+                'Certifique-se de estar logado com e-mail funcional da Microsoft.';
+    }
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Erro desconhecido: ${e.toString()}'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isCheckingAccess = false;
+      });
     }
   }
-
+}
 
   @override
   Widget build(BuildContext context) {
@@ -214,10 +218,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 800) {
-          // === LAYOUT DE CELULAR ===
           return _buildMobileLayout(provider);
         } else {
-          // === LAYOUT DE DESKTOP ===
           return _buildDesktopLayout(provider);
         }
       },
@@ -249,10 +251,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return const SizedBox.shrink();
   }
 
-  // ==========================================================
-  // WIDGET DO CARD DE NOVOS SOLDADOS
-  // (Nenhuma alteração aqui, apenas a chamada a ele foi movida)
-  // ==========================================================
   Widget _buildNovosSoldadosCard(BuildContext context) {
     final theme = Theme.of(context);
     
@@ -269,7 +267,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
-            // Caixa de aviso sobre o login
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -291,7 +288,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            // Botão de Acesso
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.primaryColor,
@@ -312,9 +308,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ==========================================================
-  // LAYOUT MOBILE ATUALIZADO
-  // ==========================================================
+  // Layout Mobile com nova ordem
   Widget _buildMobileLayout(DashboardProvider provider) {
     final perfilIncompleto = provider.userData?.unidadeAtualNome == null;
     return RefreshIndicator(
@@ -322,51 +316,112 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         children: [
+          // Boas-vindas (se perfil incompleto)
           if (perfilIncompleto) 
             BoasVindasCard(
               onCompletarPerfil: () => Navigator.of(context).pushNamed(AppRoutes.completarPerfil),
             ),
           if (perfilIncompleto) const SizedBox(height: 16),
           
+          // 1. Minha Lotação Atual (compacta)
           if (provider.userData != null)
-            MinhaLotacaoCard(
-              userProfile: provider.userData!,
-              onEdit: _showEditLotacaoModal,
-            ),
-          const SizedBox(height: 16),
+            _buildMinhaLotacaoCompacta(provider),
+          if (provider.userData != null) const SizedBox(height: 16),
 
-          _buildNovosSoldadosCard(context),
+          // Card de Anunciantes (entre lotação e marketplace)
+          if (provider.exibirCardParceiros && provider.parceiros.isNotEmpty)
+            ParceirosCard(parceiros: provider.parceiros.map((p) => Parceiro.fromJson(p)).toList()),
+          if (provider.exibirCardParceiros && provider.parceiros.isNotEmpty) const SizedBox(height: 16),
+          
+          // 2. Marketplace
+          const MarketplaceCard(),
           const SizedBox(height: 16),
           
+          // 3. Fórum e Admin
+          if (provider.userData != null)
+            AdminForumButtons(isEmbaixador: provider.userData!.isEmbaixador),
+          if (provider.userData != null) const SizedBox(height: 16),
+          
+          // 4. Minhas Intenções de Destino
           MinhasIntencoesCard(
             intencoes: provider.intencoes,
             onEdit: _showEditIntencoesModal,
           ),
           const SizedBox(height: 16),
           
+          // 5. Resultados da Busca
           _buildMatchesSection(provider),
           const SizedBox(height: 16),
           
-          const MarketplaceCard(),
-          const SizedBox(height: 16),
+          // 6. Mapa
           const MapaCard(),
           const SizedBox(height: 16),
+          
+          // 7. Mensagens
           const ChatCard(),
           const SizedBox(height: 16),
-          if (provider.userData != null)
-            AdminForumButtons(isEmbaixador: provider.userData!.isEmbaixador),
-          if (provider.userData != null) const SizedBox(height: 16),
-          if (provider.exibirCardParceiros && provider.parceiros.isNotEmpty)
-            ParceirosCard(parceiros: provider.parceiros.map((p) => Parceiro.fromJson(p)).toList()),
-          if (provider.exibirCardParceiros && provider.parceiros.isNotEmpty) const SizedBox(height: 16),
+          
+          // 8. Escolha de Vagas
+          _buildNovosSoldadosCard(context),
+          const SizedBox(height: 16),
         ],
       ),
     );
   }
 
-  // ==========================================================
-  // LAYOUT DESKTOP ATUALIZADO
-  // ==========================================================
+  // Widget compacto para Minha Lotação
+  Widget _buildMinhaLotacaoCompacta(DashboardProvider provider) {
+    final userData = provider.userData!;
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.location_on, color: Theme.of(context).primaryColor, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Minha Lotação Atual',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit, size: 18),
+                  onPressed: _showEditLotacaoModal,
+                  tooltip: 'Editar',
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              userData.unidadeAtualNome ?? 'Não informado',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${userData.municipioAtualNome ?? ''}, ${userData.estadoAtualSigla ?? ''}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildDesktopLayout(DashboardProvider provider) {
     final perfilIncompleto = provider.userData?.unidadeAtualNome == null;
     return Row(
