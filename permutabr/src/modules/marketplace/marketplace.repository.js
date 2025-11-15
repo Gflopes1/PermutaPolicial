@@ -3,12 +3,22 @@
 const db = require('../../config/db');
 
 class MarketplaceRepository {
+  // Função auxiliar para processar os itens e converter tipos
+  _processItem(row) {
+    return {
+      ...row,
+      valor: parseFloat(row.valor), // Converte string para número
+      fotos: row.fotos ? JSON.parse(row.fotos) : []
+    };
+  }
+
   async findAll({ tipo, search, status, page, limit, apenasAprovados = true }) {
     let query = `
       SELECT 
         m.*,
         p.nome as policial_nome,
-        p.email as policial_email
+        p.email as policial_email,
+        p.qso as policial_telefone
       FROM marketplace m
       LEFT JOIN policiais p ON m.policial_id = p.id
       WHERE 1=1
@@ -44,11 +54,8 @@ class MarketplaceRepository {
     
     const [rows] = await db.execute(query, params);
     
-    // Processa as fotos (JSON string para array)
-    return rows.map(row => ({
-      ...row,
-      fotos: row.fotos ? JSON.parse(row.fotos) : []
-    }));
+    // Processa os itens (converte valor e fotos)
+    return rows.map(row => this._processItem(row));
   }
 
   async findById(id) {
@@ -65,11 +72,7 @@ class MarketplaceRepository {
     
     if (rows.length === 0) return null;
     
-    const item = rows[0];
-    return {
-      ...item,
-      fotos: item.fotos ? JSON.parse(item.fotos) : []
-    };
+    return this._processItem(rows[0]);
   }
 
   async findByUsuario(policialId) {
@@ -78,10 +81,7 @@ class MarketplaceRepository {
       [policialId]
     );
     
-    return rows.map(row => ({
-      ...row,
-      fotos: row.fotos ? JSON.parse(row.fotos) : []
-    }));
+    return rows.map(row => this._processItem(row));
   }
 
   async create(dados) {
@@ -153,4 +153,3 @@ class MarketplaceRepository {
 }
 
 module.exports = new MarketplaceRepository();
-

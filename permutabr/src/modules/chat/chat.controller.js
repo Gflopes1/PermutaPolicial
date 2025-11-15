@@ -21,3 +21,4 @@ module.exports = {
   getMensagensNaoLidas: handleRequest((req) => chatService.getMensagensNaoLidas(req)),
 };
 
+

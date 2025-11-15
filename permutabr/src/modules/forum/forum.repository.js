@@ -18,6 +18,46 @@ class ForumRepository {
     );
     return rows[0] || null;
   }
+  
+  async findRecentTopicos(limit = 20, offset = 0) {
+    const query = `
+      SELECT 
+        t.id,
+        t.categoria_id,
+        t.autor_id,
+        t.titulo,
+        t.conteudo,
+        t.fixado,
+        t.bloqueado,
+        t.visualizacoes,
+        t.criado_em,
+        t.atualizado_em,
+        p.nome as autor_nome,
+        p.email as autor_email,
+        c.nome as categoria_nome,
+        (
+          SELECT COUNT(*) 
+          FROM forum_respostas r 
+          WHERE r.topico_id = t.id AND r.status_moderacao = 'APROVADO'
+        ) as total_respostas,
+        (
+          SELECT r.criado_em 
+          FROM forum_respostas r 
+          WHERE r.topico_id = t.id AND r.status_moderacao = 'APROVADO'
+          ORDER BY r.criado_em DESC 
+          LIMIT 1
+        ) as ultima_resposta_data
+      FROM forum_topicos t
+      LEFT JOIN policiais p ON t.autor_id = p.id
+      LEFT JOIN forum_categorias c ON t.categoria_id = c.id
+      WHERE t.status_moderacao = 'APROVADO'
+      ORDER BY t.fixado DESC, t.atualizado_em DESC
+      LIMIT ? OFFSET ?
+    `;
+    // Note que os parâmetros são apenas limit e offset
+    const [rows] = await db.execute(query, [limit, offset]);
+    return rows;
+  }
 
   // Tópicos
   async findTopicosByCategoria(categoriaId, limit = 20, offset = 0) {
@@ -51,7 +91,8 @@ class ForumRepository {
       FROM forum_topicos t
       LEFT JOIN policiais p ON t.autor_id = p.id
       LEFT JOIN forum_categorias c ON t.categoria_id = c.id
-      WHERE t.categoria_id = ? AND t.status_moderacao = 'APROVADO'
+      WHERE t.categoria_id = ?
+      AND t.status_moderacao = 'APROVADO'
       ORDER BY t.fixado DESC, t.atualizado_em DESC
       LIMIT ? OFFSET ?
     `;
@@ -72,12 +113,17 @@ class ForumRepository {
       LEFT JOIN forum_categorias c ON t.categoria_id = c.id
       WHERE t.id = ?
     `;
+    // Nota: Não filtramos por status aqui para que o usuário possa ver seu próprio tópico pendente (se for o autor)
+    // A lógica de "pode ver" deve ser no 'getTopico' do service, mas para o 'getTopico'
+    // (visualização detalhada) é ok mostrar pendente, ao contrário da lista.
+    // A query para 'findTopicoById' está OK.
     const [rows] = await db.execute(query, [id]);
     return rows[0] || null;
   }
 
   async createTopico(topicoData) {
     const { categoria_id, autor_id, titulo, conteudo } = topicoData;
+    // O status_moderacao não é definido, então usará o DEFAULT 'PENDENTE' do DB
     const [result] = await db.execute(
       'INSERT INTO forum_topicos (categoria_id, autor_id, titulo, conteudo) VALUES (?, ?, ?, ?)',
       [categoria_id, autor_id, titulo, conteudo]
@@ -140,7 +186,7 @@ class ForumRepository {
       LEFT JOIN policiais p ON t.autor_id = p.id
       LEFT JOIN forum_categorias c ON t.categoria_id = c.id
       WHERE MATCH(t.titulo, t.conteudo) AGAINST(? IN NATURAL LANGUAGE MODE)
-        AND t.status_moderacao = 'APROVADO'
+      AND t.status_moderacao = 'APROVADO'
       ORDER BY t.fixado DESC, t.atualizado_em DESC
       LIMIT ? OFFSET ?
     `;
@@ -168,7 +214,8 @@ class ForumRepository {
         ) as curtidas
       FROM forum_respostas r
       LEFT JOIN policiais p ON r.autor_id = p.id
-      WHERE r.topico_id = ? AND r.resposta_id IS NULL AND r.status_moderacao = 'APROVADO'
+      WHERE r.topico_id = ? AND r.resposta_id IS NULL
+      AND r.status_moderacao = 'APROVADO'
       ORDER BY r.criado_em ASC
       LIMIT ? OFFSET ?
     `;
@@ -189,7 +236,8 @@ class ForumRepository {
           p.email as autor_email
         FROM forum_respostas r
         LEFT JOIN policiais p ON r.autor_id = p.id
-        WHERE r.resposta_id = ? AND r.status_moderacao = 'APROVADO'
+        WHERE r.resposta_id = ?
+        AND r.status_moderacao = 'APROVADO'
         ORDER BY r.criado_em ASC`,
         [resposta.id]
       );
@@ -201,6 +249,7 @@ class ForumRepository {
 
   async createResposta(respostaData) {
     const { topico_id, autor_id, conteudo, resposta_id } = respostaData;
+    // O status_moderacao não é definido, então usará o DEFAULT 'PENDENTE' do DB
     const [result] = await db.execute(
       'INSERT INTO forum_respostas (topico_id, autor_id, conteudo, resposta_id) VALUES (?, ?, ?, ?)',
       [topico_id, autor_id, conteudo, resposta_id || null]
@@ -446,4 +495,3 @@ class ForumRepository {
 }
 
 module.exports = new ForumRepository();
-

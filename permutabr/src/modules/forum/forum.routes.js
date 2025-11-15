@@ -21,12 +21,12 @@ router.get('/topicos/search', forumController.searchTopicos);
 router.get('/topicos/:topicoId', forumController.getTopico);
 router.post(
   '/topicos',
-  celebrate(forumValidation.createTopico),
+  celebrate({ body: forumValidation.createTopico }),
   forumController.createTopico
 );
 router.put(
   '/topicos/:topicoId',
-  celebrate(forumValidation.updateTopico),
+  celebrate({ body: forumValidation.updateTopico }),
   forumController.updateTopico
 );
 router.delete('/topicos/:topicoId', forumController.deleteTopico);
@@ -35,12 +35,12 @@ router.delete('/topicos/:topicoId', forumController.deleteTopico);
 router.get('/topicos/:topicoId/respostas', forumController.getRespostas);
 router.post(
   '/topicos/:topicoId/respostas',
-  celebrate(forumValidation.createResposta),
+  celebrate({ body: forumValidation.createResposta }),
   forumController.createResposta
 );
 router.put(
   '/respostas/:respostaId',
-  celebrate(forumValidation.updateResposta),
+  celebrate({ body: forumValidation.updateResposta }),
   forumController.updateResposta
 );
 router.delete('/respostas/:respostaId', forumController.deleteResposta);
@@ -54,26 +54,32 @@ router.post(
 router.get('/reacoes', forumController.getReacoes);
 
 // Rotas de Moderação (apenas para administradores)
-router.use('/moderacao', authMiddleware, adminMiddleware);
+// Listar itens pendentes (antes do middleware admin para teste)
+router.get('/moderacao/topicos/pendentes', adminMiddleware, forumController.getTopicosPendentes);
+router.get('/moderacao/respostas/pendentes', adminMiddleware, forumController.getRespostasPendentes);
 
 // Moderação de Tópicos
 router.post(
   '/moderacao/topicos/:topicoId/aprovar',
+  adminMiddleware,
   celebrate(forumValidation.aprovarTopico),
   forumController.aprovarTopico
 );
 router.post(
   '/moderacao/topicos/:topicoId/rejeitar',
+  adminMiddleware,
   celebrate(forumValidation.rejeitarTopico),
   forumController.rejeitarTopico
 );
 router.post(
   '/moderacao/topicos/:topicoId/fixar',
+  adminMiddleware,
   celebrate(forumValidation.toggleFixarTopico),
   forumController.toggleFixarTopico
 );
 router.post(
   '/moderacao/topicos/:topicoId/bloquear',
+  adminMiddleware,
   celebrate(forumValidation.toggleBloquearTopico),
   forumController.toggleBloquearTopico
 );
@@ -81,18 +87,15 @@ router.post(
 // Moderação de Respostas
 router.post(
   '/moderacao/respostas/:respostaId/aprovar',
+  adminMiddleware,
   celebrate(forumValidation.aprovarResposta),
   forumController.aprovarResposta
 );
 router.post(
   '/moderacao/respostas/:respostaId/rejeitar',
+  adminMiddleware,
   celebrate(forumValidation.rejeitarResposta),
   forumController.rejeitarResposta
 );
 
-// Listar itens pendentes
-router.get('/moderacao/topicos/pendentes', forumController.getTopicosPendentes);
-router.get('/moderacao/respostas/pendentes', forumController.getRespostasPendentes);
-
 module.exports = router;
-

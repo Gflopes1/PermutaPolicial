@@ -1,73 +1,54 @@
 require('dotenv').config();
 
-
-
 console.log('═══════════════════════════════════════');
-
 console.log('🚀 Iniciando aplicação...');
-
 console.log('📍 Ambiente:', process.env.NODE_ENV || 'development');
-
 console.log('📍 Base URL:', process.env.BASE_URL);
-
 console.log('═══════════════════════════════════════');
-
-
 
 // 2. Dependências
-
 const express = require('express');
-
 const cors = require('cors');
-
 const passport = require('passport');
-
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-
 const OIDCStrategy = require('passport-azure-ad').OIDCStrategy;
-
 const db = require('./src/config/db');
-
 const apiRoutes = require('./src/api');
 const { initializeSocket } = require('./src/config/socket');
-
 const jwt = require('jsonwebtoken');
-
 const session = require('express-session');
 const axios = require('axios');
 
-
+// ===== FUNÇÃO AUXILIAR PARA DETERMINAR FORÇA POR DOMÍNIO =====
+function getForcaIdPorDominio(email) {
+    const dominio = email.toLowerCase().split('@')[1];
+    
+    // Mapeamento de domínios para IDs de força
+    const DOMINIOS_FORCAS = {
+        'susepe.rs.gov.br': 79,  // SUSEPE
+        'pc.rs.gov.br': 52,       // Polícia Civil RS
+        'bm.rs.gov.br': null      // BMRS - já tem lógica específica
+    };
+    
+    return DOMINIOS_FORCAS[dominio] || null;
+}
 
 // 3. Configuração do Passport Google OAuth
-
 const callbackURL = `${process.env.BASE_URL || 'https://br.permutapolicial.com.br'}/api/auth/google/callback`;
-
 console.log(`🔗 URL de Callback do Google: ${callbackURL}`);
 
-
-
 passport.use('google', new GoogleStrategy({
-
     clientID: process.env.GOOGLE_CLIENT_ID,
-
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-
     callbackURL: callbackURL,
-
     proxy: true
-
 },
-
     async (accessToken, refreshToken, profile, done) => {
-
         try {
-
             const email = profile.emails[0].value;
-
             const googleId = profile.id;
-
             console.log(`🔐 Login Google: ${email}`);
-
+            
             // Validação de domínio
             const DOMINIOS_PERMITIDOS = [
                 'pm.al.gov.br', 'pm.ap.gov.br', 'pm.am.gov.br', 'pm.ba.gov.br', 'pm.ce.gov.br',
@@ -82,167 +63,95 @@ passport.use('google', new GoogleStrategy({
                 'pc.pe.gov.br', 'pc.pi.gov.br', 'pc.rj.gov.br', 'pc.rn.gov.br', 'pc.rs.gov.br',
                 'pc.ro.gov.br', 'pc.rr.gov.br', 'pc.sc.gov.br', 'policiacivil.sp.gov.br',
                 'pc.se.gov.br', 'pc.to.gov.br',
-                'pf.gov.br', 'prf.gov.br'
+                'pf.gov.br', 'prf.gov.br', 'susepe.rs.gov.br', 'cbm.rs.gov.br'
             ];
             const dominio = email.toLowerCase().split('@')[1];
             if (!DOMINIOS_PERMITIDOS.includes(dominio)) {
                 return done(new Error('Apenas emails com domínios da segurança pública são permitidos. Isso garante a segurança das informações dos policiais.'), false);
             }
 
-
-
             // 1. Busca por Google ID primeiro
             let [users] = await db.execute('SELECT * FROM policiais WHERE google_id = ?', [googleId]);
 
             if (users.length > 0) {
-
                 console.log(`✅ Usuário encontrado pelo Google ID: ${users[0].email}`);
-
                 return done(null, users[0]);
-
             }
-
-
 
             // 2. Busca por email para vincular conta existente (Microsoft ou local)
-
             [users] = await db.execute('SELECT * FROM policiais WHERE email = ?', [email]);
 
-
-
             if (users.length > 0) {
-
                 const user = users[0];
-
                 console.log(`🔗 Vinculando conta Google ao usuário existente: ${email}`);
-
                 
-
-                // Atualiza o google_id e verifica se já não tinha
                 if (!user.google_id) {
-
                     await db.execute(
-
                         'UPDATE policiais SET google_id = ?, status_verificacao = "VERIFICADO" WHERE id = ?', 
-
                         [googleId, user.id]
-
                     );
-
                     user.google_id = googleId;
-
                     user.status_verificacao = 'VERIFICADO';
-
                 }
-
                 return done(null, user);
-
             }
 
-
-
             // 3. Cria novo usuário
-
             console.log(`👤 Criando novo usuário Google: ${email}`);
-
+            
+            // Determina força por domínio
+            let forcaId = getForcaIdPorDominio(email);
+            
+            // Lógica específica para BMRS (mantida por compatibilidade)
+            if (email.endsWith('@bm.rs.gov.br') && !forcaId) {
+                const [forcas] = await db.execute('SELECT id FROM forcas_policiais WHERE sigla = ?', ['BMRS']);
+                if (forcas.length > 0) forcaId = forcas[0].id;
+            }
+            
+            console.log(`🏢 Força atribuída automaticamente: ${forcaId || 'Nenhuma (escolha manual)'}`);
+            
             const [result] = await db.execute(
-
-                `INSERT INTO policiais (nome, email, google_id, auth_provider, status_verificacao, senha_hash, id_funcional, forca_id, qso) 
-
-                 VALUES (?, ?, ?, 'google', 'VERIFICADO', NULL, NULL, NULL, NULL)`,
-
-                [profile.displayName, email, googleId]
-
+                `INSERT INTO policiais (nome, email, google_id, forca_id, auth_provider, status_verificacao, senha_hash, id_funcional, qso) 
+                 VALUES (?, ?, ?, ?, 'google', 'VERIFICADO', NULL, NULL, NULL)`,
+                [profile.displayName, email, googleId, forcaId]
             );
 
-
-
             const [newUser] = await db.execute('SELECT * FROM policiais WHERE id = ?', [result.insertId]);
-
             console.log(`✅ Usuário Google criado: ${newUser[0].email}`);
-
             return done(null, newUser[0]);
 
-
-
         } catch (error) {
-
             console.error('💥 Erro OAuth Google:', error);
-
             return done(error, false);
-
         }
-
     }
-
 ));
 
-
-
 // 4. Configuração do Passport Microsoft OAuth
-
 const microsoftCallbackURL = `${process.env.BASE_URL || 'https://br.permutapolicial.com.br'}/api/auth/microsoft/callback`;
-
 console.log(`🔗 URL de Callback da Microsoft: ${microsoftCallbackURL}`);
 
-
-
 passport.use('microsoft', new OIDCStrategy({
-
     identityMetadata: 'https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration',
-
     clientID: process.env.MICROSOFT_CLIENT_ID,
-
     clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
-
     redirectUrl: microsoftCallbackURL,
-
-
-
-    // ✅ CONFIGURAÇÕES CORRETAS
-
     responseType: 'code',
-
-    responseMode: 'form_post', // ← Microsoft retorna via POST
-
+    responseMode: 'form_post',
     scope: ['openid', 'profile', 'email', 'User.Read'],
-
-
-
-    // ✅ VALIDAÇÕES
-
-    allowHttpForRedirectUrl: false, // Força HTTPS
-
+    allowHttpForRedirectUrl: false,
     validateIssuer: false,
-
-    //issuer: 'https://login.microsoftonline.com/9188040d-6c67-4c5b-b112-36a304b66dad/v2.0', // Comum
-
-
-
-    // ✅ IMPORTANTE: Não passa req
-
     passReqToCallback: false,
-
-
-
-    // ✅ LOGS
-
     loggingLevel: 'info',
-
 },
-
     async (iss, sub, profile, accessToken, refreshToken, done) => {
         console.log('═══════════════════════════════════════');
         console.log('🔵 ESTRATÉGIA MICROSOFT EXECUTADA');
         console.log('🔑 AccessToken recebido (será usado para o Graph API)');
 
-        // ================================================
-        // 1. BUSCAR DADOS DO GRAPH API (A NOVA LÓGICA)
-        // ================================================
         let graphProfile;
         try {
             const graphResponse = await axios.get(
-                // A TUA URL DO GRAPH API:
                 'https://graph.microsoft.com/v1.0/me?$select=displayName,userPrincipalName,businessPhones,officeLocation,city,mail,jobTitle',
                 {
                     headers: { 
@@ -258,16 +167,10 @@ passport.use('microsoft', new OIDCStrategy({
             return done(graphError, false);
         }
 
-        // ================================================
-        // 2. USAR OS DADOS DO GRAPH API
-        // ================================================
         try {
-            // ID do token original, dados do Graph API
             const microsoftId = profile.oid || profile.sub; 
             const email = graphProfile.mail || graphProfile.userPrincipalName;
             const nome = graphProfile.displayName || 'Usuário Microsoft';
-
-            // OS NOVOS DADOS QUE VOCÊ QUERIA:
             const idFuncional = graphProfile.officeLocation || null; 
             const postoGraduacaoNome = graphProfile.jobTitle || null;
 
@@ -278,10 +181,6 @@ passport.use('microsoft', new OIDCStrategy({
             console.log('   ID Funcional (officeLocation):', idFuncional);
             console.log('   Cargo (jobTitle):', postoGraduacaoNome);
 
-            // O resto do teu código (que já está correto no teu ficheiro) continua aqui...
-            // (if (!email), if (!microsoftId), busca por ID, busca por email, cria novo usuário)
-
-            // ✅ VALIDAÇÃO
             if (!email) {
                 console.error('❌ Email não fornecido pelo Graph API');
                 return done(new Error('O email não foi fornecido pela Microsoft.'), false);
@@ -305,7 +204,7 @@ passport.use('microsoft', new OIDCStrategy({
                 'pc.pe.gov.br', 'pc.pi.gov.br', 'pc.rj.gov.br', 'pc.rn.gov.br', 'pc.rs.gov.br',
                 'pc.ro.gov.br', 'pc.rr.gov.br', 'pc.sc.gov.br', 'policiacivil.sp.gov.br',
                 'pc.se.gov.br', 'pc.to.gov.br',
-                'pf.gov.br', 'prf.gov.br'
+                'pf.gov.br', 'prf.gov.br', 'susepe.rs.gov.br', 'cbm.rs.gov.br'
             ];
             const dominio = email.toLowerCase().split('@')[1];
             if (!DOMINIOS_PERMITIDOS.includes(dominio)) {
@@ -345,22 +244,25 @@ passport.use('microsoft', new OIDCStrategy({
                 return done(null, updatedUser[0]);
             }
 
-            // 3. Cria novo usuário (agora com os dados do Graph)
+            // 3. Cria novo usuário
             console.log(`👤 Criando novo usuário Microsoft: ${email}`);
 
-            let forcaId = null;
-            let postoId = null;
-
-            if (email.endsWith('@bm.rs.gov.br')) {
+            // Determina força por domínio
+            let forcaId = getForcaIdPorDominio(email);
+            
+            // Lógica específica para BMRS (mantida por compatibilidade)
+            if (email.endsWith('@bm.rs.gov.br') && !forcaId) {
                 const [forcas] = await db.execute('SELECT id FROM forcas_policiais WHERE sigla = ?', ['BMRS']);
                 if (forcas.length > 0) forcaId = forcas[0].id;
             }
 
-            // A tua lógica que busca o "Soldado" já vai funcionar
+            let postoId = null;
             if (postoGraduacaoNome) { 
                 const [postos] = await db.execute('SELECT id FROM postos_graduacoes WHERE nome = ?', [postoGraduacaoNome]);
                 if (postos.length > 0) postoId = postos[0].id;
             }
+            
+            console.log(`🏢 Força atribuída automaticamente: ${forcaId || 'Nenhuma (escolha manual)'}`);
 
             const [result] = await db.execute(
                 `INSERT INTO policiais 
@@ -383,298 +285,175 @@ passport.use('microsoft', new OIDCStrategy({
         }
     }));
 
-
-
 console.log('✅ Estratégia Microsoft configurada');
 
-
-
 passport.serializeUser((user, done) => done(null, user.id));
-
 passport.deserializeUser(async (id, done) => {
-
     try {
-
         const [users] = await db.execute('SELECT * FROM policiais WHERE id = ?', [id]);
-
         done(null, users[0]);
-
     } catch (error) {
-
         done(error, null);
-
     }
-
 });
-
-
 
 console.log('✅ Passport configurado');
 
-
-
 // 5. App Express
-
 const app = express();
-
-
-
 app.set('trust proxy', 1);
 
-
-
 // 6. Middlewares
-
 const corsOptions = {
-
     origin: function (origin, callback) {
-
         const allowedOrigins = [
-
             process.env.FRONTEND_URL || 'http://localhost:3000',
-
             'https://br.permutapolicial.com.br',
-
             'http://localhost:3000',
-
             'https://login.microsoftonline.com',
-
         ];
 
         if (!origin) return callback(null, true);
 
         if (allowedOrigins.indexOf(origin) !== -1) {
-
-            callback(null, true);
-
-        } else {
-
-            callback(new Error('Not allowed by CORS'));
-
+            return callback(null, true);
         }
 
+        if (origin.startsWith('http://localhost:')) {
+            return callback(null, true);
+        }
+        
+        callback(new Error('Not allowed by CORS'));
     },
-
     credentials: true,
-
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-
     allowedHeaders: ['Content-Type', 'Authorization']
-
 };
 
-
-
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
+// ===== MIDDLEWARE PARA FORÇAR RECARREGAMENTO (NO-CACHE) =====
+app.use((req, res, next) => {
+    // Força recarregamento de todos os recursos (HTML, JS, CSS, etc)
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+    next();
+});
 
 app.use(express.json());
-
 app.use(express.urlencoded({ extended: true }));
-
 app.use(session({
-
     secret: process.env.SESSION_SECRET || 'um-segredo-muito-forte-de-fallback',
-
     resave: false,
-
     saveUninitialized: true
-
 }));
-
 app.use(passport.initialize());
-
 app.use(passport.session());
-
-
 
 console.log('✅ Middlewares configurados');
 
-
-
 // 7. Rota de Health Check
-
 app.get('/health', (req, res) => {
-
     res.status(200).json({
-
         status: 'ok',
-
         uptime: process.uptime(),
-
         timestamp: new Date().toISOString(),
-
         environment: process.env.NODE_ENV || 'development'
-
     });
-
 });
-
-
 
 // 8. Rota raiz
-
 app.get('/', (req, res) => {
-
     res.json({
-
         message: 'API Permuta Policial - Online',
-
         status: '✅',
-
         timestamp: new Date().toISOString(),
-
         version: '2.0.0'
-
     });
-
 });
 
-
-
-// 9. Servir arquivos estáticos (uploads)
+// 9. Servir arquivos estáticos (uploads) - SEM CACHE
 const path = require('path');
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+    maxAge: 0,
+    etag: false,
+    lastModified: false,
+    setHeaders: (res) => {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+    }
+}));
 
 // 10. Rotas da API
-
 console.log('📦 Carregando rotas da API...');
-
 app.use('/api', apiRoutes);
-
 console.log('✅ Rotas da API carregadas');
 
-
-
 // 11. 404 Handler
-
 app.use((req, res, next) => {
-
     res.status(404).json({
-
         error: 'Rota não encontrada',
-
         path: req.path,
-
         method: req.method
-
     });
-
 });
-
-
 
 // 12. Error Handler
-
 app.use((err, req, res, next) => {
-
     console.error('💥 ERRO:', err.message);
-
     res.status(err.statusCode || 500).json({
-
         error: err.message || 'Erro interno do servidor',
-
         ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-
     });
-
 });
 
-
-
 // ===== INICIALIZAÇÃO PARA PASSENGER =====
-
-
-
-// Detecta se está rodando no Passenger
-
 const isPassenger = process.env.PASSENGER_INSTANCE_REGISTRY_DIR !== undefined;
 
-
-
 if (isPassenger) {
-
     console.log('═══════════════════════════════════════');
-
     console.log('🚀 MODO PASSENGER DETECTADO');
-
     console.log('📍 O Passenger gerenciará o servidor');
-
     console.log('═══════════════════════════════════════');
-
-
-
-    // Testa conexão com banco de forma assíncrona
 
     db.getConnection()
-
         .then(connection => {
-
             console.log('✅ Banco de dados conectado');
-
             connection.release();
-
         })
-
         .catch(error => {
-
             console.error('💥 ERRO ao conectar ao banco:', error.message);
-
         });
-
-
-
-    // Exporta a app para o Passenger
 
     module.exports = app;
 
-
-
 } else {
-
     // Modo standalone (PM2, nodemon, etc)
-
     const PORT = process.env.PORT || 3000;
-
     const HOST = '127.0.0.1';
 
-
-
     async function startServer() {
-
         try {
-
             const connection = await db.getConnection();
-
             console.log('✅ Banco de dados conectado');
-
             connection.release();
 
-
-
             const server = app.listen(PORT, HOST, () => {
-
                 console.log('═══════════════════════════════════════');
-
                 console.log('🚀 Servidor rodando');
-
                 console.log(`📍 Endereço: ${HOST}:${PORT}`);
-
                 console.log('═══════════════════════════════════════');
-
             });
-
-            // Inicializa Socket.IO para chat em tempo real
+            
             initializeSocket(server);
             console.log('✅ Socket.IO inicializado');
 
-            // Inicializa serviço de limpeza automática
             const cleanupService = require('./src/core/services/cleanup_service');
-            
-            // Executa limpeza imediatamente ao iniciar (opcional)
-            // cleanupService.runCleanup();
-            
-            // Executa limpeza a cada 24 horas
-            const cleanupInterval = 24 * 60 * 60 * 1000; // 24 horas em milissegundos
+            const cleanupInterval = 24 * 60 * 60 * 1000;
             setInterval(async () => {
                 try {
                     await cleanupService.runCleanup();
@@ -685,48 +464,22 @@ if (isPassenger) {
             
             console.log('✅ Serviço de limpeza automática inicializado (executa a cada 24h)');
 
-
-
-            // Graceful shutdown
-
             const shutdown = (signal) => {
-
                 console.log(`\n📴 ${signal} recebido. Encerrando...`);
-
                 server.close(async () => {
-
                     await db.end();
-
                     process.exit(0);
-
                 });
-
             };
 
-
-
             process.on('SIGTERM', () => shutdown('SIGTERM'));
-
             process.on('SIGINT', () => shutdown('SIGINT'));
 
-
-
         } catch (error) {
-
             console.error('💥 FALHA ao iniciar:', error);
-
             process.exit(1);
-
         }
-
     }
 
-
-
     startServer();
-
 }
-
-
-
-// --- FIM DO ARQUIVO: server.js ---

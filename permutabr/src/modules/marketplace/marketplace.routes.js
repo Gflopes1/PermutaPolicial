@@ -40,22 +40,23 @@ const upload = multer({
   }
 });
 
-// Rotas públicas
-router.get('/', marketplaceController.getAll);
-router.get('/:id', marketplaceController.getById);
-router.get('/usuario/:policialId', marketplaceController.getByUsuario);
-
-// Rotas autenticadas
-router.post('/', authMiddleware, upload.array('fotos', 3), marketplaceController.create);
-router.put('/:id', authMiddleware, upload.array('fotos', 3), marketplaceController.update);
-router.delete('/:id', authMiddleware, marketplaceController.delete);
-
-// Rotas de admin
+// IMPORTANTE: Rotas de admin devem vir PRIMEIRO
 router.use('/admin', authMiddleware, adminMiddleware);
 router.get('/admin/todos', marketplaceController.getAllAdmin);
 router.put('/admin/:id/aprovar', marketplaceController.aprovar);
 router.put('/admin/:id/rejeitar', marketplaceController.rejeitar);
 router.delete('/admin/:id', marketplaceController.deleteAdmin);
 
-module.exports = router;
+// Rotas autenticadas
+router.post('/', authMiddleware, upload.array('fotos', 3), marketplaceController.create);
+router.put('/:id', authMiddleware, upload.array('fotos', 3), marketplaceController.update);
+router.delete('/:id', authMiddleware, marketplaceController.delete);
 
+// Rotas públicas e específicas (devem vir ANTES das rotas com :id)
+router.get('/usuario/:policialId', marketplaceController.getByUsuario);
+router.get('/', marketplaceController.getAll);
+
+// Rota com parâmetro dinâmico :id deve vir POR ÚLTIMO
+router.get('/:id', marketplaceController.getById);
+
+module.exports = router;

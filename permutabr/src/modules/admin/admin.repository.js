@@ -24,29 +24,21 @@ class AdminRepository {
   }
 
   async aprovarSugestao(sugestaoId) {
-    const connection = await db.getConnection();
-    try {
-      await connection.beginTransaction();
-
-      const [sugestoes] = await connection.execute("SELECT * FROM sugestoes_unidades WHERE id = ? AND status = 'PENDENTE' FOR UPDATE", [sugestaoId]);
-      if (sugestoes.length === 0) {
-        throw new ApiError(404, 'Sugestão não encontrada ou já processada.');
-      }
-      const sugestao = sugestoes[0];
-
-      await connection.execute(
-        'INSERT INTO unidades (nome, municipio_id, forca_id, generica) VALUES (?, ?, ?, FALSE)',
-        [sugestao.nome_sugerido, sugestao.municipio_id, sugestao.forca_id]
-      );
-      await connection.execute("UPDATE sugestoes_unidades SET status = 'APROVADA' WHERE id = ?", [sugestaoId]);
-
-      await connection.commit();
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
+    // Verifica se a sugestão existe e está pendente
+    const [sugestoes] = await db.execute("SELECT * FROM sugestoes_unidades WHERE id = ? AND status = 'PENDENTE'", [sugestaoId]);
+    if (sugestoes.length === 0) {
+      throw new ApiError(404, 'Sugestão não encontrada ou já processada.');
     }
+    const sugestao = sugestoes[0];
+
+    // Cria a unidade
+    await db.execute(
+      'INSERT INTO unidades (nome, municipio_id, forca_id, generica) VALUES (?, ?, ?, FALSE)',
+      [sugestao.nome_sugerido, sugestao.municipio_id, sugestao.forca_id]
+    );
+    
+    // Atualiza o status da sugestão
+    await db.execute("UPDATE sugestoes_unidades SET status = 'APROVADA' WHERE id = ?", [sugestaoId]);
   }
 
   async updateStatusSugestao(sugestaoId, status) {
@@ -56,10 +48,10 @@ class AdminRepository {
 
   async findVerificacoesPendentes() {
     const query = `
-        SELECT p.id, p.nome, p.email, f.sigla as forca_sigla, p.criado_em 
-        FROM policiais p
-        JOIN forcas_policiais f ON p.forca_id = f.id
-        WHERE p.status_verificacao = 'PENDENTE'
+      SELECT p.id, p.nome, p.email, f.sigla as forca_sigla, p.criado_em 
+      FROM policiais p
+      JOIN forcas_policiais f ON p.forca_id = f.id
+      WHERE p.status_verificacao = 'PENDENTE'
     `;
     const [verificacoes] = await db.query(query);
     return verificacoes;
@@ -102,8 +94,11 @@ class AdminRepository {
       params.push(searchTerm, searchTerm, searchTerm);
     }
 
+    const limit = parseInt(filters.limit, 10) || 50;
+    const offset = parseInt(filters.offset, 10) || 0;
+
     query += ' ORDER BY p.criado_em DESC LIMIT ? OFFSET ?';
-    params.push(filters.limit || 50, filters.offset || 0);
+    params.push(limit, offset);
 
     const [policiais] = await db.query(query, params);
     return policiais;

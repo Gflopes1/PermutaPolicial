@@ -25,7 +25,7 @@ const DOMINIOS_PERMITIDOS = [
     'pc.pe.gov.br', 'pc.pi.gov.br', 'pc.rj.gov.br', 'pc.rn.gov.br', 'pc.rs.gov.br',
     'pc.ro.gov.br', 'pc.rr.gov.br', 'pc.sc.gov.br', 'policiacivil.sp.gov.br',
     'pc.se.gov.br', 'pc.to.gov.br',
-    'pf.gov.br', 'prf.gov.br'
+    'pf.gov.br', 'prf.gov.br', 'susepe.rs.gov.br'
 ];
 
 function validarDominioEmail(email) {
@@ -134,7 +134,7 @@ class AuthService {
         const isMatch = await bcrypt.compare(senha, policial.senha_hash);
         if (!isMatch) throw new ApiError(401, 'Credenciais inválidas.');
 
-        const payload = { policial_id: policial.id }; // Usando a chave que o auth.middleware espera
+        const payload = { policial_id: policial.id };
         const token = jwt.sign(payload, process.env.JWT_SECRET, {
             expiresIn: process.env.JWT_EXPIRES_IN,
         });
@@ -224,13 +224,9 @@ class AuthService {
             throw new ApiError(401, 'Falha na autenticação OAuth.');
         }
 
-        // --- CORREÇÃO APLICADA AQUI ---
-        // Padronizamos o payload para usar apenas 'policial_id',
-        // assim como na função de login padrão.
         const payload = {
             policial_id: user.id
         };
-        // --- FIM DA CORREÇÃO ---
 
         const token = jwt.sign(payload, process.env.JWT_SECRET, {
             expiresIn: process.env.JWT_EXPIRES_IN,
