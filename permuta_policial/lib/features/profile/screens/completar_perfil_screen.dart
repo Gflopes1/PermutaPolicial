@@ -9,6 +9,7 @@ import '../../../core/config/app_routes.dart';
 import '../../../shared/widgets/custom_dropdown_search.dart';
 import '../../../shared/widgets/custom_text_field.dart';
 import '../../../core/models/forca_policial.dart';
+import '../widgets/sugerir_unidade_modal.dart';
 
 class CompletarPerfilScreen extends StatefulWidget {
   const CompletarPerfilScreen({super.key});
@@ -29,6 +30,7 @@ class _CompletarPerfilScreenState extends State<CompletarPerfilScreen> {
   int? _selectedMunicipioId;
   int? _selectedUnidadeId;
   late bool _isInterestadual = false;
+  late bool _ocultarNoMapa = false;
 
   final _municipioKey = GlobalKey<DropdownSearchState<dynamic>>();
   final _unidadeKey = GlobalKey<DropdownSearchState<dynamic>>();
@@ -44,6 +46,7 @@ class _CompletarPerfilScreenState extends State<CompletarPerfilScreen> {
         _qsoController.text = provider.userProfile!.qso ?? '';
         _antiguidadeController.text = provider.userProfile!.antiguidade ?? '';
         _isInterestadual = provider.userProfile!.lotacaoInterestadual;
+        _ocultarNoMapa = provider.userProfile!.ocultarNoMapa ?? false;
 
         if (provider.userProfile!.forcaId != null) {
           _selectedForcaId = provider.userProfile!.forcaId;
@@ -71,11 +74,10 @@ class _CompletarPerfilScreenState extends State<CompletarPerfilScreen> {
   }
 
   Future<void> _salvarPerfil() async {
-    // Validação dos campos obrigatórios
+    // Validação dos campos obrigatórios (unidade agora é opcional)
     if (_idFuncionalController.text.trim().isEmpty || 
         _qsoController.text.trim().isEmpty || 
-        _selectedForcaId == null || 
-        _selectedUnidadeId == null) {
+        _selectedForcaId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor, preencha todos os campos obrigatórios.'), backgroundColor: Colors.orange),
       );
@@ -85,14 +87,15 @@ class _CompletarPerfilScreenState extends State<CompletarPerfilScreen> {
     final provider = Provider.of<ProfileProvider>(context, listen: false);
     final navigator = Navigator.of(context);
     
-    // Payload agora inclui o campo de antiguidade
+    // Payload agora inclui o campo de antiguidade e ocultar_no_mapa
     final payload = {
       'id_funcional': _idFuncionalController.text.trim(),
       'qso': _qsoController.text.trim(),
       'antiguidade': _antiguidadeController.text.trim(),
       'forca_id': _selectedForcaId!,
-      'unidade_atual_id': _selectedUnidadeId!,
+      if (_selectedUnidadeId != null) 'unidade_atual_id': _selectedUnidadeId!,
       'lotacao_interestadual': _isInterestadual,
+      'ocultar_no_mapa': _ocultarNoMapa,
     };
 
     final success = await provider.updateProfile(payload);
@@ -240,17 +243,44 @@ class _CompletarPerfilScreenState extends State<CompletarPerfilScreen> {
         CustomDropdownSearch<dynamic>(
           key: _unidadeKey,
           enabled: _selectedMunicipioId != null && _selectedForcaId != null,
-          label: "Unidade",
+          label: "Unidade (Opcional)",
           asyncItems: (_) => provider.getUnidades(municipioId: _selectedMunicipioId!, forcaId: _selectedForcaId!),
           itemAsString: (dynamic u) => u.nome,
           onChanged: (dynamic data) => setState(() => _selectedUnidadeId = data?.id),
         ),
+        const SizedBox(height: 8),
+        // Botão para sugerir unidade
+        if (_selectedMunicipioId != null && _selectedForcaId != null)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => SugerirUnidadeModal(
+                    municipioId: _selectedMunicipioId!,
+                    forcaId: _selectedForcaId!,
+                  ),
+                );
+              },
+              icon: const Icon(Icons.add_circle_outline, size: 18),
+              label: const Text('Não encontrou sua unidade? Sugira'),
+            ),
+          ),
         const SizedBox(height: 10),
 
         CheckboxListTile(
           title: const Text('Aceito permuta interestadual'),
           value: _isInterestadual,
           onChanged: (value) => setState(() => _isInterestadual = value ?? false),
+          contentPadding: EdgeInsets.zero,
+        ),
+        const SizedBox(height: 8),
+        CheckboxListTile(
+          title: const Text('Não desejo aparecer no mapa de intenções ou enviar meu contato automaticamente quando fechar uma permuta'),
+          subtitle: const Text('Mais privacidade, menos chance de encontrar uma permuta'),
+          value: _ocultarNoMapa,
+          onChanged: (value) => setState(() => _ocultarNoMapa = value ?? false),
           contentPadding: EdgeInsets.zero,
         ),
         const SizedBox(height: 24),

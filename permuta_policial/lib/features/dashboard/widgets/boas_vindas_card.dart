@@ -3,36 +3,68 @@
 import 'package:flutter/material.dart';
 
 class BoasVindasCard extends StatelessWidget {
-  final VoidCallback onCompletarPerfil;
+  final String nome;
+  final bool perfilIncompleto;
+  final VoidCallback? onCompletarPerfil;
 
-  const BoasVindasCard({super.key, required this.onCompletarPerfil});
+  const BoasVindasCard({
+    super.key,
+    required this.nome,
+    this.perfilIncompleto = false,
+    this.onCompletarPerfil,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return Card(
-      color: Theme.of(context).colorScheme.primaryContainer.withAlpha(26),
+      color: theme.cardColor,
       child: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.stars_outlined, color: Colors.yellow, size: 40),
-            const SizedBox(height: 12),
             Text(
-              'Bem-vindo ao Permuta Policial!',
-              style: Theme.of(context).textTheme.headlineSmall,
-              textAlign: TextAlign.center,
+              'Olá, $nome',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Para começar a ver suas combinações, o primeiro passo é definir sua lotação atual.',
-              textAlign: TextAlign.center,
+            Text(
+              'Bem-vindo de volta',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.grey[600],
+              ),
             ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: onCompletarPerfil,
-              icon: const Icon(Icons.edit_location_alt_outlined),
-              label: const Text('Completar Perfil Agora'),
-            ),
+            if (perfilIncompleto) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Complete seu perfil para publicar',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ),
+                    if (onCompletarPerfil != null)
+                      TextButton(
+                        onPressed: onCompletarPerfil,
+                        child: const Text('Completar Perfil'),
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/marketplace_item.dart';
 import '../../../core/api/api_client.dart';
+import '../widgets/marketplace_photo_viewer.dart';
 
 class MarketplaceDetailScreen extends StatefulWidget {
   final MarketplaceItem item;
@@ -11,12 +12,13 @@ class MarketplaceDetailScreen extends StatefulWidget {
   const MarketplaceDetailScreen({super.key, required this.item});
 
   @override
-  State<MarketplaceDetailScreen> createState() => _MarketplaceDetailScreenState();
+  State<MarketplaceDetailScreen> createState() => 
+      _MarketplaceDetailScreenState();
 }
 
 class _MarketplaceDetailScreenState extends State<MarketplaceDetailScreen> {
-  int _imagemAtualIndex = 0;
   final PageController _pageController = PageController();
+  int _currentPhotoIndex = 0;
 
   @override
   void dispose() {
@@ -24,316 +26,418 @@ class _MarketplaceDetailScreenState extends State<MarketplaceDetailScreen> {
     super.dispose();
   }
 
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  String _getTipoLabel(String tipo) {
+    switch (tipo) {
+      case 'armas':
+        return 'Armas e Acessórios';
+      case 'veiculos':
+        return 'Veículos';
+      case 'equipamentos':
+        return 'Equipamentos e Uniformes';
+      default:
+        return tipo;
+    }
+  }
+
+  void _abrirGaleriaCompleta(int initialIndex) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MarketplacePhotoViewer(
+          photos: widget.item.fotos,
+          initialIndex: initialIndex,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final apiClient = Provider.of<ApiClient>(context, listen: false);
     final baseUrl = apiClient.baseUrl;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Detalhes do Item'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Galeria de imagens com PageView
-          if (widget.item.fotos.isNotEmpty) ...[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Stack(
-                children: [
-                  SizedBox(
-                    height: 300,
-                    child: PageView.builder(
-                      controller: _pageController,
-                      itemCount: widget.item.fotos.length,
-                      onPageChanged: (index) {
-                        setState(() {
-                          _imagemAtualIndex = index;
-                        });
-                      },
-                      itemBuilder: (context, index) {
-                        return Image.network(
-                          '$baseUrl${widget.item.fotos[index]}',
-                          height: 300,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            height: 300,
-                            color: Colors.grey[300],
-                            child: const Icon(Icons.image, size: 64),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  // Indicador de página
-                  if (widget.item.fotos.length > 1)
-                    Positioned(
-                      bottom: 8,
-                      left: 0,
-                      right: 0,
-                      child: Center(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.black54,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '${_imagemAtualIndex + 1} / ${widget.item.fotos.length}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: CustomScrollView(
+        slivers: [
+          // AppBar com imagem
+          SliverAppBar(
+            expandedHeight: 300,
+            pinned: true,
+            flexibleSpace: FlexibleSpaceBar(
+              background: widget.item.fotos.isNotEmpty
+                  ? Stack(
+                      children: [
+                        PageView.builder(
+                          controller: _pageController,
+                          itemCount: widget.item.fotos.length,
+                          onPageChanged: (index) {
+                            setState(() => _currentPhotoIndex = index);
+                          },
+                          itemBuilder: (context, index) {
+                            return GestureDetector(
+                              onTap: () => _abrirGaleriaCompleta(index),
+                              child: Image.network(
+                                '$baseUrl${widget.item.fotos[index]}',
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    color: Colors.grey[300],
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.broken_image,
+                                        size: 64,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                        
+                        // Indicador de zoom
+                        Positioned(
+                          bottom: 16,
+                          right: 16,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withAlpha(150),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.zoom_in,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Toque para ampliar',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            // Miniaturas clicáveis
-            if (widget.item.fotos.length > 1) ...[
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 80,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: widget.item.fotos.length,
-                  itemBuilder: (context, index) {
-                    final isSelected = index == _imagemAtualIndex;
-                    return GestureDetector(
-                      onTap: () {
-                        _pageController.animateToPage(
-                          index,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                        );
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: isSelected ? Theme.of(context).primaryColor : Colors.transparent,
-                            width: 3,
-                          ),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: Image.network(
-                            '$baseUrl${widget.item.fotos[index]}',
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              width: 80,
-                              height: 80,
-                              color: Colors.grey[300],
-                              child: const Icon(Icons.image, size: 32),
+                        
+                        // Indicador de página
+                        if (widget.item.fotos.length > 1)
+                          Positioned(
+                            bottom: 16,
+                            left: 0,
+                            right: 0,
+                            child: Center(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withAlpha(150),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  '${_currentPhotoIndex + 1}/${widget.item.fotos.length}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
+                      ],
+                    )
+                  : Container(
+                      color: Colors.grey[300],
+                      child: const Center(
+                        child: Icon(
+                          Icons.image_not_supported,
+                          size: 64,
+                          color: Colors.grey,
                         ),
                       ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ],
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  widget.item.titulo,
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor.withAlpha(24),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  widget.item.tipoLabel,
-                  style: TextStyle(
-                    color: Theme.of(context).primaryColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'R\$ ${widget.item.valor.toStringAsFixed(2)}',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: Colors.green,
-              fontWeight: FontWeight.bold,
+                    ),
             ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Descrição',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            widget.item.descricao,
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-          const SizedBox(height: 24),
-          // Informações do Vendedor
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor.withAlpha(12),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: Theme.of(context).primaryColor.withAlpha(48),
-              ),
-            ),
+
+          // Conteúdo
+          SliverToBoxAdapter(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.person,
-                      color: Theme.of(context).primaryColor,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Informações do Vendedor',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).primaryColor,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                if (widget.item.policialNome != null) ...[
-                  Row(
-                    children: [
-                      const Icon(Icons.badge, size: 16, color: Colors.grey),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          widget.item.policialNome!,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
+                // Header com preço e tipo
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: theme.cardColor,
                   ),
-                ],
-                if (widget.item.policialEmail != null) ...[
-                  const SizedBox(height: 8),
-                  Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.email, size: 16, color: Colors.grey),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          widget.item.policialEmail!,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey[700],
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              widget.item.titulo,
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-                if (widget.item.policialTelefone != null) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.phone, size: 16, color: Colors.grey),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          widget.item.policialTelefone!,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey[700],
-                            fontWeight: FontWeight.w500,
+                          const SizedBox(width: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: theme.primaryColor.withAlpha(20),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: theme.primaryColor.withAlpha(50),
+                              ),
+                            ),
+                            child: Text(
+                              _getTipoLabel(widget.item.tipo),
+                              style: TextStyle(
+                                color: theme.primaryColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Informações do Anúncio
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: Colors.grey[300]!,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: Colors.grey[700],
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Informações do Anúncio',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[800],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Criado em: ${_formatDate(widget.item.criadoEm)}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                  ],
-                ),
-                if (widget.item.atualizadoEm != null) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.update, size: 16, color: Colors.grey[600]),
-                      const SizedBox(width: 8),
+                      
+                      const SizedBox(height: 16),
+                      
                       Text(
-                        'Atualizado em: ${_formatDate(widget.item.atualizadoEm!)}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[700],
+                        'R\$ ${widget.item.valor.toStringAsFixed(2).replaceAll('.', ',')}',
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          color: const Color.fromARGB(255, 255, 255, 255),
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
                   ),
-                ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Descrição
+                if (widget.item.descricao.isNotEmpty)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    color: theme.cardColor,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.description_outlined,
+                              size: 20,
+                              color: theme.primaryColor,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Descrição',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          widget.item.descricao,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                const SizedBox(height: 12),
+
+                // Informações do Vendedor
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: theme.cardColor,
+                    border: Border.all(color: theme.cardColor),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.person,
+                            color: theme.primaryColor,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Informações do Vendedor',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: theme.primaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 16),
+                      
+                      if (widget.item.policialNome != null)
+                        _buildInfoRow(
+                          Icons.badge,
+                          'Nome',
+                          widget.item.policialNome!,
+                          theme,
+                        ),
+                      
+                      if (widget.item.policialEmail != null) ...[
+                        const SizedBox(height: 12),
+                        _buildInfoRow(
+                          Icons.email,
+                          'Email',
+                          widget.item.policialEmail!,
+                          theme,
+                        ),
+                      ],
+                      
+                      if (widget.item.policialTelefone != null) ...[
+                        const SizedBox(height: 12),
+                        _buildInfoRow(
+                          Icons.phone,
+                          'Telefone/QSO',
+                          widget.item.policialTelefone!,
+                          theme,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // Informações do Anúncio
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  color: theme.cardColor,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: Colors.grey[700],
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Informações do Anúncio',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[800],
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 16),
+                      
+                      _buildInfoRow(
+                        Icons.calendar_today,
+                        'Publicado em',
+                        _formatDate(widget.item.criadoEm),
+                        theme,
+                      ),
+                      
+                      if (widget.item.atualizadoEm != null &&
+                          widget.item.atualizadoEm != widget.item.criadoEm) ...[
+                        const SizedBox(height: 12),
+                        _buildInfoRow(
+                          Icons.update,
+                          'Atualizado em',
+                          _formatDate(widget.item.atualizadoEm!),
+                          theme,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // Aviso importante
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    border: Border(
+                      top: BorderSide(color: Colors.amber.shade200, width: 3),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: Colors.amber.shade900,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Importante',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.amber.shade900,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'O Permuta Policial apenas conecta compradores e vendedores. '
+                        'A negociação e a transação são realizadas diretamente entre as partes, '
+                        'por sua conta e risco. Verifique sempre a procedência e legalidade dos itens.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.amber.shade900,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 32),
               ],
             ),
           ),
@@ -342,7 +446,38 @@ class _MarketplaceDetailScreenState extends State<MarketplaceDetailScreen> {
     );
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  Widget _buildInfoRow(
+    IconData icon,
+    String label,
+    String value,
+    ThemeData theme,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: Colors.grey[600]),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }

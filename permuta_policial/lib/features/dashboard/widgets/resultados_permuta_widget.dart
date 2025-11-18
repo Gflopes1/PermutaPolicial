@@ -3,9 +3,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:dropdown_search/dropdown_search.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/models/match_results.dart';
 import 'match_triangular_card.dart'; // Importa o card que separamos
+import '../../notificacoes/providers/notificacoes_provider.dart';
+import '../../chat/providers/chat_provider.dart';
+import '../../chat/screens/chat_conversa_screen.dart';
 
 class ResultadosPermutaWidget extends StatefulWidget {
   final FullMatchResults results;
@@ -218,6 +222,65 @@ class _ResultadosPermutaWidgetState extends State<ResultadosPermutaWidget> with 
       itemCount: matches.length,
       itemBuilder: (context, index) {
         final match = matches[index];
+        
+        // Se o usuário estiver oculto no mapa, mostra informações genéricas e botões de ação
+        if (match.ocultarNoMapa) {
+          final cidade = match.municipioAtual ?? 'cidade não informada';
+          final forca = match.forcaSigla;
+          final unidade = match.unidadeAtual;
+          
+          String descricao = 'Usuário não identificado da cidade "$cidade", força "$forca"';
+          if (unidade != null && unidade.isNotEmpty) {
+            descricao += ', unidade "$unidade"';
+          }
+          descricao += ' tem uma permuta direta com você!';
+          
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 6.0),
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    descricao,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _solicitarContato(context, match.id),
+                          icon: const Icon(Icons.person_add),
+                          label: const Text('Solicitar Contato'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).colorScheme.primary,
+                            foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _enviarMensagem(context, match.id, true),
+                          icon: const Icon(Icons.message),
+                          label: const Text('Enviar Mensagem'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).colorScheme.secondary,
+                            foregroundColor: Theme.of(context).colorScheme.onSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        
+        // Usuário não oculto: mostra informações completas
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 6.0),
           child: ListTile(
@@ -232,10 +295,21 @@ class _ResultadosPermutaWidgetState extends State<ResultadosPermutaWidget> with 
               ],
             ),
             isThreeLine: true,
-            trailing: IconButton(
-              icon: const Icon(Icons.phone),
-              tooltip: 'Ver Contato',
-              onPressed: () => _showQsoDialog(context, match),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.message),
+                  tooltip: 'Enviar Mensagem',
+                  onPressed: () => _enviarMensagem(context, match.id, false),
+                ),
+                if (match.qso != null && match.qso!.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.phone),
+                    tooltip: 'Ver Contato',
+                    onPressed: () => _showQsoDialog(context, match),
+                  ),
+              ],
             ),
           ),
         );
@@ -249,6 +323,62 @@ class _ResultadosPermutaWidgetState extends State<ResultadosPermutaWidget> with 
       itemCount: matches.length,
       itemBuilder: (context, index) {
         final match = matches[index];
+        
+        // Se o usuário estiver oculto no mapa, mostra informações genéricas
+        if (match.ocultarNoMapa) {
+          final cidade = match.municipioAtual ?? 'cidade não informada';
+          final forca = match.forcaSigla;
+          final unidade = match.unidadeAtual;
+          
+          String descricao = 'Usuário não identificado da cidade "$cidade", força "$forca"';
+          if (unidade != null && unidade.isNotEmpty) {
+            descricao += ', unidade "$unidade"';
+          }
+          descricao += ' tem interesse em ${match.descricaoInteresse ?? "seu estado/cidade/unidade"}.';
+          
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 6.0),
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    descricao,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _solicitarContato(context, match.id),
+                      icon: const Icon(Icons.person_add),
+                      label: const Text('Solicitar Contato'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _enviarMensagem(context, match.id, true),
+                      icon: const Icon(Icons.message),
+                      label: const Text('Enviar Mensagem'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        
+        // Usuário não oculto - exibe normalmente
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 6.0),
           child: ListTile(
@@ -264,15 +394,96 @@ class _ResultadosPermutaWidgetState extends State<ResultadosPermutaWidget> with 
               ],
             ),
             isThreeLine: true,
-            trailing: IconButton(
-              icon: const Icon(Icons.phone),
-              tooltip: 'Ver Contato',
-              onPressed: () => _showQsoDialog(context, match),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.message),
+                  tooltip: 'Enviar Mensagem',
+                  onPressed: () => _enviarMensagem(context, match.id, false),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.phone),
+                  tooltip: 'Ver Contato',
+                  onPressed: () => _showQsoDialog(context, match),
+                ),
+              ],
             ),
           ),
         );
       },
     );
+  }
+  
+  Future<void> _solicitarContato(BuildContext context, int destinatarioId) async {
+    final notificacoesProvider = Provider.of<NotificacoesProvider>(context, listen: false);
+    
+    try {
+      final success = await notificacoesProvider.criarSolicitacaoContato(destinatarioId);
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success 
+              ? 'Solicitação de contato enviada com sucesso!' 
+              : 'Erro ao enviar solicitação de contato.'),
+            backgroundColor: success ? Colors.green : Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao enviar solicitação: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+  
+  Future<void> _enviarMensagem(BuildContext context, int destinatarioId, bool isAnonima) async {
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    
+    try {
+      // Inicializa o socket se necessário
+      await chatProvider.initializeSocket();
+      
+      // Inicia a conversa (anônima se especificado)
+      final conversa = await chatProvider.iniciarConversa(destinatarioId, anonima: isAnonima);
+      
+      if (conversa != null && context.mounted) {
+        // Navega para a tela de conversa
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (ctx) => ChatConversaScreen(
+              conversaId: conversa['id'],
+              outroUsuarioNome: conversa['anonima'] && !conversa['remetente_revelado'] && conversa['iniciada_por'] == destinatarioId
+                  ? 'Usuário não identificado'
+                  : (conversa['outro_usuario_nome'] ?? 'Usuário'),
+            ),
+          ),
+        );
+      } else if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Erro ao iniciar conversa.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao enviar mensagem: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildTriangularList(List<MatchTriangular> matches) {

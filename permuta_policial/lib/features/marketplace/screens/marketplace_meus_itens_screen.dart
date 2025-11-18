@@ -1,22 +1,24 @@
 // /lib/features/marketplace/screens/marketplace_meus_itens_screen.dart
+// (Refatorado para usar layout em grade e corrigir fluxo de edição)
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/marketplace_provider.dart';
 import '../../../core/models/marketplace_item.dart';
-import '../../../core/api/api_client.dart';
 import '../../../features/dashboard/providers/dashboard_provider.dart';
-import 'marketplace_create_screen.dart';
-import 'marketplace_detail_screen.dart';
+import '../widgets/marketplace_grid_item.dart'; // O novo card do grid
+import 'marketplace_create_form_screen.dart'; // Para edição direta
 
 class MarketplaceMeusItensScreen extends StatefulWidget {
   const MarketplaceMeusItensScreen({super.key});
 
   @override
-  State<MarketplaceMeusItensScreen> createState() => _MarketplaceMeusItensScreenState();
+  State<MarketplaceMeusItensScreen> createState() =>
+      _MarketplaceMeusItensScreenState();
 }
 
-class _MarketplaceMeusItensScreenState extends State<MarketplaceMeusItensScreen> {
+class _MarketplaceMeusItensScreenState
+    extends State<MarketplaceMeusItensScreen> {
   @override
   void initState() {
     super.initState();
@@ -25,70 +27,59 @@ class _MarketplaceMeusItensScreenState extends State<MarketplaceMeusItensScreen>
     });
   }
 
-  void _carregarItens() {
-    final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
+  Future<void> _carregarItens() async {
+    final dashboardProvider =
+        Provider.of<DashboardProvider>(context, listen: false);
     final user = dashboardProvider.userData;
     if (user != null) {
-      final provider = Provider.of<MarketplaceProvider>(context, listen: false);
-      provider.loadMeusItens(user.id);
+      final provider =
+          Provider.of<MarketplaceProvider>(context, listen: false);
+      // O provider já tem um _isLoadingMeusItens, mas vamos usar o _isLoading padrão
+      // por consistência com o provider refatorado.
+      await provider.loadMeusItens(user.id);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final apiClient = Provider.of<ApiClient>(context, listen: false);
-    final baseUrl = apiClient.baseUrl;
+    final theme = Theme.of(context);
 
     return Consumer<MarketplaceProvider>(
       builder: (context, provider, child) {
-        if (provider.isLoading) {
+        // Usando o isLoading do provider
+        if (provider.isLoading && provider.meusItens.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (provider.errorMessage != null) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(provider.errorMessage!),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: _carregarItens,
-                  child: const Text('Tentar Novamente'),
-                ),
-              ],
-            ),
-          );
+        if (provider.errorMessage != null && provider.meusItens.isEmpty) {
+          return _buildErrorState(theme, provider.errorMessage!);
         }
 
         if (provider.meusItens.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('Você ainda não criou nenhum anúncio.'),
-                SizedBox(height: 16),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 32),
-                  child: Text(
-                    'Lembre-se: os anúncios são excluídos automaticamente após 1 mês da postagem.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ),
-              ],
-            ),
-          );
+          return _buildEmptyState(theme);
         }
 
         return RefreshIndicator(
-          onRefresh: () async => _carregarItens(),
-          child: ListView.builder(
+          onRefresh: _carregarItens,
+          child: GridView.builder(
             padding: const EdgeInsets.all(16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 0.70, // Mesmo aspect ratio da outra tela
+            ),
             itemCount: provider.meusItens.length,
             itemBuilder: (context, index) {
               final item = provider.meusItens[index];
-              return _buildItemCard(context, item, baseUrl, provider);
+              return Stack(
+                children: [
+                  // 1. O Card Base
+                  MarketplaceGridItem(item: item),
+                  // 2. O Overlay com ações e status
+                  _buildItemOverlay(context, theme, item, provider),
+                ],
+              );
             },
           ),
         );
@@ -96,138 +87,223 @@ class _MarketplaceMeusItensScreenState extends State<MarketplaceMeusItensScreen>
     );
   }
 
-  Widget _buildItemCard(BuildContext context, MarketplaceItem item, String baseUrl, MarketplaceProvider provider) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => MarketplaceDetailScreen(item: item),
+  /// Cria o overlay com status e botões de ação
+  Widget _buildItemOverlay(
+    BuildContext context,
+    ThemeData theme,
+    MarketplaceItem item,
+    MarketplaceProvider provider,
+  ) {
+    Color statusColor;
+    String statusLabel = item.statusLabel;
+
+    switch (item.status) {
+      case 'APROVADO':
+        statusColor = Colors.green;
+        break;
+      case 'REJEITADO':
+        statusColor = theme.colorScheme.error;
+        break;
+      case 'PENDENTE':
+      default:
+        statusColor = Colors.orange;
+        break;
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: Stack(
+        children: [
+          // Overlay para escurecer
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withAlpha(89), // 35%
+              borderRadius: BorderRadius.circular(12),
             ),
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+          ),
+
+          // Status Chip
+          Positioned(
+            top: 8,
+            left: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: statusColor.withAlpha(204), // 80%
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                statusLabel,
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+
+          // Botões de Ação
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              height: 48,
+              decoration: BoxDecoration(
+                color: theme.cardColor.withAlpha(230), // 90%
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(12),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  Expanded(
-                    child: Text(
-                      item.titulo,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
+                  IconButton(
+                    icon: Icon(Icons.edit, size: 20, color: theme.colorScheme.onSurface),
+                    tooltip: 'Editar',
+                    onPressed: () async {
+                      // Navega direto para o formulário de edição
+                      final result = await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => MarketplaceCreateFormScreen(
+                            itemToEdit: item, // Passa o item para edição
+                          ),
+                        ),
+                      );
+                      // Se o usuário salvou (retornou true), recarrega a lista
+                      if (result == true && mounted) {
+                        _carregarItens();
+                      }
+                    },
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: item.status == 'APROVADO'
-                          ? Colors.green.shade100
-                          : item.status == 'REJEITADO'
-                              ? Colors.red.shade100
-                              : Colors.orange.shade100,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      item.statusLabel,
-                      style: TextStyle(
-                        color: item.status == 'APROVADO'
-                            ? Colors.green.shade700
-                            : item.status == 'REJEITADO'
-                                ? Colors.red.shade700
-                                : Colors.orange.shade700,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                  IconButton(
+                    icon: Icon(Icons.delete_outline,
+                        color: theme.colorScheme.error, size: 20),
+                    tooltip: 'Excluir',
+                    onPressed: () => _confirmarExclusao(context, provider, item.id),
                   ),
                 ],
               ),
-            const SizedBox(height: 8),
-            if (item.fotos.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  '$baseUrl${item.fotos[0]}',
-                  height: 150,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    height: 150,
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.image, size: 64),
-                  ),
-                ),
-              ),
-            const SizedBox(height: 8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Popup de confirmação para exclusão
+  Future<void> _confirmarExclusao(
+      BuildContext context, MarketplaceProvider provider, int id) async {
+    final theme = Theme.of(context);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar exclusão'),
+        content: const Text('Deseja realmente excluir este anúncio? Esta ação não pode ser desfeita.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.error,
+              foregroundColor: theme.colorScheme.onError,
+            ),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && mounted) {
+      final success = await provider.deleteItem(id);
+      
+      // CORREÇÃO: Passando `isError`
+      if (success) {
+        _showMessage('Anúncio excluído!', isError: false);
+        _carregarItens(); // Recarrega a lista
+      } else {
+        _showMessage(provider.errorMessage ?? 'Erro ao excluir.', isError: true);
+      }
+    }
+  }
+
+  /// Exibe um SnackBar
+  void _showMessage(String message, {required bool isError}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  /// Widget para estado de erro
+  Widget _buildErrorState(ThemeData theme, String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+            const SizedBox(height: 16),
             Text(
-              'R\$ ${item.valor.toStringAsFixed(2)}',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Colors.green,
+              'Erro ao carregar seus anúncios',
+              style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton.icon(
-                  icon: const Icon(Icons.edit),
-                  label: const Text('Editar'),
-                  onPressed: () async {
-                    final result = await Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => MarketplaceCreateScreen(itemToEdit: item),
-                      ),
-                    );
-                    if (result == true && mounted) {
-                      _carregarItens();
-                    }
-                  },
-                ),
-                const SizedBox(width: 8),
-                TextButton.icon(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  label: const Text('Excluir', style: TextStyle(color: Colors.red)),
-                  onPressed: () async {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Confirmar exclusão'),
-                        content: const Text('Deseja realmente excluir este anúncio?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(ctx).pop(false),
-                            child: const Text('Cancelar'),
-                          ),
-                          ElevatedButton(
-                            onPressed: () => Navigator.of(ctx).pop(true),
-                            child: const Text('Excluir'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (confirm == true && mounted) {
-                      final success = await provider.deleteItem(item.id);
-                      if (!mounted) return;
-                      if (success) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Anúncio excluído!')),
-                        );
-                        _carregarItens();
-                      }
-                    }
-                  },
-                ),
-              ],
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _carregarItens,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Tentar Novamente'),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  /// Widget para estado vazio
+  Widget _buildEmptyState(ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.inventory_2_outlined,
+              size: 80,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Você não publicou anúncios',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Use o botão (+) para criar seu primeiro anúncio.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
 }
-

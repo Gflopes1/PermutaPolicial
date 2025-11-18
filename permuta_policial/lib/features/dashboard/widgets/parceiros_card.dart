@@ -41,7 +41,20 @@ class _ParceirosCardState extends State<ParceirosCard> {
   @override
   Widget build(BuildContext context) {
     if (widget.parceiros.isEmpty) {
-      return const SizedBox.shrink();
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Center(
+            child: Text(
+              'Seja um parceiro — fale conosco',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.grey[600],
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        ),
+      );
     }
 
     return Card(
@@ -66,9 +79,9 @@ class _ParceirosCardState extends State<ParceirosCard> {
             ),
             const SizedBox(height: 16),
             
-            // Usando o PageView nativo do Flutter
+            // Carrossel horizontal - imagens ocupando quase toda a largura
             SizedBox(
-              height: 200,
+              height: 200, // Altura ajustada para proporção 300x250
               child: PageView.builder(
                 itemCount: widget.parceiros.length,
                 onPageChanged: (int page) {
@@ -97,57 +110,28 @@ class _ParceirosCardState extends State<ParceirosCard> {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            Image.network(
-                              parceiro.imagemUrl,
-                              fit: BoxFit.contain,
-                              loadingBuilder: (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return Center(
-                                  child: CircularProgressIndicator(
-                                    value: loadingProgress.expectedTotalBytes != null
-                                        ? loadingProgress.cumulativeBytesLoaded /
-                                            loadingProgress.expectedTotalBytes!
-                                        : null,
-                                  ),
-                                );
-                              },
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  color: Colors.grey[200],
-                                  child: const Center(
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.broken_image, size: 48, color: Colors.grey),
-                                        SizedBox(height: 8),
-                                        Text('Erro ao carregar imagem'),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                            if (parceiro.linkUrl != null && parceiro.linkUrl!.isNotEmpty)
-                              Positioned(
-                                bottom: 8,
-                                right: 8,
-                                child: Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context).primaryColor,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: const Icon(
-                                    Icons.open_in_new,
-                                    size: 16,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                          ],
+                        child: Image.network(
+                          parceiro.imagemUrl,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              width: double.infinity,
+                              height: double.infinity,
+                              color: Colors.grey[200],
+                              child: const Center(child: CircularProgressIndicator()),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              width: double.infinity,
+                              height: double.infinity,
+                              color: Colors.grey[200],
+                              child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                            );
+                          },
                         ),
                       ),
                     ),

@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/chat_provider.dart';
+import '../../dashboard/providers/dashboard_provider.dart';
 
 class ChatConversaScreen extends StatefulWidget {
   final int conversaId;
@@ -56,13 +57,19 @@ class _ChatConversaScreenState extends State<ChatConversaScreen> {
     if (mensagem.isEmpty) return;
 
     final provider = Provider.of<ChatProvider>(context, listen: false);
+    
+    // Limpa o campo imediatamente para evitar múltiplos envios
+    _mensagemController.clear();
+    
     final success = await provider.sendMensagem(mensagem);
 
     if (success) {
-      _mensagemController.clear();
       provider.stopTyping();
       _isTyping = false;
       _scrollToBottom();
+    } else {
+      // Se falhou, restaura a mensagem
+      _mensagemController.text = mensagem;
     }
   }
 
@@ -87,8 +94,11 @@ class _ChatConversaScreenState extends State<ChatConversaScreen> {
                   itemCount: provider.mensagens.length,
                   itemBuilder: (context, index) {
                     final mensagem = provider.mensagens[index];
-                    final isMe = mensagem['remetente_id'] == provider.conversaAtual?['usuario1_id'] ||
-                        mensagem['remetente_id'] == provider.conversaAtual?['usuario2_id'];
+                    final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
+                    final currentUserId = dashboardProvider.userData?.id;
+                    final isMe = mensagem['remetente_id'] == currentUserId;
+                    final remetenteNome = mensagem['remetente_nome'] ?? 'Usuário';
+                    final remetenteIdentificado = mensagem['remetente_identificado'] ?? 1;
                     
                     return Align(
                       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -102,6 +112,19 @@ class _ChatConversaScreenState extends State<ChatConversaScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // Mostra nome do remetente se não for anônimo ou se já foi revelado
+                            if (!isMe && remetenteIdentificado == 1)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Text(
+                                  remetenteNome,
+                                  style: const TextStyle(
+                                    color: Colors.black87,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
                             Text(
                               mensagem['mensagem'] ?? '',
                               style: TextStyle(

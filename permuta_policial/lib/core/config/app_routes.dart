@@ -14,6 +14,9 @@ import '../../features/auth/screens/auth_callback_screen.dart';
 import '../../features/novos_soldados/screens/novos_soldados_screen.dart';
 import '../../features/admin/screens/admin_screen.dart';
 import '../../features/marketplace/screens/marketplace_screen.dart';
+import '../../features/notificacoes/screens/notificacoes_screen.dart';
+import '../../features/profile/screens/meus_dados_screen.dart';
+import '../../features/permutas/screens/permutas_screen.dart';
 
 
 class AppRoutes {
@@ -29,6 +32,9 @@ class AppRoutes {
   static const String novosSoldadosEscolha = '/novos-soldados-escolha';
   static const String admin = '/admin';
   static const String marketplace = '/marketplace';
+  static const String notificacoes = '/notificacoes';
+  static const String meusDados = '/meus-dados';
+  static const String permutas = '/permutas';
 
 
   /// Função estática que gera as rotas da aplicação
@@ -72,6 +78,15 @@ class AppRoutes {
         // Exemplo de como passar argumentos para uma rota de forma segura
         final isVisitor = settings.arguments as bool? ?? false;
         return MaterialPageRoute(builder: (_) => MapaScreen(isVisitorMode: isVisitor));
+
+      case notificacoes:
+        return MaterialPageRoute(builder: (_) => const NotificacoesScreen());
+
+      case meusDados:
+        return MaterialPageRoute(builder: (_) => const MeusDadosScreen());
+
+      case permutas:
+        return MaterialPageRoute(builder: (_) => const PermutasScreen());
       
       case splash:
       default:

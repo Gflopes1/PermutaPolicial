@@ -1,5 +1,7 @@
 // /lib/features/mapa/screens/mapa_screen.dart
 
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
@@ -9,6 +11,9 @@ import '../providers/mapa_provider.dart';
 import '../../../core/models/ponto_mapa.dart';
 import '../../../core/models/detalhe_municipio.dart';
 import '../../../core/config/app_routes.dart';
+import '../../notificacoes/providers/notificacoes_provider.dart';
+import '../../chat/providers/chat_provider.dart';
+import '../../chat/screens/chat_conversa_screen.dart';
 
 class MapaScreen extends StatefulWidget {
   final bool isVisitorMode;
@@ -33,6 +38,65 @@ class _MapaScreenState extends State<MapaScreen> {
 
   void _resetMapView() {
     _mapController.move(const LatLng(-14.2350, -51.9253), 4.5);
+  }
+
+  Future<void> _solicitarContato(BuildContext context, int policialId) async {
+    final notificacoesProvider = Provider.of<NotificacoesProvider>(context, listen: false);
+    final success = await notificacoesProvider.criarSolicitacaoContato(policialId);
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success 
+            ? 'Solicitação de contato enviada com sucesso!' 
+            : notificacoesProvider.errorMessage ?? 'Erro ao enviar solicitação.'),
+          backgroundColor: success ? Colors.green : Colors.red,
+        ),
+      );
+    }
+  }
+  
+  Future<void> _enviarMensagem(BuildContext context, int destinatarioId, bool isAnonima) async {
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    
+    try {
+      // Inicializa o socket se necessário
+      await chatProvider.initializeSocket();
+      
+      // Inicia a conversa (anônima se especificado)
+      final conversa = await chatProvider.iniciarConversa(destinatarioId, anonima: isAnonima);
+      
+      if (conversa != null && mounted) {
+        // Navega para a tela de conversa
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (ctx) => ChatConversaScreen(
+              conversaId: conversa['id'],
+              outroUsuarioNome: conversa['anonima'] && !conversa['remetente_revelado'] && conversa['iniciada_por'] == destinatarioId
+                  ? 'Usuário não identificado'
+                  : (conversa['outro_usuario_nome'] ?? 'Usuário'),
+            ),
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Erro ao iniciar conversa.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao enviar mensagem: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   // Mostra um modal de login para visitantes
@@ -159,7 +223,7 @@ class _MapaScreenState extends State<MapaScreen> {
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Text(
-                                          detalhe.policialNome,
+                                          detalhe.ocultarNoMapa ? 'Usuário não identificado' : detalhe.policialNome,
                                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                             fontWeight: FontWeight.bold,
                                           ),
@@ -167,24 +231,111 @@ class _MapaScreenState extends State<MapaScreen> {
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 12),
-                                  if (detalhe.qso != null && detalhe.qso!.isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(bottom: 8),
-                                      child: Row(
+                                  if (detalhe.ocultarNoMapa) ...[
+                                    const SizedBox(height: 8),
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.shade50,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: Colors.orange.shade200),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          const Icon(Icons.phone, size: 20, color: Colors.green),
-                                          const SizedBox(width: 8),
-                                          SelectableText(
-                                            detalhe.qso!,
-                                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.green[700],
-                                            ),
+                                          Row(
+                                            children: [
+                                              Icon(Icons.info_outline, size: 20, color: Colors.orange.shade700),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  'Este usuário optou por não aparecer no mapa. A mensagem será anônima até que ele responda.',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.orange.shade900,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: OutlinedButton.icon(
+                                                  onPressed: () => _enviarMensagem(context, detalhe.policialId, true),
+                                                  icon: const Icon(Icons.message, size: 18),
+                                                  label: const Text('Enviar Mensagem'),
+                                                  style: OutlinedButton.styleFrom(
+                                                    foregroundColor: Theme.of(context).colorScheme.primary,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: ElevatedButton.icon(
+                                                  onPressed: () => _solicitarContato(context, detalhe.policialId),
+                                                  icon: const Icon(Icons.person_add, size: 18),
+                                                  label: const Text('Solicitar Contato'),
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: Colors.orange.shade700,
+                                                    foregroundColor: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),
                                     ),
+                                  ] else ...[
+                                    // Só mostra telefone e botões se o usuário não estiver oculto
+                                    const SizedBox(height: 12),
+                                    if (detalhe.qso != null && detalhe.qso!.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(bottom: 8),
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.phone, size: 20, color: Colors.green),
+                                            const SizedBox(width: 8),
+                                            SelectableText(
+                                              detalhe.qso!,
+                                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.green[700],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: OutlinedButton.icon(
+                                            onPressed: () => _enviarMensagem(context, detalhe.policialId, false),
+                                            icon: const Icon(Icons.message, size: 18),
+                                            label: const Text('Enviar Mensagem'),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: Theme.of(context).colorScheme.primary,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: ElevatedButton.icon(
+                                            onPressed: () => _solicitarContato(context, detalhe.policialId),
+                                            icon: const Icon(Icons.person_add, size: 18),
+                                            label: const Text('Solicitar Contato'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Theme.of(context).colorScheme.primary,
+                                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                   const Divider(),
                                   Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -276,20 +427,28 @@ class _MapaScreenState extends State<MapaScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<MapaProvider>(
-      builder: (context, provider, child) {
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Mapa de Exploração'),
-            leading: widget.isVisitorMode ? IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(context).pop()) : null,
-            actions: [
-              IconButton(icon: const Icon(Icons.my_location), tooltip: 'Centralizar Mapa', onPressed: _resetMapView),
-              IconButton(icon: const Icon(Icons.filter_alt), tooltip: 'Filtros', onPressed: () => _showFilterPanel(context)),
-            ],
-          ),
-          body: _buildBody(provider),
-        );
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        // Volta para a tela anterior
+        Navigator.of(context).pop();
       },
+      child: Consumer<MapaProvider>(
+        builder: (context, provider, child) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Mapa de Exploração'),
+              leading: widget.isVisitorMode ? IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(context).pop()) : null,
+              actions: [
+                IconButton(icon: const Icon(Icons.my_location), tooltip: 'Centralizar Mapa', onPressed: _resetMapView),
+                IconButton(icon: const Icon(Icons.filter_alt), tooltip: 'Filtros', onPressed: () => _showFilterPanel(context)),
+              ],
+            ),
+            body: _buildBody(provider),
+          );
+        },
+      ),
     );
   }
 

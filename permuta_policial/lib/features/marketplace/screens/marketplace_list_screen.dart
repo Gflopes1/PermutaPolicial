@@ -213,7 +213,7 @@ class _MarketplaceListScreenState extends State<MarketplaceListScreen> {
               Text(
                 'R\$ ${item.valor.toStringAsFixed(2)}',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: Colors.green,
+                  color: const Color.fromARGB(255, 109, 255, 114),
                   fontWeight: FontWeight.bold,
                 ),
               ),

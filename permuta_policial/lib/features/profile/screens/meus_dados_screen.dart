@@ -2,15 +2,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:permuta_policial/core/constants/app_constants.dart';
-import 'package:permuta_policial/shared/widgets/custom_text_field.dart';
-import 'package:permuta_policial/shared/widgets/custom_dropdown_search.dart';
-import 'package:permuta_policial/shared/widgets/error_display_widget.dart';
-import 'package:permuta_policial/shared/widgets/loading_widget.dart';
-import 'package:permuta_policial/core/utils/error_message_helper.dart';
-import 'package:permuta_policial/core/api/api_exception.dart';
-import 'package:permuta_policial/core/api/repositories/dados_repository.dart';
-import '../providers/profile_provider.dart';
+import '../../../core/models/user_profile.dart';
+import '../../../core/models/intencao.dart';
+import '../../dashboard/providers/dashboard_provider.dart';
+import '../../../core/api/api_exception.dart';
+import '../widgets/gerir_intencoes_modal.dart';
+import '../widgets/edit_lotacao_modal.dart';
 
 class MeusDadosScreen extends StatefulWidget {
   const MeusDadosScreen({super.key});
@@ -21,315 +18,302 @@ class MeusDadosScreen extends StatefulWidget {
 
 class _MeusDadosScreenState extends State<MeusDadosScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nomeController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _qsoController = TextEditingController();
-  final _antiguidadeController = TextEditingController();
-
-  int? _selectedForcaId;
-  int? _selectedPostoId;
-  dynamic _selectedForca;
-  dynamic _selectedPosto;
-  List<dynamic> _postosCache = [];
-
-  bool _isLoading = false;
+  late TextEditingController _emailController;
+  late TextEditingController _qsoController;
+  late TextEditingController _antiguidadeController;
+  bool _isSaving = false;
+  UserProfile? _userProfile;
+  List<Intencao> _intencoes = [];
+  bool _ocultarNoMapa = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadProfileData();
-    });
-  }
-
-  Future<void> _loadProfileData() async {
-    if (!mounted) return;
-    final provider = Provider.of<ProfileProvider>(context, listen: false);
-    final dadosRepo = Provider.of<DadosRepository>(context, listen: false);
-    await provider.loadProfile();
-
-    if (provider.userProfile != null) {
-      final profile = provider.userProfile!;
-      _nomeController.text = profile.nome;
-      _emailController.text = profile.email ?? '';
-      _qsoController.text = profile.qso ?? '';
-      _antiguidadeController.text = profile.antiguidade ?? '';
-      _selectedForcaId = profile.forcaId;
-      _selectedPostoId = profile.postoGraduacaoId;
-
-      // Carregar força e posto
-      if (_selectedForcaId != null) {
-        final forcas = await provider.getForcas();
-        if (!mounted) return;
-        _selectedForca = forcas.firstWhere(
-          (f) => f.id == _selectedForcaId,
-          orElse: () => null,
-        );
-        if (_selectedForca != null && _selectedForca.tipoPermuta != null) {
-          _postosCache = await dadosRepo.getPostosPorForca(_selectedForca.tipoPermuta);
-          if (!mounted) return;
-          if (_selectedPostoId != null) {
-            _selectedPosto = _postosCache.firstWhere(
-              (p) => p.id == _selectedPostoId,
-              orElse: () => null,
-            );
-          }
-        }
-      }
-
-      if (mounted) setState(() {});
-    }
+    final provider = Provider.of<DashboardProvider>(context, listen: false);
+    _userProfile = provider.userData;
+    _intencoes = provider.intencoes;
+    _emailController = TextEditingController(text: _userProfile?.email ?? '');
+    _qsoController = TextEditingController(text: _userProfile?.qso ?? '');
+    _antiguidadeController = TextEditingController(text: _userProfile?.antiguidade ?? '');
+    _ocultarNoMapa = _userProfile?.ocultarNoMapa ?? false;
   }
 
   @override
   void dispose() {
-    _nomeController.dispose();
     _emailController.dispose();
     _qsoController.dispose();
     _antiguidadeController.dispose();
     super.dispose();
   }
 
-  Future<void> _salvarDados() async {
+  Future<void> _saveChanges() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
-
-    final provider = Provider.of<ProfileProvider>(context, listen: false);
-    final payload = <String, dynamic>{
-      'nome': _nomeController.text.trim(),
-      'email': _emailController.text.trim(),
-      'qso': _qsoController.text.trim(),
-      if (_antiguidadeController.text.trim().isNotEmpty)
-        'antiguidade': _antiguidadeController.text.trim(),
-      if (_selectedForcaId != null) 'forca_id': _selectedForcaId,
-      if (_selectedPostoId != null) 'posto_graduacao_id': _selectedPostoId,
-    };
+    setState(() => _isSaving = true);
 
     try {
-      final success = await provider.updateProfile(payload);
-      if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Dados atualizados com sucesso!'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        Navigator.of(context).pop();
+      final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
+      final updateData = <String, dynamic>{};
+
+      if (_emailController.text != _userProfile?.email) {
+        updateData['email'] = _emailController.text;
       }
-    } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(ErrorMessageHelper.getFriendlyMessage(e)),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      if (_qsoController.text != _userProfile?.qso) {
+        updateData['qso'] = _qsoController.text;
+      }
+      if (_antiguidadeController.text != _userProfile?.antiguidade) {
+        updateData['antiguidade'] = _antiguidadeController.text;
+      }
+      if (_ocultarNoMapa != (_userProfile?.ocultarNoMapa ?? false)) {
+        updateData['ocultar_no_mapa'] = _ocultarNoMapa;
+      }
+
+      if (updateData.isNotEmpty) {
+        final success = await dashboardProvider.updateProfile(updateData);
+        if (success && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Dados atualizados com sucesso!')),
+          );
+          // Atualiza o perfil local
+          await dashboardProvider.fetchInitialData();
+          setState(() {
+            _userProfile = dashboardProvider.userData;
+          });
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Nenhuma alteração foi feita.')),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
+        String message = 'Erro ao salvar dados.';
+        if (e is ApiException) {
+          message = e.userMessage;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao atualizar: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
+          SnackBar(content: Text(message), backgroundColor: Colors.red),
         );
       }
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() => _isSaving = false);
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Meus Dados'),
-      ),
-      body: Consumer<ProfileProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading && provider.userProfile == null) {
-            return const LoadingWidget(message: 'Carregando dados...');
-          }
-
-          if (provider.errorMessage != null && provider.userProfile == null) {
-            return ErrorDisplayWidget(
-              customMessage: provider.errorMessage!,
-              customTitle: 'Erro ao carregar dados',
-              onRetry: () => provider.loadProfile(),
-            );
-          }
-
-          final profile = provider.userProfile;
-          if (profile == null) {
-            return const Center(child: Text('Não foi possível carregar os dados'));
-          }
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(AppConstants.spacingMD),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Card(
-                    elevation: AppConstants.cardElevation,
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppConstants.spacingMD),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Informações Pessoais',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                          const SizedBox(height: AppConstants.spacingMD),
-                          // ID Funcional (somente leitura)
-                          TextFormField(
-                            initialValue: profile.idFuncional ?? 'Não informado',
-                            decoration: const InputDecoration(
-                              labelText: 'ID Funcional',
-                              prefixIcon: Icon(Icons.badge),
-                              filled: true,
-                              enabled: false,
-                              helperText: 'ID Funcional não pode ser alterado',
-                            ),
-                          ),
-                          const SizedBox(height: AppConstants.spacingMD),
-                          CustomTextField(
-                            controller: _nomeController,
-                            label: 'Nome Completo *',
-                            prefixIcon: Icons.person,
-                            validator: (v) =>
-                                (v?.isEmpty ?? true) ? 'Nome é obrigatório' : null,
-                          ),
-                          const SizedBox(height: AppConstants.spacingMD),
-                          CustomTextField(
-                            controller: _emailController,
-                            label: 'Email *',
-                            prefixIcon: Icons.email,
-                            keyboardType: TextInputType.emailAddress,
-                            validator: (v) {
-                              if (v?.isEmpty ?? true) return 'Email é obrigatório';
-                              if (!v!.contains('@')) return 'Email inválido';
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: AppConstants.spacingMD),
-                          CustomTextField(
-                            controller: _qsoController,
-                            label: 'QSO / Telefone *',
-                            prefixIcon: Icons.phone,
-                            keyboardType: TextInputType.phone,
-                            validator: (v) =>
-                                (v?.isEmpty ?? true) ? 'QSO é obrigatório' : null,
-                          ),
-                          const SizedBox(height: AppConstants.spacingMD),
-                          CustomTextField(
-                            controller: _antiguidadeController,
-                            label: 'Antiguidade',
-                            prefixIcon: Icons.calendar_today,
-                            keyboardType: TextInputType.text,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppConstants.spacingMD),
-                  Card(
-                    elevation: AppConstants.cardElevation,
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppConstants.spacingMD),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Informações Profissionais',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                          const SizedBox(height: AppConstants.spacingMD),
-                          Consumer<ProfileProvider>(
-                            builder: (context, provider, child) {
-                              return CustomDropdownSearch<dynamic>(
-                                label: 'Força Policial',
-                                asyncItems: (_) => provider.getForcas(),
-                                itemAsString: (item) => '${item.sigla} - ${item.nome}',
-                                selectedItem: _selectedForca,
-                                onChanged: (value) async {
-                                  setState(() {
-                                    _selectedForca = value;
-                                    _selectedForcaId = value?.id;
-                                    _selectedPosto = null;
-                                    _selectedPostoId = null;
-                                    _postosCache = [];
-                                  });
-
-                                  if (value != null && value.tipoPermuta != null) {
-                                    final dadosRepo = Provider.of<DadosRepository>(
-                                      context,
-                                      listen: false,
-                                    );
-                                    final postos = await dadosRepo.getPostosPorForca(value.tipoPermuta);
-                                    setState(() {
-                                      _postosCache = postos;
-                                    });
-                                  }
-                                },
-                              );
-                            },
-                          ),
-                          const SizedBox(height: AppConstants.spacingMD),
-                          if (_postosCache.isNotEmpty)
-                            CustomDropdownSearch<dynamic>(
-                              label: 'Posto/Graduação',
-                              items: _postosCache,
-                              itemAsString: (item) => item.nome ?? item.toString(),
-                              selectedItem: _selectedPosto,
-                              onChanged: (value) {
-                                setState(() {
-                                  _selectedPosto = value;
-                                  _selectedPostoId = value?.id;
-                                });
-                              },
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppConstants.spacingLG),
-                  ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _salvarDados,
-                    icon: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.save),
-                    label: Text(_isLoading ? 'Salvando...' : 'Salvar Alterações'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
+    if (_userProfile == null) {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          Navigator.of(context).pop();
         },
+        child: Scaffold(
+          appBar: AppBar(title: const Text('Meus Dados')),
+          body: const Center(child: Text('Erro ao carregar dados do usuário.')),
+        ),
+      );
+    }
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        // Volta para a tela anterior
+        Navigator.of(context).pop();
+      },
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Meus Dados')),
+        body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildReadOnlyField('Nome', _userProfile!.nome),
+              const SizedBox(height: 16),
+              _buildReadOnlyField('ID Funcional', _userProfile!.idFuncional ?? 'Não informado'),
+              const SizedBox(height: 16),
+              _buildReadOnlyField('Força', _userProfile!.forcaSigla ?? 'Não informado'),
+              const SizedBox(height: 16),
+              _buildReadOnlyField('Posto/Graduação', _userProfile!.postoGraduacaoNome ?? 'Não informado'),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () {
+                  final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => ChangeNotifierProvider.value(
+                      value: dashboardProvider,
+                      child: EditLotacaoModal(userProfile: _userProfile!),
+                    ),
+                  ).then((_) {
+                    // Recarrega os dados após fechar o modal
+                    dashboardProvider.fetchInitialData().then((_) {
+                      if (mounted) {
+                        setState(() {
+                          _userProfile = dashboardProvider.userData;
+                        });
+                      }
+                    });
+                  });
+                },
+                icon: const Icon(Icons.location_on),
+                label: const Text('Alterar minha lotação'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 24),
+              
+              TextFormField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.email),
+                ),
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Email é obrigatório';
+                  }
+                  if (!value.contains('@')) {
+                    return 'Email inválido';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _qsoController,
+                decoration: const InputDecoration(
+                  labelText: 'QSO (Telefone)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.phone),
+                ),
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _antiguidadeController,
+                decoration: const InputDecoration(
+                  labelText: 'Antiguidade',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.calendar_today),
+                ),
+              ),
+              const SizedBox(height: 24),
+              CheckboxListTile(
+                title: const Text('Não desejo aparecer no mapa de intenções ou enviar meu contato automaticamente quando fechar uma permuta'),
+                subtitle: const Text('Mais privacidade, menos chance de encontrar uma permuta'),
+                value: _ocultarNoMapa,
+                onChanged: (value) => setState(() => _ocultarNoMapa = value ?? false),
+                contentPadding: EdgeInsets.zero,
+              ),
+              const SizedBox(height: 32),
+              
+              const Text(
+                'Intenções de Permuta',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              if (_intencoes.isEmpty)
+                const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('Nenhuma intenção cadastrada.'),
+                  ),
+                )
+              else
+                ..._intencoes.map((intencao) => Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      child: Text(intencao.prioridade.toString()),
+                    ),
+                    title: Text(_getIntencaoDescricao(intencao)),
+                    subtitle: Text('Prioridade ${intencao.prioridade}'),
+                  ),
+                )),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () {
+                  final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => ChangeNotifierProvider.value(
+                      value: dashboardProvider,
+                      child: const GerirIntencoesModal(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.edit),
+                label: const Text('Gerenciar Intenções'),
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isSaving ? null : _saveChanges,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Salvar Alterações'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
       ),
     );
+  }
+
+  Widget _buildReadOnlyField(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Colors.grey,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
+      ],
+    );
+  }
+
+  String _getIntencaoDescricao(Intencao intencao) {
+    switch (intencao.tipoIntencao) {
+      case 'UNIDADE':
+        return 'Unidade: ${intencao.unidadeNome ?? 'N/A'}';
+      case 'MUNICIPIO':
+        return 'Município: ${intencao.municipioNome ?? 'N/A'}';
+      case 'ESTADO':
+        return 'Estado: ${intencao.estadoSigla ?? 'N/A'}';
+      default:
+        return 'Tipo desconhecido';
+    }
   }
 }
 

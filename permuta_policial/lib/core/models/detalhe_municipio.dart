@@ -11,6 +11,7 @@ class DetalheMunicipio {
   final String? municipioDesejado;
   final String? estadoDesejado;
   final String? destinosDesejados;
+  final bool ocultarNoMapa;
 
   DetalheMunicipio({
     required this.policialId,
@@ -23,6 +24,7 @@ class DetalheMunicipio {
     this.municipioDesejado,
     this.estadoDesejado,
     this.destinosDesejados,
+    this.ocultarNoMapa = false,
   });
 
   factory DetalheMunicipio.fromJson(Map<String, dynamic> json) {
@@ -37,6 +39,7 @@ class DetalheMunicipio {
       municipioDesejado: json['municipio_desejado'],
       estadoDesejado: json['estado_desejado'],
       destinosDesejados: json['destinos_desejados'],
+      ocultarNoMapa: json['ocultar_no_mapa'] == 1 || json['ocultar_no_mapa'] == true,
     );
   }
 }

@@ -11,6 +11,7 @@ class Match {
   final String? estadoAtual;
   final String? descricaoInteresse;
   final String? postoGraduacaoNome;
+  final bool ocultarNoMapa;
 
   Match({
     required this.id,
@@ -22,6 +23,7 @@ class Match {
     this.estadoAtual,
     this.descricaoInteresse,
     this.postoGraduacaoNome,
+    this.ocultarNoMapa = false,
   });
 
   factory Match.fromJson(Map<String, dynamic> json) {
@@ -35,6 +37,7 @@ class Match {
       estadoAtual: json['estado_atual'],
       descricaoInteresse: json['descricao_interesse'],
       postoGraduacaoNome: json['posto_graduacao_nome'],
+      ocultarNoMapa: json['ocultar_no_mapa'] == 1 || json['ocultar_no_mapa'] == true,
     );
   }
 }

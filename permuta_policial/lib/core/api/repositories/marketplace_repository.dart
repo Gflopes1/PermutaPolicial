@@ -17,13 +17,22 @@ class MarketplaceRepository {
 
   String get _baseUrl => _apiClient.baseUrl;
 
-  Future<List<MarketplaceItem>> getAll({String? tipo, String? search, int page = 1, int limit = 20}) async {
+  Future<List<MarketplaceItem>> getAll({
+    String? tipo, 
+    String? search, 
+    String? estado, 
+    String? cidade,
+    int page = 1, 
+    int limit = 20
+  }) async {
     final queryParams = <String, String>{
       'page': page.toString(),
       'limit': limit.toString(),
     };
     if (tipo != null && tipo.isNotEmpty) queryParams['tipo'] = tipo;
     if (search != null && search.isNotEmpty) queryParams['search'] = search;
+    if (estado != null && estado.isNotEmpty) queryParams['estado'] = estado;
+    if (cidade != null && cidade.isNotEmpty) queryParams['cidade'] = cidade;
 
     final uri = Uri.parse('$_baseUrl/api/marketplace').replace(queryParameters: queryParams);
     final response = await _apiClient.get(uri.toString().replaceFirst(_baseUrl, ''));

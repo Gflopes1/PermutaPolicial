@@ -128,7 +128,20 @@ class _EditLotacaoModalState extends State<EditLotacaoModal> {
       'lotacao_interestadual': _isInterestadual,
     };
     if (_selectedForcaId != widget.userProfile.forcaId) payload['forca_id'] = _selectedForcaId;
-    if (_selectedUnidadeId != null) payload['unidade_atual_id'] = _selectedUnidadeId;
+    
+    // Lógica para unidade_atual_id e municipio_id:
+    // - Se uma unidade foi selecionada, inclui no payload
+    // - Se o município foi selecionado mas não a unidade, envia municipio_id
+    //   para que o backend crie/use uma unidade genérica
+    if (_selectedUnidadeId != null) {
+      payload['unidade_atual_id'] = _selectedUnidadeId;
+    } else if (_selectedMunicipioId != null) {
+      // Município selecionado sem unidade: envia municipio_id para backend
+      // criar ou usar uma unidade genérica para este município
+      payload['municipio_id'] = _selectedMunicipioId;
+      payload['unidade_atual_id'] = null;
+    }
+    
     if (_selectedPostoId != widget.userProfile.postoGraduacaoId) payload['posto_graduacao_id'] = _selectedPostoId;
     
     final success = await provider.updateProfile(payload);

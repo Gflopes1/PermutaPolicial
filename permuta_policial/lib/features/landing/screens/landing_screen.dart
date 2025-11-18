@@ -89,7 +89,7 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
             child: SingleChildScrollView(
               padding: EdgeInsets.symmetric(
                 horizontal: isTablet ? 80 : (isSmallScreen ? 24 : 32),
-                vertical: 32,
+                vertical: isSmallScreen ? 20 : 24,
               ),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 600),
@@ -106,12 +106,12 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                           tag: 'app_logo',
                           child: Image.asset(
                             'assets/images/logo_tatico.png',
-                            width: isSmallScreen ? 100 : 140,
-                            height: isSmallScreen ? 100 : 140,
+                            width: isSmallScreen ? 90 : 120,
+                            height: isSmallScreen ? 90 : 120,
                             fit: BoxFit.contain,
                           ),
                         ),
-                        SizedBox(height: isSmallScreen ? 20 : 32),
+                        SizedBox(height: isSmallScreen ? 16 : 24),
 
                         // Título principal
                         Text(
@@ -125,7 +125,7 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                             letterSpacing: 0.5,
                           ),
                         ),
-                        SizedBox(height: isSmallScreen ? 12 : 16),
+                        SizedBox(height: isSmallScreen ? 10 : 14),
 
                         // Descrição
                         Text(
@@ -137,15 +137,17 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                             height: 1.5,
                           ),
                         ),
-                        SizedBox(height: isSmallScreen ? 32 : 48),
+                        SizedBox(height: isSmallScreen ? 24 : 32),
 
                         // Cards de benefícios
                         _buildBenefitCard(icon: Icons.people_outline, title: 'Conexões Inteligentes', description: 'Encontre matches diretos e triangulares'),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
                         _buildBenefitCard(icon: Icons.security, title: 'Seguro e Verificado', description: 'Apenas agentes verificados têm acesso'),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
                         _buildBenefitCard(icon: Icons.map_outlined, title: 'Mapa Nacional', description: 'Visualize oportunidades em todo o Brasil'),
-                        SizedBox(height: isSmallScreen ? 32 : 48),
+                        const SizedBox(height: 10),
+                        _buildBenefitCard(icon: Icons.store_outlined, title: 'Marketplace', description: 'Compre e venda itens entre agentes de segurança'),
+                        SizedBox(height: isSmallScreen ? 24 : 32),
 
                         // Botão principal
                         ElevatedButton(
@@ -176,7 +178,7 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
-                        SizedBox(height: isSmallScreen ? 32 : 48),
+                        SizedBox(height: isSmallScreen ? 24 : 32),
 
                         // Rodapé com links
                         _buildFooter(isSmallScreen),
@@ -194,7 +196,7 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
 
   Widget _buildBenefitCard({required IconData icon, required String title, required String description}) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white.withAlpha(26),
         borderRadius: BorderRadius.circular(12),
@@ -203,21 +205,21 @@ class _LandingScreenState extends State<LandingScreen> with SingleTickerProvider
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.white.withAlpha(38),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: Colors.white, size: 24),
+            child: Icon(icon, color: Colors.white, size: 22),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                Text(title, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
-                Text(description, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                Text(description, style: const TextStyle(color: Colors.white70, fontSize: 12.5)),
               ],
             ),
           ),

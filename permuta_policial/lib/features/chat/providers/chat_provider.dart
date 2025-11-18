@@ -19,6 +19,8 @@ class ChatProvider with ChangeNotifier {
   int _mensagensNaoLidas = 0;
   bool _isTyping = false;
   String? _typingUser;
+  bool _isSending = false; // Flag para evitar múltiplos envios simultâneos
+  bool _listenersSetup = false; // Flag para evitar listeners duplicados
 
   // Getters
   bool get isLoading => _isLoading;
@@ -34,7 +36,10 @@ class ChatProvider with ChangeNotifier {
   Future<void> initializeSocket() async {
     try {
       await _socketService.connect();
-      _setupSocketListeners();
+      if (!_listenersSetup) {
+        _setupSocketListeners();
+        _listenersSetup = true;
+      }
     } catch (e) {
       _errorMessage = 'Erro ao conectar ao chat: ${e.toString()}';
       notifyListeners();
@@ -44,8 +49,13 @@ class ChatProvider with ChangeNotifier {
   void _setupSocketListeners() {
     _socketService.onMensagemRecebida((mensagem) {
       if (_conversaAtual != null && mensagem['conversa_id'] == _conversaAtual!['id']) {
-        _mensagens.add(mensagem);
-        notifyListeners();
+        // Verifica se a mensagem já existe na lista para evitar duplicatas
+        final mensagemId = mensagem['id'];
+        final exists = _mensagens.any((m) => m['id'] == mensagemId);
+        if (!exists) {
+          _mensagens.add(mensagem);
+          notifyListeners();
+        }
       }
       // Atualiza a lista de conversas
       loadConversas();
@@ -123,33 +133,34 @@ class ChatProvider with ChangeNotifier {
 
   // Envia uma mensagem
   Future<bool> sendMensagem(String mensagem) async {
-    if (_conversaAtual == null || mensagem.trim().isEmpty) {
+    if (_conversaAtual == null || mensagem.trim().isEmpty || _isSending) {
       return false;
     }
 
+    _isSending = true;
     try {
-      // Envia via socket (que também salva no banco)
+      // Envia via socket (que também salva no banco automaticamente)
+      // Não precisamos chamar createMensagem via API, pois o socket já faz isso
       _socketService.sendMensagem(_conversaAtual!['id'], mensagem.trim());
-
-      // Opcionalmente, também salva via API para garantir
-      await _chatRepository.createMensagem(_conversaAtual!['id'], mensagem.trim());
 
       return true;
     } catch (e) {
       _errorMessage = 'Erro ao enviar mensagem: ${e.toString()}';
       notifyListeners();
       return false;
+    } finally {
+      _isSending = false;
     }
   }
 
   // Inicia uma nova conversa
-  Future<Map<String, dynamic>?> iniciarConversa(int usuarioId) async {
+  Future<Map<String, dynamic>?> iniciarConversa(int usuarioId, {bool anonima = false}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final conversa = await _chatRepository.iniciarConversa(usuarioId);
+      final conversa = await _chatRepository.iniciarConversa(usuarioId, anonima: anonima);
       await loadConversas();
       _isLoading = false;
       notifyListeners();

@@ -65,7 +65,7 @@ class DashboardProvider with ChangeNotifier {
 
       _userData = results[0] as UserProfile?;
       final parceirosConfig = results[1] as Map<String, dynamic>;
-      _exibirCardParceiros = parceirosConfig['exibir_card'] ?? false;
+      _exibirCardParceiros = true; // Sempre exibe o card
       _parceiros = parceirosConfig['parceiros'] ?? [];
 
       if (_userData?.unidadeAtualNome != null) {

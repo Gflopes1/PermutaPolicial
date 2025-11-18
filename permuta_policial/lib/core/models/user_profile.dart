@@ -12,6 +12,7 @@ class UserProfile {
   final String? municipioAtualNome;
   final String? estadoAtualSigla;
   final bool lotacaoInterestadual;
+  final bool? ocultarNoMapa;
   final bool isEmbaixador;
   final int? postoGraduacaoId;
   final String? postoGraduacaoNome;
@@ -30,6 +31,7 @@ class UserProfile {
     this.municipioAtualNome,
     this.estadoAtualSigla,
     required this.lotacaoInterestadual,
+    this.ocultarNoMapa,
     required this.isEmbaixador,
     this.postoGraduacaoId,
     this.postoGraduacaoNome,
@@ -50,6 +52,7 @@ class UserProfile {
       municipioAtualNome: json['municipio_atual_nome'],
       estadoAtualSigla: json['estado_atual_sigla'],
       lotacaoInterestadual: json['lotacao_interestadual'] == 1,
+      ocultarNoMapa: json['ocultar_no_mapa'] == 1,
       isEmbaixador: json['embaixador'] == 1,
       postoGraduacaoId: json['posto_graduacao_id'],
       postoGraduacaoNome: json['posto_graduacao_nome'],

@@ -22,6 +22,7 @@ import 'package:permuta_policial/core/api/repositories/admin_repository.dart';
 import 'package:permuta_policial/core/api/repositories/novos_soldados_repository.dart';
 import 'package:permuta_policial/core/api/repositories/chat_repository.dart';
 import 'package:permuta_policial/core/api/repositories/forum_repository.dart';
+import 'package:permuta_policial/core/api/repositories/notificacoes_repository.dart';
 
 // Serviços
 import 'package:permuta_policial/core/services/socket_service.dart';
@@ -38,6 +39,7 @@ import 'package:permuta_policial/features/chat/providers/chat_provider.dart';
 import 'package:permuta_policial/features/forum/providers/forum_provider.dart';
 import 'package:permuta_policial/features/marketplace/providers/marketplace_provider.dart';
 import 'package:permuta_policial/core/api/repositories/marketplace_repository.dart';
+import 'package:permuta_policial/features/notificacoes/providers/notificacoes_provider.dart';
 
 
 void main() {
@@ -98,6 +100,9 @@ class MyApp extends StatelessWidget {
         Provider<MarketplaceRepository>(
           create: (context) => MarketplaceRepository(context.read<ApiClient>()),
         ),
+        Provider<NotificacoesRepository>(
+          create: (context) => NotificacoesRepository(context.read<ApiClient>()),
+        ),
         Provider<SocketService>(
           create: (context) => SocketService(context.read<StorageService>()),
         ),
@@ -139,6 +144,9 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider<MarketplaceProvider>(
           create: (ctx) => MarketplaceProvider(ctx.read<MarketplaceRepository>()),
+        ),
+        ChangeNotifierProvider<NotificacoesProvider>(
+          create: (ctx) => NotificacoesProvider(ctx.read<NotificacoesRepository>()),
         ),
       ],
       child: MaterialApp(

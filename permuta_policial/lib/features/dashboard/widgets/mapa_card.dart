@@ -8,50 +8,48 @@ class MapaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 150,
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/mapa_placeholder.png'), 
-                fit: BoxFit.cover,
-              ),
-            ),
-            child: Container(
-              color: Colors.black.withAlpha(102),
-              child: const Center(
-                child: Icon(Icons.explore_outlined, color: Colors.white, size: 60),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Mapa de Exploração', style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 8),
-                const Text('Explore visualmente a demanda por permutas em todo o Brasil. Encontre locais com mais policiais querendo sair ou chegar.'),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).pushNamed(AppRoutes.mapa);
-                    },
-                    icon: const Icon(Icons.public),
-                    label: const Text('Explorar o Mapa Completo'),
-                  ),
+      child: InkWell(
+        onTap: () {
+          Navigator.of(context).pushNamed(AppRoutes.mapa);
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: theme.primaryColor.withAlpha(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-              ],
-            ),
+                child: Icon(Icons.explore_outlined, color: theme.primaryColor, size: 24),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Mapa',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Explore permutas',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.grey[600],
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

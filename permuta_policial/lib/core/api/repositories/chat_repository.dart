@@ -41,8 +41,8 @@ class ChatRepository {
   }
 
   // Inicia uma nova conversa com outro usuário
-  Future<Map<String, dynamic>> iniciarConversa(int usuarioId) async {
-    final payload = {'usuarioId': usuarioId};
+  Future<Map<String, dynamic>> iniciarConversa(int usuarioId, {bool anonima = false}) async {
+    final payload = {'usuarioId': usuarioId, 'anonima': anonima};
     final response = await _apiClient.post('/api/chat/conversas', payload);
     return response as Map<String, dynamic>;
   }
