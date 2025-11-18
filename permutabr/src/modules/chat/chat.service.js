@@ -40,7 +40,7 @@ class ChatService {
       throw new ApiError(403, 'Você não tem permissão para acessar esta conversa.');
     }
 
-    const mensagens = await chatRepository.findMensagensByConversa(conversaId, limit, offset);
+    const mensagens = await chatRepository.findMensagensByConversa(conversaId, usuarioId, limit, offset);
     
     // Marca mensagens como lidas
     await chatRepository.marcarMensagensComoLidas(conversaId, usuarioId);
@@ -68,14 +68,25 @@ class ChatService {
   }
 
   async iniciarConversa(req) {
-    const { usuarioId } = req.body;
+    const { usuarioId, anonima } = req.body;
     const usuarioAtualId = req.user.id;
 
     if (!usuarioId || usuarioId === usuarioAtualId) {
       throw new ApiError(400, 'ID de usuário inválido.');
     }
 
-    const conversa = await chatRepository.findOrCreateConversa(usuarioAtualId, usuarioId);
+    // Verifica se o destinatário está oculto no mapa
+    // Se estiver oculto, força o anonimato da conversa para proteger a privacidade
+    const policiaisRepository = require('../policiais/policiais.repository');
+    const destinatario = await policiaisRepository.findProfileById(usuarioId);
+    if (!destinatario) {
+      throw new ApiError(404, 'Usuário não encontrado.');
+    }
+    
+    // Se o destinatário está oculto, a mensagem deve ser anônima automaticamente
+    const deveSerAnonima = anonima || destinatario.ocultar_no_mapa;
+
+    const conversa = await chatRepository.findOrCreateConversa(usuarioAtualId, usuarioId, deveSerAnonima);
     return conversa;
   }
 
@@ -101,5 +112,7 @@ class ChatService {
 }
 
 module.exports = new ChatService();
+
+
 
 

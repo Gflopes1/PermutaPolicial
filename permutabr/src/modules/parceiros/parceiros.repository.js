@@ -39,15 +39,12 @@ class ParceirosRepository {
   }
 
   async getConfig() {
-    // Usa a tabela configuracoes_gerais que existe no banco
-    const [config] = await db.query('SELECT valor FROM configuracoes_gerais WHERE chave = ?', ['exibir_card_parceiros']);
-    const exibirCard = config.length > 0 && config[0].valor === '1';
-    
+    // Sempre retorna parceiros ativos, sem verificar configuração
     const parceiros = await this.findAll();
     const parceirosAtivos = parceiros.filter(p => p.ativo === 1 || p.ativo === true);
     
     return {
-      exibir_card: exibirCard,
+      exibir_card: true, // Sempre true para sempre exibir o card
       parceiros: parceirosAtivos,
     };
   }

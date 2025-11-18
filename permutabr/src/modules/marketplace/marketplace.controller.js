@@ -20,7 +20,7 @@ const handleRequest = (servicePromise, successStatus) => async (req, res, next) 
 async function processarImagens(files) {
   if (!files || files.length === 0) return [];
   
-  const uploadDir = path.join(__dirname, '../../../../br_permutapolicial/br.permutapolicial.com/public_html/uploads/marketplace');
+  const uploadDir = path.join(__dirname, '../../../uploads/marketplace');
   const imagensProcessadas = [];
   
   for (const file of files) {
@@ -51,11 +51,13 @@ async function processarImagens(files) {
 
 module.exports = {
   getAll: handleRequest(async (req) => {
-    const { tipo, search, page = 1, limit = 20 } = req.query;
-    console.log('📋 getAll chamado:', { tipo, search, page, limit });
+    const { tipo, search, estado, cidade, page = 1, limit = 20 } = req.query;
+    console.log('📋 getAll chamado:', { tipo, search, estado, cidade, page, limit });
     const result = await marketplaceService.getAll({ 
       tipo, 
-      search, 
+      search,
+      estado,
+      cidade,
       page: parseInt(page), 
       limit: parseInt(limit) 
     });

@@ -11,26 +11,21 @@ class ForumService {
 
   // Tópicos
   async getTopicos(req) {
-    const categoriaId = parseInt(req.query.categoria_id); // Será NaN se não for fornecido
+    const categoriaId = parseInt(req.query.categoria_id);
     const limit = parseInt(req.query.limit) || 20;
     const offset = parseInt(req.query.offset) || 0;
 
-    // Caso 1: O usuário forneceu uma categoria_id válida
-    if (categoriaId && !isNaN(categoriaId)) {
-      // Verifica se a categoria existe
-      const categoria = await forumRepository.findCategoriaById(categoriaId);
-      if (!categoria) {
-        throw new ApiError(404, 'Categoria não encontrada.');
-      }
-      
-      // Retorna os tópicos daquela categoria específica
-      return await forumRepository.findTopicosByCategoria(categoriaId, limit, offset);
+    if (!categoriaId || isNaN(categoriaId)) {
+      throw new ApiError(400, 'categoria_id é obrigatório e deve ser um número válido.');
     }
 
-    // Caso 2: O usuário NÃO forneceu uma categoria_id (ou ela é inválida)
-    // Isso significa que ele está na página principal do fórum.
-    // Usamos o novo método do repositório (que você adicionou na etapa anterior)
-    return await forumRepository.findRecentTopicos(limit, offset);
+    // Verifica se a categoria existe
+    const categoria = await forumRepository.findCategoriaById(categoriaId);
+    if (!categoria) {
+      throw new ApiError(404, 'Categoria não encontrada.');
+    }
+
+    return await forumRepository.findTopicosByCategoria(categoriaId, limit, offset);
   }
 
   async getTopico(req) {

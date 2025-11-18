@@ -54,8 +54,9 @@ class MapaRepository {
     let query = `
         SELECT 
           p.id as policial_id,
-          p.nome as policial_nome, 
-          p.qso,
+          CASE WHEN p.ocultar_no_mapa = 0 THEN p.nome ELSE 'Usuário não identificado' END as policial_nome, 
+          CASE WHEN p.ocultar_no_mapa = 0 THEN p.qso ELSE NULL END as qso,
+          p.ocultar_no_mapa,
           f.sigla as forca_sigla, 
           u.nome as unidade_nome,
           m.nome as municipio_atual,
@@ -95,8 +96,9 @@ class MapaRepository {
     let query = `
         SELECT 
           p.id as policial_id,
-          p.nome as policial_nome,
-          p.qso,
+          CASE WHEN p.ocultar_no_mapa = 0 THEN p.nome ELSE 'Usuário não identificado' END as policial_nome,
+          CASE WHEN p.ocultar_no_mapa = 0 THEN p.qso ELSE NULL END as qso,
+          p.ocultar_no_mapa,
           f.sigla as forca_sigla, 
           u.nome as unidade_nome,
           m.nome as municipio_atual,

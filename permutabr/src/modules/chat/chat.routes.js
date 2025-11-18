@@ -23,14 +23,14 @@ router.get('/conversas/:conversaId/mensagens', chatController.getMensagens);
 // Cria uma nova mensagem
 router.post(
   '/conversas/:conversaId/mensagens',
-  celebrate({ body: chatValidation.createMensagem }), // <-- CORRIGIDO
+  celebrate(chatValidation.createMensagem),
   chatController.createMensagem
 );
 
 // Inicia uma nova conversa com outro usuário
 router.post(
   '/conversas',
-  celebrate({ body: chatValidation.iniciarConversa }), // <-- CORRIGIDO
+  celebrate(chatValidation.iniciarConversa),
   chatController.iniciarConversa
 );
 
@@ -41,3 +41,4 @@ router.put('/conversas/:conversaId/lidas', chatController.marcarComoLidas);
 router.get('/mensagens/nao-lidas', chatController.getMensagensNaoLidas);
 
 module.exports = router;
+

@@ -25,7 +25,8 @@ function initializeSocket(server) {
       }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      socket.userId = decoded.id;
+      // O JWT usa 'policial_id' como campo (ver auth.service.js)
+      socket.userId = decoded.policial_id || decoded.id;
       socket.user = decoded;
       next();
     } catch (error) {
@@ -148,5 +149,7 @@ function getIO() {
 }
 
 module.exports = { initializeSocket, getIO };
+
+
 
 

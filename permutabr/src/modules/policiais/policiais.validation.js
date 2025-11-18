@@ -13,6 +13,7 @@ module.exports = {
             antiguidade: Joi.string().allow('', null).optional(),
             unidade_atual_id: Joi.number().integer().allow(null).optional(),
             lotacao_interestadual: Joi.boolean().optional(),
+            ocultar_no_mapa: Joi.boolean().optional(),
             forca_id: Joi.number().integer().optional(),
             posto_graduacao_id: Joi.number().integer().allow(null).optional(),
         })

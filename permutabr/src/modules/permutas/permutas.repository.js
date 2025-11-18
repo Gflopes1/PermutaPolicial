@@ -19,7 +19,12 @@ class PermutasRepository {
 
             let query = `
       SELECT DISTINCT 
-          p2.id, p2.nome, p2.qso, p2.posto_graduacao_id,
+          p2.id, 
+          -- Só retorna nome se o usuário não estiver oculto no mapa
+          CASE WHEN p2.ocultar_no_mapa = 0 THEN p2.nome ELSE 'Usuário não identificado' END as nome,
+          -- Só retorna QSO se o usuário não estiver oculto no mapa
+          CASE WHEN p2.ocultar_no_mapa = 0 THEN p2.qso ELSE NULL END as qso,
+          p2.posto_graduacao_id, p2.ocultar_no_mapa,
           pg2.nome as posto_graduacao_nome,
           f2.sigla as forca_sigla, f2.nome as forca_nome,
           u2.nome as unidade_atual, m2.nome as municipio_atual, e2.sigla as estado_atual,

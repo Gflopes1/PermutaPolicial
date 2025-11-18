@@ -3,16 +3,7 @@
 const db = require('../../config/db');
 
 class MarketplaceRepository {
-  // Função auxiliar para processar os itens e converter tipos
-  _processItem(row) {
-    return {
-      ...row,
-      valor: parseFloat(row.valor), // Converte string para número
-      fotos: row.fotos ? JSON.parse(row.fotos) : []
-    };
-  }
-
-  async findAll({ tipo, search, status, page, limit, apenasAprovados = true }) {
+  async findAll({ tipo, search, status, estado, cidade, page, limit, apenasAprovados = true }) {
     let query = `
       SELECT 
         m.*,
@@ -21,6 +12,9 @@ class MarketplaceRepository {
         p.qso as policial_telefone
       FROM marketplace m
       LEFT JOIN policiais p ON m.policial_id = p.id
+      LEFT JOIN unidades u ON p.unidade_atual_id = u.id
+      LEFT JOIN municipios mun ON u.municipio_id = mun.id
+      LEFT JOIN estados est ON mun.estado_id = est.id
       WHERE 1=1
     `;
     
@@ -44,6 +38,16 @@ class MarketplaceRepository {
       params.push(`%${search}%`, `%${search}%`);
     }
     
+    if (estado) {
+      query += ' AND est.sigla = ? AND est.sigla IS NOT NULL';
+      params.push(estado);
+    }
+    
+    if (cidade) {
+      query += ' AND mun.nome = ? AND mun.nome IS NOT NULL';
+      params.push(cidade);
+    }
+    
     query += ' ORDER BY m.criado_em DESC';
     
     if (page && limit) {
@@ -54,8 +58,11 @@ class MarketplaceRepository {
     
     const [rows] = await db.execute(query, params);
     
-    // Processa os itens (converte valor e fotos)
-    return rows.map(row => this._processItem(row));
+    // Processa as fotos (JSON string para array)
+    return rows.map(row => ({
+      ...row,
+      fotos: row.fotos ? JSON.parse(row.fotos) : []
+    }));
   }
 
   async findById(id) {
@@ -63,7 +70,8 @@ class MarketplaceRepository {
       `SELECT 
         m.*,
         p.nome as policial_nome,
-        p.email as policial_email
+        p.email as policial_email,
+        p.qso as policial_telefone
       FROM marketplace m
       LEFT JOIN policiais p ON m.policial_id = p.id
       WHERE m.id = ?`,
@@ -72,7 +80,11 @@ class MarketplaceRepository {
     
     if (rows.length === 0) return null;
     
-    return this._processItem(rows[0]);
+    const item = rows[0];
+    return {
+      ...item,
+      fotos: item.fotos ? JSON.parse(item.fotos) : []
+    };
   }
 
   async findByUsuario(policialId) {
@@ -81,7 +93,10 @@ class MarketplaceRepository {
       [policialId]
     );
     
-    return rows.map(row => this._processItem(row));
+    return rows.map(row => ({
+      ...row,
+      fotos: row.fotos ? JSON.parse(row.fotos) : []
+    }));
   }
 
   async create(dados) {
@@ -153,3 +168,7 @@ class MarketplaceRepository {
 }
 
 module.exports = new MarketplaceRepository();
+
+
+
+

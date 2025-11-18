@@ -9,7 +9,7 @@ class PoliciaisRepository {
             SELECT 
                 p.id, p.id_funcional, p.forca_id, p.nome, p.email, p.qso, 
                 p.antiguidade, p.unidade_atual_id, p.lotacao_interestadual, 
-                p.status_verificacao, p.embaixador, p.criado_em, p.posto_graduacao_id,
+                p.ocultar_no_mapa, p.status_verificacao, p.embaixador, p.criado_em, p.posto_graduacao_id,
                 f.nome as forca_nome, f.sigla as forca_sigla, f.tipo_permuta as forca_tipo_permuta,
                 pg.nome as posto_graduacao_nome,
                 u.nome as unidade_atual_nome,

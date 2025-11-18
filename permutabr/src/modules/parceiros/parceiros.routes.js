@@ -1,4 +1,3 @@
-
 // /src/modules/parceiros/parceiros.routes.js
 
 const express = require('express');
@@ -19,7 +18,7 @@ router.get('/admin/:id', parceirosController.getById);
 router.post('/admin', parceirosController.create);
 router.put('/admin/:id', parceirosController.update);
 router.delete('/admin/:id', parceirosController.delete);
-// CORRIGIDO: Movido para cima e mudado para POST
-router.post('/admin/config', parceirosController.updateConfig);
+router.put('/admin/config', parceirosController.updateConfig);
 
 module.exports = router;
+

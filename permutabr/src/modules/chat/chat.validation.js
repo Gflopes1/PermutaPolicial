@@ -1,19 +1,22 @@
 // /src/modules/chat/chat.validation.js
 
-const { celebrate, Joi } = require('celebrate');
+const { Joi, Segments } = require('celebrate');
 
 module.exports = {
-  createMensagem: celebrate({
-    body: Joi.object({
+  createMensagem: {
+    [Segments.BODY]: Joi.object().keys({
       mensagem: Joi.string().required().min(1).max(5000),
     }),
-  }),
+  },
 
-  iniciarConversa: celebrate({
-    body: Joi.object({
+  iniciarConversa: {
+    [Segments.BODY]: Joi.object().keys({
       usuarioId: Joi.number().integer().required(),
+      anonima: Joi.boolean().optional().default(false),
     }),
-  }),
+  },
 };
+
+
 
 

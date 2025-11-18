@@ -4,8 +4,8 @@ const marketplaceRepository = require('./marketplace.repository');
 const ApiError = require('../../core/utils/ApiError');
 
 class MarketplaceService {
-  async getAll({ tipo, search, page, limit }) {
-    return await marketplaceRepository.findAll({ tipo, search, page, limit, apenasAprovados: true });
+  async getAll({ tipo, search, estado, cidade, page, limit }) {
+    return await marketplaceRepository.findAll({ tipo, search, estado, cidade, page, limit, apenasAprovados: true });
   }
 
   async getById(id) {
@@ -158,5 +158,7 @@ class MarketplaceService {
 }
 
 module.exports = new MarketplaceService();
+
+
 
 

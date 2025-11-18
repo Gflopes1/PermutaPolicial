@@ -16,6 +16,7 @@ const parceirosRoutes = require('../modules/parceiros/parceiros.routes');
 const chatRoutes = require('../modules/chat/chat.routes');
 const forumRoutes = require('../modules/forum/forum.routes');
 const marketplaceRoutes = require('../modules/marketplace/marketplace.routes');
+const notificacoesRoutes = require('../modules/notificacoes/notificacoes.routes');
 
 router.get('/', (req, res) => {
     res.json({
@@ -37,5 +38,6 @@ router.use('/parceiros', parceirosRoutes);
 router.use('/chat', chatRoutes);
 router.use('/forum', forumRoutes);
 router.use('/marketplace', marketplaceRoutes);
+router.use('/notificacoes', notificacoesRoutes);
 
 module.exports = router;
