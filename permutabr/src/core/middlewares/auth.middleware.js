@@ -20,18 +20,23 @@ module.exports = async (req, res, next) => {
             return next(new ApiError(401, 'Token inválido: sem ID de usuário.'));
         }
 
-        // --- CORREÇÃO APLICADA AQUI ---
-        // Buscamos o perfil completo do usuário, assim como o Passport faz.
-        // Isso garante que o objeto req.user seja sempre consistente.
-        const [rows] = await db.execute('SELECT * FROM policiais WHERE id = ?', [policialId]);
+        // ✅ SEGURANÇA: Seleciona apenas campos necessários, excluindo dados sensíveis
+        const [rows] = await db.execute(
+            `SELECT id, nome, email, qso, forca_id, unidade_atual_id, 
+             municipio_atual_id, posto_graduacao_id, embaixador, is_moderator,
+             agente_verificado, status_verificacao, is_premium, auth_provider,
+             google_id, microsoft_id, id_funcional, lotacao_interestadual,
+             ocultar_no_mapa, criado_em
+             FROM policiais WHERE id = ?`,
+            [policialId]
+        );
 
         if (rows.length === 0) {
             return next(new ApiError(401, 'Usuário do token não encontrado.'));
         }
 
-        // Anexamos o objeto completo do usuário à requisição.
+        // Anexa apenas os campos seguros à requisição
         req.user = rows[0];
-        // --- FIM DA CORREÇÃO ---
 
         next();
     } catch (error) {

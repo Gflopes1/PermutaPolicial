@@ -25,7 +25,14 @@ const errorHandler = (err, req, res, next) => {
     statusCode = 400;
     const validationDetails = err.details.get('body') || err.details.get('query') || err.details.get('params');
     const firstError = validationDetails?.details?.[0];
-    message = firstError?.message || 'Erro de validação.';
+    
+    // Se for erro customizado, usa a mensagem do contexto
+    if (firstError?.type === 'any.custom' && firstError?.context?.message) {
+      message = firstError.context.message;
+    } else {
+      message = firstError?.message || 'Erro de validação.';
+    }
+    
     details = validationDetails?.details?.map(d => ({
       field: d.path.join('.'),
       message: d.message,
@@ -46,8 +53,17 @@ const errorHandler = (err, req, res, next) => {
     
     switch (err.code) {
       case 'ER_DUP_ENTRY':
-        message = 'Este registro já existe no sistema.';
-        details = { field: err.sqlMessage?.match(/for key '(.+?)'/)?.[1] || 'unknown' };
+        const sqlMessage = err.sqlMessage || '';
+        if (sqlMessage.includes('email') || sqlMessage.includes('EMAIL')) {
+          message = 'Este e-mail já está cadastrado.';
+          code = 'EMAIL_ALREADY_EXISTS';
+        } else if (sqlMessage.includes('id_funcional') || sqlMessage.includes('ID_FUNCIONAL')) {
+          message = 'Este ID Funcional já está cadastrado.';
+          code = 'ID_FUNCIONAL_ALREADY_EXISTS';
+        } else {
+          message = 'Este registro já existe no sistema.';
+        }
+        details = { field: err.sqlMessage?.match(/for key ['`]?([^'`\s]+)['`]?/)?.[1] || 'unknown' };
         break;
       case 'ER_NO_REFERENCED_ROW_2':
         message = 'Referência inválida: o registro relacionado não existe.';
@@ -111,9 +127,18 @@ const errorHandler = (err, req, res, next) => {
     ...(details && { details }),
   };
 
-  // Em desenvolvimento, adiciona stack trace
+  // ✅ CORREÇÃO SEGURANÇA: Stack trace NUNCA é enviado em produção
+  // Em desenvolvimento, adiciona stack trace apenas se não for ApiError
   if (process.env.NODE_ENV === 'development' && !(err instanceof ApiError)) {
     response.stack = err.stack;
+  }
+  // Garante que em produção nunca seja enviado, mesmo que NODE_ENV esteja mal configurado
+  if (process.env.NODE_ENV === 'production') {
+    // Remove qualquer stack trace que possa ter vindo de details ou outras fontes
+    if (response.details && typeof response.details === 'object') {
+      delete response.details.stack;
+      if (response.details.stackTrace) delete response.details.stackTrace;
+    }
   }
 
   res.status(statusCode).json(response);

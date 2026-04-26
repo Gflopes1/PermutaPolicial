@@ -7,9 +7,25 @@ const chatRepository = require('../modules/chat/chat.repository');
 let io;
 
 function initializeSocket(server) {
+  // ✅ SEGURANÇA: Lista explícita de origins permitidos para Socket.IO
+  const allowedOrigins = [
+    process.env.FRONTEND_URL || 'https://br.permutapolicial.com.br',
+    'https://br.permutapolicial.com.br',
+    'https://dev.br.permutapolicial.com.br',
+    ...(process.env.NODE_ENV === 'development' 
+      ? ['http://localhost:3000', 'http://localhost:8080', 'http://localhost:5000'] 
+      : [])
+  ];
+
   io = new Server(server, {
     cors: {
-      origin: process.env.FRONTEND_URL || '*',
+      origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
       methods: ['GET', 'POST'],
       credentials: true,
     },
@@ -86,6 +102,27 @@ function initializeSocket(server) {
 
         // Envia a mensagem para todos na sala da conversa
         io.to(`conversa_${conversaId}`).emit('mensagem_recebida', mensagemCriada);
+
+        // ✅ Cria notificação no banco de dados para o destinatário
+        try {
+          const notificacoesRepository = require('../modules/notificacoes/notificacoes.repository');
+          const db = require('../config/db');
+          
+          // Busca nome do remetente
+          const [policiais] = await db.execute('SELECT nome FROM policiais WHERE id = ?', [socket.userId]);
+          const remetenteNome = policiais[0]?.nome || 'Usuário';
+          
+          await notificacoesRepository.create({
+            usuario_id: outroUsuarioId,
+            tipo: 'NOVA_MENSAGEM',
+            referencia_id: conversaId,
+            titulo: 'Nova mensagem',
+            mensagem: `${remetenteNome} enviou uma mensagem`,
+          });
+        } catch (notifError) {
+          console.error('Erro ao criar notificação de mensagem:', notifError);
+          // Não interrompe o fluxo se falhar ao criar notificação
+        }
 
         // Notifica o outro usuário se ele não estiver na conversa
         io.to(`user_${outroUsuarioId}`).emit('nova_mensagem_notificacao', {
