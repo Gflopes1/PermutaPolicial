@@ -5,12 +5,34 @@ const { Joi, Segments } = require('celebrate');
 // Requisitos para uma senha forte
 const passwordSchema = Joi.string()
   .min(8)
-  .pattern(new RegExp('[A-Z]'))
-  .pattern(new RegExp('[!@#$%^&*(),.?":{}|<>]'))
+  .custom((value, helpers) => {
+    const errors = [];
+    
+    if (!/[A-Z]/.test(value)) {
+      errors.push('pelo menos uma letra maiúscula');
+    }
+    if (!/[a-z]/.test(value)) {
+      errors.push('pelo menos uma letra minúscula');
+    }
+    if (!/[0-9]/.test(value)) {
+      errors.push('pelo menos um número');
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(value)) {
+      errors.push('pelo menos um caractere especial (!@#$%^&*(),.?":{}|<>).');
+    }
+    
+    if (errors.length > 0) {
+      return helpers.error('any.custom', { 
+        message: `A senha deve conter: ${errors.join(', ')}`
+      });
+    }
+    
+    return value;
+  })
   .required()
   .messages({
     'string.min': 'A senha deve ter no mínimo 8 caracteres.',
-    'string.pattern.base': 'A senha deve conter pelo menos uma letra maiúscula e um caractere especial.',
+    'any.custom': 'A senha não atende aos requisitos mínimos.',
     'any.required': 'Senha é obrigatória.'
   });
 

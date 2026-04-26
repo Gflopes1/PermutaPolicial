@@ -11,21 +11,28 @@ class ForumService {
 
   // Tópicos
   async getTopicos(req) {
-    const categoriaId = parseInt(req.query.categoria_id);
+    const categoriaIdParam = req.query.categoria_id;
+    const categoriaId = categoriaIdParam ? parseInt(categoriaIdParam) : null;
     const limit = parseInt(req.query.limit) || 20;
     const offset = parseInt(req.query.offset) || 0;
 
-    if (!categoriaId || isNaN(categoriaId)) {
-      throw new ApiError(400, 'categoria_id é obrigatório e deve ser um número válido.');
+    // Se categoria_id foi fornecido, valida
+    if (categoriaIdParam !== undefined && categoriaIdParam !== null && categoriaIdParam !== '') {
+      if (isNaN(categoriaId)) {
+        throw new ApiError(400, 'categoria_id deve ser um número válido.');
+      }
+
+      // Verifica se a categoria existe
+      const categoria = await forumRepository.findCategoriaById(categoriaId);
+      if (!categoria) {
+        throw new ApiError(404, 'Categoria não encontrada.');
+      }
+
+      return await forumRepository.findTopicosByCategoria(categoriaId, limit, offset);
     }
 
-    // Verifica se a categoria existe
-    const categoria = await forumRepository.findCategoriaById(categoriaId);
-    if (!categoria) {
-      throw new ApiError(404, 'Categoria não encontrada.');
-    }
-
-    return await forumRepository.findTopicosByCategoria(categoriaId, limit, offset);
+    // Se categoria_id não foi fornecido, retorna todos os tópicos
+    return await forumRepository.findAllTopicos(limit, offset);
   }
 
   async getTopico(req) {

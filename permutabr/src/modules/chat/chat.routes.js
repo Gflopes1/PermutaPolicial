@@ -37,6 +37,12 @@ router.post(
 // Marca mensagens de uma conversa como lidas
 router.put('/conversas/:conversaId/lidas', chatController.marcarComoLidas);
 
+// Aceita compartilhar dados em conversa anônima
+router.put('/conversas/:conversaId/compartilhar-dados', chatController.aceitarCompartilharDados);
+
+// Exclui uma conversa
+router.delete('/conversas/:conversaId', chatController.excluirConversa);
+
 // Conta mensagens não lidas do usuário
 router.get('/mensagens/nao-lidas', chatController.getMensagensNaoLidas);
 

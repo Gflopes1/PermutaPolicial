@@ -46,4 +46,11 @@ router.post(
 router.get('/policiais', adminController.getAllPoliciais);
 router.put('/policiais/:id', adminController.updatePolicial);
 
+// Rotas de configurações
+router.get('/configuracoes', adminController.getConfiguracoes);
+router.put('/configuracoes', adminController.updateConfiguracoes);
+
+// Rotas de usuários premium
+router.get('/premium', adminController.getPremiumUsers);
+
 module.exports = router;

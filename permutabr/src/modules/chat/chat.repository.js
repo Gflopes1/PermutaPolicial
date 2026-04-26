@@ -49,12 +49,21 @@ class ChatRepository {
           ELSE c.usuario1_id
         END as outro_usuario_id,
         CASE 
+          -- Se é anônima e não foi revelado E o usuário atual é o iniciador, mostra "Usuário não identificado"
+          -- (o iniciador não vê os dados do destinatário até ele aceitar)
           WHEN c.anonima = 1 AND c.remetente_revelado = 0 AND c.iniciada_por = ? THEN 'Usuário não identificado'
+          -- Se é anônima e não foi revelado E o usuário atual é o destinatário, mostra nome do iniciador
+          -- (o destinatário sempre vê os dados do iniciador desde o início)
           WHEN c.anonima = 1 AND c.remetente_revelado = 0 AND c.iniciada_por != ? AND c.iniciada_por IS NOT NULL THEN p.nome
           ELSE p.nome
         END as outro_usuario_nome,
         CASE 
+          -- Se é anônima e não foi revelado E o usuário atual é o iniciador, não mostra email
+          -- (o iniciador não vê os dados do destinatário até ele aceitar)
           WHEN c.anonima = 1 AND c.remetente_revelado = 0 AND c.iniciada_por = ? THEN NULL
+          -- Se é anônima e não foi revelado E o usuário atual é o destinatário, mostra email do iniciador
+          -- (o destinatário sempre vê os dados do iniciador desde o início)
+          WHEN c.anonima = 1 AND c.remetente_revelado = 0 AND c.iniciada_por != ? AND c.iniciada_por IS NOT NULL THEN p.email
           ELSE p.email
         END as outro_usuario_email,
         (
@@ -89,7 +98,7 @@ class ChatRepository {
       ORDER BY c.atualizado_em DESC
     `;
     
-    const [rows] = await db.execute(query, [usuarioId, usuarioId, usuarioId, usuarioId, usuarioId, usuarioId, usuarioId, usuarioId]);
+    const [rows] = await db.execute(query, [usuarioId, usuarioId, usuarioId, usuarioId, usuarioId, usuarioId, usuarioId, usuarioId, usuarioId]);
     return rows;
   }
 
@@ -127,9 +136,12 @@ class ChatRepository {
       return rows.reverse();
     }
     
-    // Conversa anônima: oculta nome do remetente apenas se ele for o iniciador e estiver vendo suas próprias mensagens
-    // Se o usuário atual é o iniciador, ele vê "Usuário não identificado" nas suas próprias mensagens
-    // Se o usuário atual não é o iniciador (é o destinatário), ele vê o nome do remetente normalmente
+    // Conversa anônima: Lógica de visibilidade
+    // - Mensagens do INICIADOR (solicitante): sempre visíveis para o DESTINATÁRIO, ocultas para o próprio iniciador até aceitar
+    // - Mensagens do DESTINATÁRIO (solicitado): ocultas até aceitar compartilhar dados
+    const remetenteReveladoInt = remetenteRevelado ? 1 : 0;
+    const isUsuarioIniciador = iniciadaPor === usuarioId;
+    
     const query = `
       SELECT 
         m.id,
@@ -139,15 +151,23 @@ class ChatRepository {
         m.lida,
         m.criado_em,
         CASE 
-          WHEN m.remetente_id = ? AND ? = ? THEN 'Usuário não identificado'
+          -- Se a mensagem é do DESTINATÁRIO e não foi revelado, oculta para o iniciador
+          WHEN m.remetente_id != ? AND ? = 0 AND ? = 1 THEN 'Usuário não identificado'
+          -- Se a mensagem é do INICIADOR, sempre mostra para o destinatário
+          -- Se a mensagem é do DESTINATÁRIO e foi revelado, mostra normalmente
           ELSE p.nome
         END as remetente_nome,
         CASE 
-          WHEN m.remetente_id = ? AND ? = ? THEN NULL
+          -- Se a mensagem é do DESTINATÁRIO e não foi revelado, oculta email para o iniciador
+          WHEN m.remetente_id != ? AND ? = 0 AND ? = 1 THEN NULL
+          -- Se a mensagem é do INICIADOR, sempre mostra email para o destinatário
+          -- Se a mensagem é do DESTINATÁRIO e foi revelado, mostra normalmente
           ELSE p.email
         END as remetente_email,
         CASE 
-          WHEN m.remetente_id = ? AND ? = ? THEN 0
+          -- Se a mensagem é do DESTINATÁRIO e não foi revelado, marca como não identificado para o iniciador
+          WHEN m.remetente_id != ? AND ? = 0 AND ? = 1 THEN 0
+          -- Caso contrário, identificado
           ELSE 1
         END as remetente_identificado
       FROM mensagens m
@@ -158,9 +178,9 @@ class ChatRepository {
     `;
     
     const [rows] = await db.execute(query, [
-      iniciadaPor, iniciadaPor, usuarioId,
-      iniciadaPor, iniciadaPor, usuarioId,
-      iniciadaPor, iniciadaPor, usuarioId,
+      iniciadaPor, remetenteReveladoInt, isUsuarioIniciador ? 1 : 0,
+      iniciadaPor, remetenteReveladoInt, isUsuarioIniciador ? 1 : 0,
+      iniciadaPor, remetenteReveladoInt, isUsuarioIniciador ? 1 : 0,
       conversaId, limit, offset
     ]);
     return rows.reverse(); // Inverte para mostrar do mais antigo ao mais recente
@@ -181,10 +201,11 @@ class ChatRepository {
     );
     const isPrimeiraMensagem = mensagensExistentes[0].total === 0;
     
-    // Se é a primeira mensagem e é anônima, inclui informações do remetente automaticamente
-    let mensagemFinal = mensagem;
+    // Se é a primeira mensagem, é anônima, e o remetente é o iniciador (solicitante),
+    // inclui informações do remetente automaticamente para que o destinatário saiba com quem está conversando
+    let mensagemFinal = mensagem.trim();
     if (isPrimeiraMensagem && isAnonima && iniciadaPor && remetenteId === iniciadaPor) {
-      // Busca informações completas do remetente
+      // Busca informações completas do remetente (solicitante)
       const policiaisRepository = require('../policiais/policiais.repository');
       const remetente = await policiaisRepository.findProfileById(remetenteId);
       
@@ -198,17 +219,9 @@ class ChatRepository {
         if (remetente.unidade_atual_nome) informacoes.push(`Unidade: ${remetente.unidade_atual_nome}`);
         
         if (informacoes.length > 0) {
-          mensagemFinal = `${informacoes.join('\n')}\n\n${mensagem}`;
+          mensagemFinal = `${informacoes.join('\n')}\n\n${mensagem.trim()}`;
         }
       }
-    }
-    
-    // Se a conversa é anônima e o remetente não é quem iniciou, revela a identidade
-    if (isAnonima && !remetenteRevelado && iniciadaPor && remetenteId !== iniciadaPor) {
-      await db.execute(
-        'UPDATE conversas SET remetente_revelado = TRUE WHERE id = ?',
-        [conversaId]
-      );
     }
     
     const [result] = await db.execute(
@@ -223,30 +236,8 @@ class ChatRepository {
     );
 
     // Busca a mensagem criada com informações do remetente
-    // Se não é anônima ou já foi revelado, retorna normalmente
-    if (!isAnonima || remetenteRevelado || !iniciadaPor) {
-      const [mensagemCriada] = await db.execute(
-        `SELECT 
-          m.id,
-          m.conversa_id,
-          m.remetente_id,
-          m.mensagem,
-          m.lida,
-          m.criado_em,
-          p.nome as remetente_nome,
-          p.email as remetente_email,
-          1 as remetente_identificado
-        FROM mensagens m
-        LEFT JOIN policiais p ON m.remetente_id = p.id
-        WHERE m.id = ?`,
-        [result.insertId]
-      );
-      return mensagemCriada[0];
-    }
-    
-    // Conversa anônima: oculta nome apenas se o remetente for o iniciador
-    // Para a mensagem criada, sempre mostra o nome normalmente porque o remetente já sabe quem é
-    // A ocultação só acontece quando o iniciador vê suas próprias mensagens na listagem
+    // Sempre retorna com dados completos, pois o remetente já sabe quem é
+    // A filtragem de dados acontece apenas na busca de mensagens (findMensagensByConversa)
     const [mensagemCriada] = await db.execute(
       `SELECT 
         m.id,
@@ -309,6 +300,22 @@ class ChatRepository {
       [usuarioId, usuarioId, usuarioId]
     );
     return rows[0]?.total || 0;
+  }
+
+  // Aceita compartilhar dados em conversa anônima
+  async aceitarCompartilharDados(conversaId) {
+    await db.execute(
+      'UPDATE conversas SET remetente_revelado = TRUE WHERE id = ?',
+      [conversaId]
+    );
+  }
+
+  // Exclui uma conversa e todas as mensagens
+  async excluirConversa(conversaId) {
+    // Exclui mensagens primeiro (devido à foreign key)
+    await db.execute('DELETE FROM mensagens WHERE conversa_id = ?', [conversaId]);
+    // Exclui a conversa
+    await db.execute('DELETE FROM conversas WHERE id = ?', [conversaId]);
   }
 }
 

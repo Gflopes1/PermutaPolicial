@@ -21,4 +21,7 @@ module.exports = {
   rejeitarPolicial: handleRequest((req) => adminService.rejeitarPolicial(req.params.id), 200),
   getAllPoliciais: handleRequest((req) => adminService.getAllPoliciais(req.query), 200),
   updatePolicial: handleRequest((req) => adminService.updatePolicial(req.params.id, req.body), 200),
+  getConfiguracoes: handleRequest(() => adminService.getConfiguracoes(), 200),
+  updateConfiguracoes: handleRequest((req) => adminService.updateConfiguracoes(req.body), 200),
+  getPremiumUsers: handleRequest((req) => adminService.getPremiumUsers(req.query), 200),
 };

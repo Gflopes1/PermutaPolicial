@@ -51,11 +51,51 @@ class ForumRepository {
       FROM forum_topicos t
       LEFT JOIN policiais p ON t.autor_id = p.id
       LEFT JOIN forum_categorias c ON t.categoria_id = c.id
-      WHERE t.categoria_id = ?
+      WHERE t.categoria_id = ? AND (t.status_moderacao = 'APROVADO' OR t.status_moderacao IS NULL)
       ORDER BY t.fixado DESC, t.atualizado_em DESC
       LIMIT ? OFFSET ?
     `;
     const [rows] = await db.execute(query, [categoriaId, limit, offset]);
+    return rows;
+  }
+
+  // ✅ Retorna todos os tópicos de todas as categorias, ordenados pelos mais recentes
+  async findAllTopicos(limit = 20, offset = 0) {
+    const query = `
+      SELECT 
+        t.id,
+        t.categoria_id,
+        t.autor_id,
+        t.titulo,
+        t.conteudo,
+        t.fixado,
+        t.bloqueado,
+        t.visualizacoes,
+        t.criado_em,
+        t.atualizado_em,
+        p.nome as autor_nome,
+        p.email as autor_email,
+        c.nome as categoria_nome,
+        (
+          SELECT COUNT(*) 
+          FROM forum_respostas r 
+          WHERE r.topico_id = t.id AND r.status_moderacao = 'APROVADO'
+        ) as total_respostas,
+        (
+          SELECT r.criado_em 
+          FROM forum_respostas r 
+          WHERE r.topico_id = t.id AND r.status_moderacao = 'APROVADO'
+          ORDER BY r.criado_em DESC 
+          LIMIT 1
+        ) as ultima_resposta_data
+      FROM forum_topicos t
+      LEFT JOIN policiais p ON t.autor_id = p.id
+      LEFT JOIN forum_categorias c ON t.categoria_id = c.id
+      WHERE t.status_moderacao = 'APROVADO' OR t.status_moderacao IS NULL
+      ORDER BY t.fixado DESC, t.atualizado_em DESC
+      LIMIT ? OFFSET ?
+    `;
+    const [rows] = await db.execute(query, [limit, offset]);
     return rows;
   }
 
@@ -140,6 +180,7 @@ class ForumRepository {
       LEFT JOIN policiais p ON t.autor_id = p.id
       LEFT JOIN forum_categorias c ON t.categoria_id = c.id
       WHERE MATCH(t.titulo, t.conteudo) AGAINST(? IN NATURAL LANGUAGE MODE)
+        AND (t.status_moderacao = 'APROVADO' OR t.status_moderacao IS NULL)
       ORDER BY t.fixado DESC, t.atualizado_em DESC
       LIMIT ? OFFSET ?
     `;

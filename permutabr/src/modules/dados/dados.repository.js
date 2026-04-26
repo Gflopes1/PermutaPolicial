@@ -4,12 +4,14 @@ const db = require('../../config/db');
 
 class DadosRepository {
   async findAllForcas() {
-    const [rows] = await db.query('SELECT id, nome, sigla, tipo, tipo_permuta FROM forcas_policiais ORDER BY nome');
+    // ✅ SEGURANÇA: Usar db.execute mesmo para queries sem parâmetros
+    const [rows] = await db.execute('SELECT id, nome, sigla, tipo, tipo_permuta FROM forcas_policiais ORDER BY nome');
     return rows;
   }
 
   async findAllEstados() {
-    const [rows] = await db.query('SELECT id, nome, sigla FROM estados ORDER BY nome');
+    // ✅ SEGURANÇA: Usar db.execute mesmo para queries sem parâmetros
+    const [rows] = await db.execute('SELECT id, nome, sigla FROM estados ORDER BY nome');
     return rows;
   }
 

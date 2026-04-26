@@ -60,6 +60,26 @@ class AdminService {
     }
     return { message: 'Policial atualizado com sucesso.' };
   }
+
+  async getConfiguracoes() {
+    return await adminRepository.getConfiguracoes();
+  }
+
+  async updateConfiguracoes(updateData) {
+    const success = await adminRepository.updateConfiguracoes(updateData);
+    if (!success) {
+      throw new ApiError(400, 'Nenhum campo válido para atualizar.');
+    }
+    return { message: 'Configurações atualizadas com sucesso.' };
+  }
+
+  async getPremiumUsers(filters) {
+    const [users, total] = await Promise.all([
+      adminRepository.getPremiumUsers(filters),
+      adminRepository.countPremiumUsers(filters),
+    ]);
+    return { users, total };
+  }
 }
 
 module.exports = new AdminService();
