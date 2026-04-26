@@ -1,325 +1,115 @@
 require('dotenv').config();
 
-console.log('═══════════════════════════════════════');
-console.log('🚀 Iniciando aplicação...');
-console.log('📍 Ambiente:', process.env.NODE_ENV || 'development');
-console.log('📍 Base URL:', process.env.BASE_URL);
-console.log('═══════════════════════════════════════');
+const logger = require('./src/core/utils/logger');
+const { validateConfig } = require('./src/core/config/config.validator');
+
+// Valida configuração antes de iniciar
+try {
+    validateConfig();
+} catch (error) {
+    logger.critical('Falha na validação de configuração', { error: error.message });
+    process.exit(1);
+}
+
+// ✅ CORREÇÃO: Logs iniciais apenas em desenvolvimento
+// Em produção, apenas log crítico de inicialização
+if (process.env.NODE_ENV !== 'production') {
+    console.log('═══════════════════════════════════════');
+    console.log('🚀 Iniciando aplicação...');
+    console.log('📍 Ambiente:', process.env.NODE_ENV || 'development');
+    console.log('📍 Base URL:', process.env.BASE_URL);
+    console.log('═══════════════════════════════════════');
+} else {
+    // Em produção, apenas log crítico
+    logger.critical('Aplicação iniciada em modo produção', {
+        baseUrl: process.env.BASE_URL || 'não configurado'
+    });
+}
 
 // 2. Dependências
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const passport = require('passport');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const OIDCStrategy = require('passport-azure-ad').OIDCStrategy;
 const db = require('./src/config/db');
 const apiRoutes = require('./src/api');
 const { initializeSocket } = require('./src/config/socket');
-const jwt = require('jsonwebtoken');
 const session = require('express-session');
-const axios = require('axios');
+const MySQLStore = require('express-mysql-session')(session);
+const { configurePassport } = require('./src/config/passport.config');
 
-// ===== FUNÇÃO AUXILIAR PARA DETERMINAR FORÇA POR DOMÍNIO =====
-function getForcaIdPorDominio(email) {
-    const dominio = email.toLowerCase().split('@')[1];
-    
-    // Mapeamento de domínios para IDs de força
-    const DOMINIOS_FORCAS = {
-        'susepe.rs.gov.br': 79,  // SUSEPE
-        'pc.rs.gov.br': 52,       // Polícia Civil RS
-        'bm.rs.gov.br': null      // BMRS - já tem lógica específica
-    };
-    
-    return DOMINIOS_FORCAS[dominio] || null;
-}
-
-// 3. Configuração do Passport Google OAuth
-const callbackURL = `${process.env.BASE_URL || 'https://br.permutapolicial.com.br'}/api/auth/google/callback`;
-console.log(`🔗 URL de Callback do Google: ${callbackURL}`);
-
-passport.use('google', new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: callbackURL,
-    proxy: true
-},
-    async (accessToken, refreshToken, profile, done) => {
-        try {
-            const email = profile.emails[0].value;
-            const googleId = profile.id;
-            console.log(`🔐 Login Google: ${email}`);
-            
-            // Validação de domínio
-            const DOMINIOS_PERMITIDOS = [
-                'pm.al.gov.br', 'pm.ap.gov.br', 'pm.am.gov.br', 'pm.ba.gov.br', 'pm.ce.gov.br',
-                'pm.df.gov.br', 'pm.es.gov.br', 'pm.go.gov.br', 'pm.ma.gov.br', 'pm.mt.gov.br',
-                'pm.ms.gov.br', 'pm.mg.gov.br', 'pm.pa.gov.br', 'pm.pb.gov.br', 'pm.pr.gov.br',
-                'pm.pe.gov.br', 'pm.pi.gov.br', 'pm.rj.gov.br', 'pm.rn.gov.br', 'bm.rs.gov.br',
-                'pm.ro.gov.br', 'pm.rr.gov.br', 'pm.sc.gov.br', 'policiamilitar.sp.gov.br',
-                'pm.se.gov.br', 'pm.to.gov.br',
-                'pc.al.gov.br', 'pc.ap.gov.br', 'pc.am.gov.br', 'pc.ba.gov.br', 'pc.ce.gov.br',
-                'pc.df.gov.br', 'pc.es.gov.br', 'pc.go.gov.br', 'pc.ma.gov.br', 'pc.mt.gov.br',
-                'pc.ms.gov.br', 'pc.mg.gov.br', 'pc.pa.gov.br', 'pc.pb.gov.br', 'pc.pr.gov.br',
-                'pc.pe.gov.br', 'pc.pi.gov.br', 'pc.rj.gov.br', 'pc.rn.gov.br', 'pc.rs.gov.br',
-                'pc.ro.gov.br', 'pc.rr.gov.br', 'pc.sc.gov.br', 'policiacivil.sp.gov.br',
-                'pc.se.gov.br', 'pc.to.gov.br',
-                'pf.gov.br', 'prf.gov.br', 'susepe.rs.gov.br', 'cbm.rs.gov.br'
-            ];
-            const dominio = email.toLowerCase().split('@')[1];
-            if (!DOMINIOS_PERMITIDOS.includes(dominio)) {
-                return done(new Error('Apenas emails com domínios da segurança pública são permitidos. Isso garante a segurança das informações dos policiais.'), false);
-            }
-
-            // 1. Busca por Google ID primeiro
-            let [users] = await db.execute('SELECT * FROM policiais WHERE google_id = ?', [googleId]);
-
-            if (users.length > 0) {
-                console.log(`✅ Usuário encontrado pelo Google ID: ${users[0].email}`);
-                return done(null, users[0]);
-            }
-
-            // 2. Busca por email para vincular conta existente (Microsoft ou local)
-            [users] = await db.execute('SELECT * FROM policiais WHERE email = ?', [email]);
-
-            if (users.length > 0) {
-                const user = users[0];
-                console.log(`🔗 Vinculando conta Google ao usuário existente: ${email}`);
-                
-                if (!user.google_id) {
-                    await db.execute(
-                        'UPDATE policiais SET google_id = ?, status_verificacao = "VERIFICADO" WHERE id = ?', 
-                        [googleId, user.id]
-                    );
-                    user.google_id = googleId;
-                    user.status_verificacao = 'VERIFICADO';
-                }
-                return done(null, user);
-            }
-
-            // 3. Cria novo usuário
-            console.log(`👤 Criando novo usuário Google: ${email}`);
-            
-            // Determina força por domínio
-            let forcaId = getForcaIdPorDominio(email);
-            
-            // Lógica específica para BMRS (mantida por compatibilidade)
-            if (email.endsWith('@bm.rs.gov.br') && !forcaId) {
-                const [forcas] = await db.execute('SELECT id FROM forcas_policiais WHERE sigla = ?', ['BMRS']);
-                if (forcas.length > 0) forcaId = forcas[0].id;
-            }
-            
-            console.log(`🏢 Força atribuída automaticamente: ${forcaId || 'Nenhuma (escolha manual)'}`);
-            
-            const [result] = await db.execute(
-                `INSERT INTO policiais (nome, email, google_id, forca_id, auth_provider, status_verificacao, senha_hash, id_funcional, qso) 
-                 VALUES (?, ?, ?, ?, 'google', 'VERIFICADO', NULL, NULL, NULL)`,
-                [profile.displayName, email, googleId, forcaId]
-            );
-
-            const [newUser] = await db.execute('SELECT * FROM policiais WHERE id = ?', [result.insertId]);
-            console.log(`✅ Usuário Google criado: ${newUser[0].email}`);
-            return done(null, newUser[0]);
-
-        } catch (error) {
-            console.error('💥 Erro OAuth Google:', error);
-            return done(error, false);
-        }
-    }
-));
-
-// 4. Configuração do Passport Microsoft OAuth
-const microsoftCallbackURL = `${process.env.BASE_URL || 'https://br.permutapolicial.com.br'}/api/auth/microsoft/callback`;
-console.log(`🔗 URL de Callback da Microsoft: ${microsoftCallbackURL}`);
-
-passport.use('microsoft', new OIDCStrategy({
-    identityMetadata: 'https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration',
-    clientID: process.env.MICROSOFT_CLIENT_ID,
-    clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
-    redirectUrl: microsoftCallbackURL,
-    responseType: 'code',
-    responseMode: 'form_post',
-    scope: ['openid', 'profile', 'email', 'User.Read'],
-    allowHttpForRedirectUrl: false,
-    validateIssuer: false,
-    passReqToCallback: false,
-    loggingLevel: 'info',
-},
-    async (iss, sub, profile, accessToken, refreshToken, done) => {
-        console.log('═══════════════════════════════════════');
-        console.log('🔵 ESTRATÉGIA MICROSOFT EXECUTADA');
-        console.log('🔑 AccessToken recebido (será usado para o Graph API)');
-
-        let graphProfile;
-        try {
-            const graphResponse = await axios.get(
-                'https://graph.microsoft.com/v1.0/me?$select=displayName,userPrincipalName,businessPhones,officeLocation,city,mail,jobTitle',
-                {
-                    headers: { 
-                        'Authorization': `Bearer ${accessToken}` 
-                    }
-                }
-            );
-            graphProfile = graphResponse.data;
-            console.log('✅ Perfil do Graph API obtido:', JSON.stringify(graphProfile, null, 2));
-
-        } catch (graphError) {
-            console.error('💥 ERRO ao buscar perfil do Graph API:', graphError.response ? graphError.response.data : graphError.message);
-            return done(graphError, false);
-        }
-
-        try {
-            const microsoftId = profile.oid || profile.sub; 
-            const email = graphProfile.mail || graphProfile.userPrincipalName;
-            const nome = graphProfile.displayName || 'Usuário Microsoft';
-            const idFuncional = graphProfile.officeLocation || null; 
-            const postoGraduacaoNome = graphProfile.jobTitle || null;
-
-            console.log('📋 Dados extraídos (do Graph API):');
-            console.log('   Microsoft ID:', microsoftId);
-            console.log('   Email:', email);
-            console.log('   Nome:', nome);
-            console.log('   ID Funcional (officeLocation):', idFuncional);
-            console.log('   Cargo (jobTitle):', postoGraduacaoNome);
-
-            if (!email) {
-                console.error('❌ Email não fornecido pelo Graph API');
-                return done(new Error('O email não foi fornecido pela Microsoft.'), false);
-            }
-            if (!microsoftId) {
-                console.error('❌ ID não fornecido pelo token');
-                return done(new Error('O ID de usuário não foi fornecido pela Microsoft.'), false);
-            }
-
-            // Validação de domínio
-            const DOMINIOS_PERMITIDOS = [
-                'pm.al.gov.br', 'pm.ap.gov.br', 'pm.am.gov.br', 'pm.ba.gov.br', 'pm.ce.gov.br',
-                'pm.df.gov.br', 'pm.es.gov.br', 'pm.go.gov.br', 'pm.ma.gov.br', 'pm.mt.gov.br',
-                'pm.ms.gov.br', 'pm.mg.gov.br', 'pm.pa.gov.br', 'pm.pb.gov.br', 'pm.pr.gov.br',
-                'pm.pe.gov.br', 'pm.pi.gov.br', 'pm.rj.gov.br', 'pm.rn.gov.br', 'bm.rs.gov.br',
-                'pm.ro.gov.br', 'pm.rr.gov.br', 'pm.sc.gov.br', 'policiamilitar.sp.gov.br',
-                'pm.se.gov.br', 'pm.to.gov.br',
-                'pc.al.gov.br', 'pc.ap.gov.br', 'pc.am.gov.br', 'pc.ba.gov.br', 'pc.ce.gov.br',
-                'pc.df.gov.br', 'pc.es.gov.br', 'pc.go.gov.br', 'pc.ma.gov.br', 'pc.mt.gov.br',
-                'pc.ms.gov.br', 'pc.mg.gov.br', 'pc.pa.gov.br', 'pc.pb.gov.br', 'pc.pr.gov.br',
-                'pc.pe.gov.br', 'pc.pi.gov.br', 'pc.rj.gov.br', 'pc.rn.gov.br', 'pc.rs.gov.br',
-                'pc.ro.gov.br', 'pc.rr.gov.br', 'pc.sc.gov.br', 'policiacivil.sp.gov.br',
-                'pc.se.gov.br', 'pc.to.gov.br',
-                'pf.gov.br', 'prf.gov.br', 'susepe.rs.gov.br', 'cbm.rs.gov.br'
-            ];
-            const dominio = email.toLowerCase().split('@')[1];
-            if (!DOMINIOS_PERMITIDOS.includes(dominio)) {
-                return done(new Error('Apenas emails com domínios da segurança pública são permitidos. Isso garante a segurança das informações dos policiais.'), false);
-            }
-
-            // 1. Busca por Microsoft ID
-            let [users] = await db.execute(
-                'SELECT * FROM policiais WHERE microsoft_id = ?',
-                [microsoftId]
-            );
-
-            if (users.length > 0) {
-                console.log(`✅ Usuário encontrado pelo Microsoft ID: ${users[0].email}`);
-                return done(null, users[0]);
-            }
-
-            // 2. Busca por email para vincular conta existente
-            [users] = await db.execute(
-                'SELECT * FROM policiais WHERE email = ?',
-                [email]
-            );
-
-            if (users.length > 0) {
-                console.log(`🔗 Vinculando conta Microsoft ao usuário: ${email}`);
-                await db.execute(
-                    'UPDATE policiais SET microsoft_id = ?, status_verificacao = "VERIFICADO" WHERE id = ?',
-                    [microsoftId, users[0].id]
-                );
-
-                const [updatedUser] = await db.execute(
-                    'SELECT * FROM policiais WHERE id = ?',
-                    [users[0].id]
-                );
-
-                console.log(`✅ Conta vinculada: ${updatedUser[0].email}`);
-                return done(null, updatedUser[0]);
-            }
-
-            // 3. Cria novo usuário
-            console.log(`👤 Criando novo usuário Microsoft: ${email}`);
-
-            // Determina força por domínio
-            let forcaId = getForcaIdPorDominio(email);
-            
-            // Lógica específica para BMRS (mantida por compatibilidade)
-            if (email.endsWith('@bm.rs.gov.br') && !forcaId) {
-                const [forcas] = await db.execute('SELECT id FROM forcas_policiais WHERE sigla = ?', ['BMRS']);
-                if (forcas.length > 0) forcaId = forcas[0].id;
-            }
-
-            let postoId = null;
-            if (postoGraduacaoNome) { 
-                const [postos] = await db.execute('SELECT id FROM postos_graduacoes WHERE nome = ?', [postoGraduacaoNome]);
-                if (postos.length > 0) postoId = postos[0].id;
-            }
-            
-            console.log(`🏢 Força atribuída automaticamente: ${forcaId || 'Nenhuma (escolha manual)'}`);
-
-            const [result] = await db.execute(
-                `INSERT INTO policiais 
-                (nome, email, id_funcional, forca_id, posto_graduacao_id, microsoft_id, auth_provider, status_verificacao) 
-                VALUES (?, ?, ?, ?, ?, ?, 'microsoft', 'VERIFICADO')`,
-                [nome, email, idFuncional, forcaId, postoId, microsoftId]
-            );
-
-            const [newUser] = await db.execute(
-                'SELECT * FROM policiais WHERE id = ?',
-                [result.insertId]
-            );
-
-            console.log(`✅ Usuário Microsoft criado: ${newUser[0].email}`);
-            return done(null, newUser[0]);
-
-        } catch (error) {
-            console.error('💥 ERRO na estratégia Microsoft (lógica de BD):', error);
-            return done(error, false);
-        }
-    }));
-
-console.log('✅ Estratégia Microsoft configurada');
-
-passport.serializeUser((user, done) => done(null, user.id));
-passport.deserializeUser(async (id, done) => {
-    try {
-        const [users] = await db.execute('SELECT * FROM policiais WHERE id = ?', [id]);
-        done(null, users[0]);
-    } catch (error) {
-        done(error, null);
-    }
-});
-
-console.log('✅ Passport configurado');
+// 3. Configuração do Passport (OAuth)
+configurePassport();
 
 // 5. App Express
 const app = express();
 app.set('trust proxy', 1);
 
+// ✅ SEGURANÇA: Headers de segurança HTTP (Helmet)
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            scriptSrc: ["'self'"],
+            imgSrc: ["'self'", "data:", "https:"],
+        },
+    },
+    hsts: {
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true
+    }
+}));
+
+// ✅ SEGURANÇA: Rate Limiting
+// Rate limit geral para API
+const apiLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minuto
+    max: 100, // 100 requisições por minuto
+    message: 'Muitas requisições. Tente novamente em alguns instantes.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Aplicar rate limit geral em todas as rotas da API
+// Nota: Rate limit específico para login está em auth.routes.js
+app.use('/api/', apiLimiter);
+
 // 6. Middlewares
+// ✅ SEGURANÇA: Lista explícita de origins permitidos
 const corsOptions = {
     origin: function (origin, callback) {
         const allowedOrigins = [
-            process.env.FRONTEND_URL || 'http://localhost:3000',
+            process.env.FRONTEND_URL || 'https://br.permutapolicial.com.br',
             'https://br.permutapolicial.com.br',
-            'http://localhost:3000',
+            'https://dev.br.permutapolicial.com.br',
             'https://login.microsoftonline.com',
+            'https://www.mercadopago.com.br',
+            'https://mercadopago.com.br',
+            // Apenas localhost em desenvolvimento
+            ...(process.env.NODE_ENV === 'development' 
+                ? ['http://localhost:3000', 'http://localhost:8080', 'http://localhost:5000'] 
+                : [])
         ];
 
-        if (!origin) return callback(null, true);
-
-        if (allowedOrigins.indexOf(origin) !== -1) {
+        // Permite requisições sem origin em casos específicos:
+        // 1. Em desenvolvimento
+        // 2. Para webhooks e requisições de servidor para servidor
+        if (!origin) {
+            // Permite requisições sem Origin (alguns proxies/load balancers removem)
+            // Isso é necessário para funcionar em alguns ambientes
             return callback(null, true);
         }
 
-        if (origin.startsWith('http://localhost:')) {
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+
+        // Permite localhost apenas em desenvolvimento
+        if (process.env.NODE_ENV === 'development' && 
+            (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:'))) {
             return callback(null, true);
         }
         
@@ -327,7 +117,7 @@ const corsOptions = {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-signature', 'x-mercadopago-signature', 'x-request-id']
 };
 
 app.use(cors(corsOptions));
@@ -335,25 +125,85 @@ app.options('*', cors(corsOptions));
 
 // ===== MIDDLEWARE PARA FORÇAR RECARREGAMENTO (NO-CACHE) =====
 app.use((req, res, next) => {
-    // Força recarregamento de todos os recursos (HTML, JS, CSS, etc)
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.setHeader('Surrogate-Control', 'no-store');
+    const path = req.path.toLowerCase();
+    
+    // 1. index.html e service-worker: NUNCA cachear (garante que o usuário receba a versão nova)
+    if (path === '/' || path.endsWith('index.html') || path.endsWith('flutter_service_worker.js')) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+    } 
+    // 2. Assets estáticos pesados (JS, WASM, Fontes, Imagens): CACHEAR agressivamente
+    else if (path.match(/\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|wasm)$/)) {
+        // Cache por 1 ano. O Flutter Web gera hashes nos nomes dos arquivos em release,
+        // então se você atualizar o app, o index.html pedirá um main.dart.js novo.
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+    
     next();
 });
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.set('trust proxy', 1); // <--- CRÍTICO: Sem isso, secure: true falha atrás de proxies (Cloudflare/Nginx)
+
+// ✅ PRODUÇÃO: Configuração do store MySQL para sessões (substitui MemoryStore)
+// Em produção, usa MySQLStore; em desenvolvimento, pode usar MemoryStore se preferir
+let sessionStore;
+if (process.env.NODE_ENV === 'production') {
+    // Usa MySQLStore em produção
+    sessionStore = new MySQLStore({
+        host: process.env.DB_HOST,
+        port: process.env.DB_PORT || 3306,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        database: process.env.DB_NAME,
+        createDatabaseTable: false, // A tabela já foi criada via migration
+        schema: {
+            tableName: 'sessions',
+            columnNames: {
+                session_id: 'session_id',
+                expires: 'expires',
+                data: 'data'
+            }
+        }
+    });
+
+    // Tratamento de erros do store
+    sessionStore.on('error', (error) => {
+        logger.error('Erro no MySQL Session Store', { error: error.message });
+    });
+} else {
+    // Em desenvolvimento, pode usar MemoryStore (mais simples para dev)
+    sessionStore = undefined; // undefined = MemoryStore padrão
+}
+
 app.use(session({
+    store: sessionStore,
     secret: process.env.SESSION_SECRET || 'um-segredo-muito-forte-de-fallback',
     resave: false,
-    saveUninitialized: true
+    saveUninitialized: false, // Recomendado false para evitar criar sessões vazias inúteis
+    // ✅ CORREÇÃO CRÍTICA: Configuração de cookies para produção HTTPS
+    cookie: {
+        // [CRÍTICO] Se o site é HTTPS, isso TEM que ser true. 
+        // Se for false, o Chrome/Edge rejeita o cookie SameSite: 'none'.
+        secure: process.env.NODE_ENV === 'production', // true em produção (HTTPS), false em desenvolvimento
+        
+        // [CRÍTICO] Permite que o cookie seja enviado no POST da Microsoft (cross-site)
+        // Em produção, usa 'none' para OAuth funcionar corretamente
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        
+        httpOnly: true, // Previne acesso via JavaScript (segurança)
+        maxAge: 30 * 60 * 1000, // 30 minutos (tempo suficiente para completar OAuth)
+        path: '/'
+    },
+    // ✅ CORREÇÃO: Nome personalizado para evitar conflitos
+    name: 'permuta.sid'
 }));
 app.use(passport.initialize());
 app.use(passport.session());
 
-console.log('✅ Middlewares configurados');
+logger.debug('Middlewares configurados');
 
 // 7. Rota de Health Check
 app.get('/health', (req, res) => {
@@ -389,9 +239,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
 }));
 
 // 10. Rotas da API
-console.log('📦 Carregando rotas da API...');
+logger.debug('Carregando rotas da API...');
 app.use('/api', apiRoutes);
-console.log('✅ Rotas da API carregadas');
+logger.debug('Rotas da API carregadas');
 
 // 11. 404 Handler
 app.use((req, res, next) => {
@@ -403,30 +253,24 @@ app.use((req, res, next) => {
 });
 
 // 12. Error Handler
-app.use((err, req, res, next) => {
-    console.error('💥 ERRO:', err.message);
-    res.status(err.statusCode || 500).json({
-        error: err.message || 'Erro interno do servidor',
-        ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    });
-});
+const errorHandler = require('./src/core/middlewares/errorHandler');
+app.use(errorHandler);
 
 // ===== INICIALIZAÇÃO PARA PASSENGER =====
 const isPassenger = process.env.PASSENGER_INSTANCE_REGISTRY_DIR !== undefined;
 
 if (isPassenger) {
-    console.log('═══════════════════════════════════════');
-    console.log('🚀 MODO PASSENGER DETECTADO');
-    console.log('📍 O Passenger gerenciará o servidor');
-    console.log('═══════════════════════════════════════');
+    if (process.env.NODE_ENV !== 'production') {
+        logger.info('MODO PASSENGER DETECTADO - O Passenger gerenciará o servidor');
+    }
 
     db.getConnection()
         .then(connection => {
-            console.log('✅ Banco de dados conectado');
+            logger.debug('Banco de dados conectado');
             connection.release();
         })
         .catch(error => {
-            console.error('💥 ERRO ao conectar ao banco:', error.message);
+            logger.error('ERRO ao conectar ao banco', { error: error.message });
         });
 
     module.exports = app;
@@ -439,18 +283,25 @@ if (isPassenger) {
     async function startServer() {
         try {
             const connection = await db.getConnection();
-            console.log('✅ Banco de dados conectado');
+            logger.debug('Banco de dados conectado');
             connection.release();
 
             const server = app.listen(PORT, HOST, () => {
-                console.log('═══════════════════════════════════════');
-                console.log('🚀 Servidor rodando');
-                console.log(`📍 Endereço: ${HOST}:${PORT}`);
-                console.log('═══════════════════════════════════════');
+                if (process.env.NODE_ENV !== 'production') {
+                    logger.info('Servidor rodando', { host: HOST, port: PORT });
+                } else {
+                    logger.critical('Servidor iniciado em produção', { host: HOST, port: PORT });
+                }
+                
+                // Inicia job de processamento de salários
+                if (process.env.ENABLE_SALARY_JOB !== 'false') {
+                    const salaryJob = require('./src/modules/work/salary.job');
+                    salaryJob.startSalaryJob();
+                }
             });
             
             initializeSocket(server);
-            console.log('✅ Socket.IO inicializado');
+            logger.debug('Socket.IO inicializado');
 
             const cleanupService = require('./src/core/services/cleanup_service');
             const cleanupInterval = 24 * 60 * 60 * 1000;
@@ -458,14 +309,14 @@ if (isPassenger) {
                 try {
                     await cleanupService.runCleanup();
                 } catch (error) {
-                    console.error('Erro na limpeza automática:', error);
+                    logger.error('Erro na limpeza automática', { error: error.message });
                 }
             }, cleanupInterval);
             
-            console.log('✅ Serviço de limpeza automática inicializado (executa a cada 24h)');
+            logger.debug('Serviço de limpeza automática inicializado (executa a cada 24h)');
 
             const shutdown = (signal) => {
-                console.log(`\n📴 ${signal} recebido. Encerrando...`);
+                logger.info(`${signal} recebido. Encerrando servidor...`);
                 server.close(async () => {
                     await db.end();
                     process.exit(0);
@@ -476,7 +327,7 @@ if (isPassenger) {
             process.on('SIGINT', () => shutdown('SIGINT'));
 
         } catch (error) {
-            console.error('💥 FALHA ao iniciar:', error);
+            logger.critical('FALHA ao iniciar servidor', { error: error.message, stack: error.stack });
             process.exit(1);
         }
     }
