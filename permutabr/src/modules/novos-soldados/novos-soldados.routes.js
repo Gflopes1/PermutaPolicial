@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../../config/db');
 const authMiddleware = require('../../core/middlewares/auth.middleware.js');
+const verifiedAuthMiddleware = require('../../core/middlewares/verifiedAuth.middleware.js');
 const soldadoAuthMiddleware = require('../../core/middlewares/soldadoAuth.middleware.js');
 const ApiError = require('../../core/utils/ApiError'); // Verifique se este caminho está correto
 
@@ -12,6 +13,7 @@ const router = express.Router();
 router.get(
   '/check-access',
   authMiddleware,
+  verifiedAuthMiddleware,
   soldadoAuthMiddleware,
   async (req, res, next) => {
     // Se o middleware 'soldadoAuthMiddleware' passar, o acesso é válido.
@@ -36,6 +38,7 @@ router.get(
 router.post(
   '/salvar-intencoes',
   authMiddleware,
+  verifiedAuthMiddleware,
   soldadoAuthMiddleware, 
   async (req, res, next) => {
     const { escolha_1_id, escolha_2_id, escolha_3_id } = req.body;
@@ -67,6 +70,7 @@ router.post(
 router.get(
   '/dados-tela',
   authMiddleware,
+  verifiedAuthMiddleware,
   soldadoAuthMiddleware,
   async (req, res, next) => {
     try {
@@ -105,6 +109,7 @@ router.get(
 router.get(
   '/analise-vaga/:opm_id',
   authMiddleware,
+  verifiedAuthMiddleware,
   soldadoAuthMiddleware,
   async (req, res, next) => {
     const { opm_id } = req.params;

@@ -6,6 +6,8 @@ module.exports = {
   criarSolicitacaoContato: {
     [Segments.BODY]: Joi.object().keys({
       destinatario_id: Joi.number().integer().required(),
+      origem: Joi.string().valid('mapa', 'permuta').optional(),
+      tipo_permuta: Joi.string().optional(), // 'direta', 'triangular', 'interessado'
     }),
   },
 

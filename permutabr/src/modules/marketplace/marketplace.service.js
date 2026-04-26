@@ -1,6 +1,7 @@
 // /src/modules/marketplace/marketplace.service.js
 
 const marketplaceRepository = require('./marketplace.repository');
+const storageService = require('../../core/services/storage.service');
 const ApiError = require('../../core/utils/ApiError');
 
 class MarketplaceService {
@@ -110,6 +111,15 @@ class MarketplaceService {
       throw new ApiError(403, 'Você não tem permissão para excluir este item.', null, 'FORBIDDEN');
     }
     
+    // Deleta as imagens do R2 antes de remover o item do banco
+    if (item.fotos && Array.isArray(item.fotos)) {
+      for (const fotoUrl of item.fotos) {
+        if (fotoUrl) {
+          await storageService.deleteFile(fotoUrl);
+        }
+      }
+    }
+    
     const sucesso = await marketplaceRepository.delete(id);
     if (!sucesso) {
       throw new ApiError(500, 'Erro ao excluir item.', null, 'DELETE_ERROR');
@@ -148,12 +158,25 @@ class MarketplaceService {
       throw new ApiError(404, 'Item não encontrado.', null, 'NOT_FOUND');
     }
     
+    // Deleta as imagens do R2 antes de remover o item do banco
+    if (item.fotos && Array.isArray(item.fotos)) {
+      for (const fotoUrl of item.fotos) {
+        if (fotoUrl) {
+          await storageService.deleteFile(fotoUrl);
+        }
+      }
+    }
+    
     const sucesso = await marketplaceRepository.delete(id);
     if (!sucesso) {
       throw new ApiError(500, 'Erro ao excluir item.', null, 'DELETE_ERROR');
     }
     
     return { message: 'Item excluído com sucesso.' };
+  }
+
+  async countPendentes() {
+    return await marketplaceRepository.countByStatus('PENDENTE');
   }
 }
 

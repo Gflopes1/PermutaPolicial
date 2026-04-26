@@ -4,14 +4,16 @@ const db = require('../../config/db');
 
 class ParceirosRepository {
   async findAll() {
-    const [parceiros] = await db.query(
+    // ✅ SEGURANÇA: Usar db.execute mesmo para queries sem parâmetros
+    const [parceiros] = await db.execute(
       'SELECT *, ordem as ordem_exibicao FROM parceiros ORDER BY ordem ASC, id DESC'
     );
     return parceiros;
   }
 
   async findById(id) {
-    const [parceiros] = await db.query('SELECT * FROM parceiros WHERE id = ?', [id]);
+    // ✅ SEGURANÇA: Usar db.execute para queries com parâmetros
+    const [parceiros] = await db.execute('SELECT * FROM parceiros WHERE id = ?', [id]);
     return parceiros[0] || null;
   }
 

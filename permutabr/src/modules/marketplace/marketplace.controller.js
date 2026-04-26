@@ -1,9 +1,9 @@
 // /src/modules/marketplace/marketplace.controller.js
 
 const marketplaceService = require('./marketplace.service');
+const storageService = require('../../core/services/storage.service');
 const sharp = require('sharp');
 const path = require('path');
-const fs = require('fs');
 
 const handleRequest = (servicePromise, successStatus) => async (req, res, next) => {
   try {
@@ -16,33 +16,53 @@ const handleRequest = (servicePromise, successStatus) => async (req, res, next) 
   }
 };
 
-// Processa e comprime as imagens
+// Processa, comprime e faz upload das imagens para o R2
 async function processarImagens(files) {
   if (!files || files.length === 0) return [];
   
-  const uploadDir = path.join(__dirname, '../../../uploads/marketplace');
   const imagensProcessadas = [];
   
   for (const file of files) {
-    const inputPath = file.path;
-    const outputPath = path.join(uploadDir, 'compressed-' + path.basename(inputPath));
-    
     try {
-      // Comprime a imagem mantendo qualidade razoável
-      await sharp(inputPath)
+      // Processa o buffer da imagem com sharp
+      const processedBuffer = await sharp(file.buffer)
         .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
         .jpeg({ quality: 80 })
-        .toFile(outputPath);
+        .toBuffer();
       
-      // Remove o arquivo original
-      fs.unlinkSync(inputPath);
+      // Gera nome único para o arquivo
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const fileName = `marketplace-${uniqueSuffix}.jpg`;
       
-      // Retorna o caminho relativo para salvar no banco
-      imagensProcessadas.push('/uploads/marketplace/' + path.basename(outputPath));
+      // Faz upload para o R2
+      const fileUrl = await storageService.uploadFile(
+        processedBuffer,
+        fileName,
+        'image/jpeg',
+        'marketplace'
+      );
+      
+      imagensProcessadas.push(fileUrl);
     } catch (error) {
-      console.error('Erro ao processar imagem:', error);
-      // Se falhar, mantém o original
-      imagensProcessadas.push('/uploads/marketplace/' + path.basename(inputPath));
+      console.error('❌ Erro ao processar imagem:', error);
+      // Se falhar, tenta fazer upload do buffer original
+      try {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname) || '.jpg';
+        const fileName = `marketplace-${uniqueSuffix}${ext}`;
+        
+        const fileUrl = await storageService.uploadFile(
+          file.buffer,
+          fileName,
+          file.mimetype,
+          'marketplace'
+        );
+        
+        imagensProcessadas.push(fileUrl);
+      } catch (uploadError) {
+        console.error('❌ Erro ao fazer upload da imagem original:', uploadError);
+        // Continua sem adicionar esta imagem
+      }
     }
   }
   
@@ -139,5 +159,11 @@ module.exports = {
   deleteAdmin: handleRequest(async (req) => {
     console.log('🗑️ deleteAdmin chamado:', req.params.id);
     return await marketplaceService.deleteAdmin(req.params.id);
+  }, 200),
+
+  countPendentes: handleRequest(async (req) => {
+    console.log('🔢 countPendentes chamado');
+    const count = await marketplaceService.countPendentes();
+    return { count };
   }, 200),
 };

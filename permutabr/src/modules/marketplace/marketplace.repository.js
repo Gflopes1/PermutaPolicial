@@ -165,6 +165,14 @@ class MarketplaceRepository {
     const [result] = await db.execute('DELETE FROM marketplace WHERE id = ?', [id]);
     return result.affectedRows > 0;
   }
+
+  async countByStatus(status) {
+    const [rows] = await db.execute(
+      'SELECT COUNT(*) as count FROM marketplace WHERE status = ?',
+      [status]
+    );
+    return rows[0].count;
+  }
 }
 
 module.exports = new MarketplaceRepository();

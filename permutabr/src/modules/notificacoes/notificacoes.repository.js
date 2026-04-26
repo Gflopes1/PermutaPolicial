@@ -17,8 +17,9 @@ class NotificacoesRepository {
         CASE WHEN n.tipo = 'SOLICITACAO_CONTATO' THEN pg_solicitante.nome END as solicitante_posto_nome,
         -- Dados do aceitador (quando tipo é SOLICITACAO_CONTATO_ACEITA)
         CASE WHEN n.tipo = 'SOLICITACAO_CONTATO_ACEITA' THEN p_aceitador.nome END as aceitador_nome,
-        -- Só retorna telefone se o usuário não estiver oculto no mapa
-        CASE WHEN n.tipo = 'SOLICITACAO_CONTATO_ACEITA' AND p_aceitador.ocultar_no_mapa = 0 THEN p_aceitador.qso END as aceitador_contato,
+        -- Retorna telefone sempre que aceita compartilhar (independente de estar oculto ou não)
+        -- Quando aceita compartilhar, o usuário está autorizando compartilhar seus dados
+        CASE WHEN n.tipo = 'SOLICITACAO_CONTATO_ACEITA' THEN p_aceitador.qso END as aceitador_contato,
         CASE WHEN n.tipo = 'SOLICITACAO_CONTATO_ACEITA' THEN p_aceitador.ocultar_no_mapa END as aceitador_ocultar_no_mapa,
         CASE WHEN n.tipo = 'SOLICITACAO_CONTATO_ACEITA' THEN f_aceitador.nome END as aceitador_forca_nome,
         CASE WHEN n.tipo = 'SOLICITACAO_CONTATO_ACEITA' THEN f_aceitador.sigla END as aceitador_forca_sigla,
