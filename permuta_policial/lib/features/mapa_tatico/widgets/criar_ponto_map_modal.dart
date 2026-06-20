@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
@@ -8,18 +6,24 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/config/app_styles.dart';
+import '../../../core/utils/error_handler.dart';
 import '../models/address_search_result.dart';
 import '../providers/mapa_tatico_provider.dart';
 import '../services/location_tracking_service.dart';
+import '../utils/mapa_tatico_marker_utils.dart';
+import '../utils/mapa_tatico_type_constants.dart';
+import '../utils/mapa_tatico_photo_upload.dart';
 
 class CriarPontoMapModal extends StatefulWidget {
   final int groupId;
   final VoidCallback? onCreated;
+  final String? initialMapType;
 
   const CriarPontoMapModal({
     super.key,
     required this.groupId,
     this.onCreated,
+    this.initialMapType,
   });
 
   @override
@@ -29,6 +33,7 @@ class CriarPontoMapModal extends StatefulWidget {
 class _CriarPontoMapModalState extends State<CriarPontoMapModal> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
   final _addressController = TextEditingController();
   final _mapController = MapController();
   final LocationTrackingService _locationService = createLocationTrackingService();
@@ -45,21 +50,29 @@ class _CriarPontoMapModalState extends State<CriarPontoMapModal> {
   LatLng _mapCenter = const LatLng(-14.2350, -51.9253);
   double _mapZoom = 4.5;
 
-  static const _operationalTypes = [
-    ('ocorrencia_recente', 'Ocorrência Recente'),
-    ('suspeito', 'Suspeito'),
-    ('local_interesse', 'Local de Interesse'),
-  ];
+  String get _effectiveMapTab =>
+      widget.initialMapType == 'NATIONAL' ? 'NATIONAL' : _selectedMapType;
 
-  static const _logisticsTypes = [
-    ('restaurante', 'Restaurante'),
-    ('padaria', 'Padaria'),
-    ('base', 'Base'),
-  ];
+  List<(String, String)> get _typeOptions => creatableTypesForTab(_effectiveMapTab)
+      .map((t) => (t, pointTypeLabel(t)))
+      .toList();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialMapType == 'LOGISTICS') {
+      _selectedMapType = 'LOGISTICS';
+      _selectedType = 'restaurante';
+    } else if (widget.initialMapType == 'NATIONAL') {
+      _selectedMapType = 'NATIONAL';
+      _selectedType = 'hospital';
+    }
+  }
 
   @override
   void dispose() {
     _titleController.dispose();
+    _descriptionController.dispose();
     _addressController.dispose();
     _locationService.dispose();
     super.dispose();
@@ -74,7 +87,7 @@ class _CriarPontoMapModalState extends State<CriarPontoMapModal> {
       final hasPermission = await _locationService.ensurePermission();
       if (!hasPermission) {
         setState(() {
-          _errorMessage = 'Não foi possível acessar sua localização no momento.';
+          _errorMessage = _locationService.locationUnavailableMessage;
           _isLoading = false;
         });
         return;
@@ -83,7 +96,7 @@ class _CriarPontoMapModalState extends State<CriarPontoMapModal> {
       final pos = await _locationService.getCurrentLocation();
       if (pos == null) {
         setState(() {
-          _errorMessage = 'Não foi possível obter sua localização atual.';
+          _errorMessage = _locationService.locationUnavailableMessage;
           _isLoading = false;
         });
         return;
@@ -97,18 +110,42 @@ class _CriarPontoMapModalState extends State<CriarPontoMapModal> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'Erro ao obter localização: $e';
+        _errorMessage = ErrorHandler.getErrorMessage(e);
         _isLoading = false;
       });
     }
   }
 
-  Future<void> _pickPhoto() async {
+  Future<void> _pickPhoto(ImageSource source) async {
     final picker = ImagePicker();
-    final xFile = await picker.pickImage(source: ImageSource.gallery);
+    final xFile = await picker.pickImage(source: source, imageQuality: 85);
     if (xFile != null) {
       setState(() => _photoFile = xFile);
     }
+  }
+
+  Future<void> _showPhotoSourcePicker() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera),
+              title: const Text('Câmera'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Galeria'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source != null) await _pickPhoto(source);
   }
 
   Future<void> _setSelectedLocation(
@@ -137,31 +174,8 @@ class _CriarPontoMapModalState extends State<CriarPontoMapModal> {
   }
 
   Future<String?> _reverseGeocode(double lat, double lng) async {
-    try {
-      final uri = Uri.https(
-        'nominatim.openstreetmap.org',
-        '/reverse',
-        {
-          'format': 'jsonv2',
-          'lat': lat.toString(),
-          'lon': lng.toString(),
-          'zoom': '18',
-          'addressdetails': '1',
-        },
-      );
-      final response = await http.get(
-        uri,
-        headers: const {
-          'Accept': 'application/json',
-          'User-Agent': 'PermutaPolicial/1.0',
-        },
-      );
-      if (response.statusCode < 200 || response.statusCode >= 300) return null;
-      final data = json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      return data['display_name'] as String?;
-    } catch (_) {
-      return null;
-    }
+    final provider = context.read<MapaTaticoProvider>();
+    return provider.geocodeReverse(lat, lng);
   }
 
   Future<void> _searchAddress() async {
@@ -178,33 +192,8 @@ class _CriarPontoMapModalState extends State<CriarPontoMapModal> {
     });
 
     try {
-      final uri = Uri.https(
-        'nominatim.openstreetmap.org',
-        '/search',
-        {
-          'format': 'jsonv2',
-          'limit': '5',
-          'q': query,
-          'countrycodes': 'br',
-        },
-      );
-      final response = await http.get(
-        uri,
-        headers: const {
-          'Accept': 'application/json',
-          'User-Agent': 'PermutaPolicial/1.0',
-        },
-      );
-
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception('Busca indisponível no momento.');
-      }
-
-      final rawList = json.decode(utf8.decode(response.bodyBytes)) as List<dynamic>;
-      final results = rawList
-          .map((item) => AddressSearchResult.fromJson(item as Map<String, dynamic>))
-          .where((item) => item.lat != 0 || item.lng != 0)
-          .toList();
+      final provider = context.read<MapaTaticoProvider>();
+      final results = await provider.geocodeSearch(query);
 
       if (!mounted) return;
       setState(() {
@@ -218,7 +207,7 @@ class _CriarPontoMapModalState extends State<CriarPontoMapModal> {
       if (!mounted) return;
       setState(() {
         _isSearchingAddress = false;
-        _errorMessage = 'Erro ao buscar endereço: $e';
+        _errorMessage = ErrorHandler.getErrorMessage(e);
       });
     }
   }
@@ -254,12 +243,16 @@ class _CriarPontoMapModalState extends State<CriarPontoMapModal> {
 
       http.MultipartFile? photo;
       if (_photoFile != null) {
+        if (!provider.photoUploadEnabled) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage =
+                'Upload de fotos indisponível no momento. Remova a foto ou crie o ponto sem imagem.';
+          });
+          return;
+        }
         final bytes = await _photoFile!.readAsBytes();
-        photo = http.MultipartFile.fromBytes(
-          'photo',
-          bytes,
-          filename: _photoFile!.name,
-        );
+        photo = buildMapaTaticoPhotoMultipart(bytes, filename: _photoFile!.name);
       }
 
       DateTime? expiresAt;
@@ -269,11 +262,14 @@ class _CriarPontoMapModalState extends State<CriarPontoMapModal> {
 
       final point = await provider.createPoint(
         title: _titleController.text.trim(),
+        description: _descriptionController.text.trim().isEmpty
+            ? null
+            : _descriptionController.text.trim(),
         address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
         lat: _lat!,
         lng: _lng!,
         type: _selectedType,
-        mapType: _selectedMapType,
+        mapType: _effectiveMapTab,
         expiresAt: expiresAt,
         photo: photo,
       );
@@ -294,13 +290,16 @@ class _CriarPontoMapModalState extends State<CriarPontoMapModal> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = e.toString();
+        _errorMessage = ErrorHandler.getErrorMessage(e);
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final photoUploadEnabled =
+        context.watch<MapaTaticoProvider>().photoUploadEnabled;
+
     return DraggableScrollableSheet(
       initialChildSize: 0.94,
       maxChildSize: 0.98,
@@ -323,29 +322,28 @@ class _CriarPontoMapModalState extends State<CriarPontoMapModal> {
                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _selectedMapType,
-                      decoration: const InputDecoration(
-                        labelText: 'Tipo de Mapa',
-                        border: OutlineInputBorder(),
+                  if (widget.initialMapType != 'NATIONAL')
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _selectedMapType,
+                        decoration: const InputDecoration(
+                          labelText: 'Tipo de Mapa',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'OPERATIONAL', child: Text('Operacional')),
+                          DropdownMenuItem(value: 'LOGISTICS', child: Text('Logístico')),
+                        ],
+                        onChanged: (v) {
+                          setState(() {
+                            _selectedMapType = v!;
+                            _selectedType = creatableTypesForTab(_selectedMapType).first;
+                          });
+                        },
                       ),
-                      items: const [
-                        DropdownMenuItem(value: 'OPERATIONAL', child: Text('Operacional')),
-                        DropdownMenuItem(value: 'LOGISTICS', child: Text('Logístico')),
-                      ],
-                      onChanged: (v) {
-                        setState(() {
-                          _selectedMapType = v!;
-                          _selectedType = _selectedMapType == 'OPERATIONAL'
-                              ? 'local_interesse'
-                              : 'restaurante';
-                        });
-                      },
                     ),
-                  ),
-                  const SizedBox(height: 16),
+                  if (widget.initialMapType != 'NATIONAL') const SizedBox(height: 16),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: DropdownButtonFormField<String>(
@@ -354,7 +352,7 @@ class _CriarPontoMapModalState extends State<CriarPontoMapModal> {
                         labelText: 'Tipo de Ponto',
                         border: OutlineInputBorder(),
                       ),
-                      items: (_selectedMapType == 'OPERATIONAL' ? _operationalTypes : _logisticsTypes)
+                      items: _typeOptions
                           .map(
                             (t) => DropdownMenuItem(
                               value: t.$1,
@@ -375,6 +373,19 @@ class _CriarPontoMapModalState extends State<CriarPontoMapModal> {
                         border: OutlineInputBorder(),
                       ),
                       validator: (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: TextFormField(
+                      controller: _descriptionController,
+                      minLines: 2,
+                      maxLines: 5,
+                      decoration: const InputDecoration(
+                        labelText: 'Descrição (opcional)',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -519,11 +530,25 @@ class _CriarPontoMapModalState extends State<CriarPontoMapModal> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: OutlinedButton.icon(
-                      onPressed: _pickPhoto,
+                      onPressed: photoUploadEnabled ? _showPhotoSourcePicker : null,
                       icon: const Icon(Icons.photo),
-                      label: Text(_photoFile != null ? 'Foto selecionada' : 'Adicionar foto'),
+                      label: Text(
+                        _photoFile != null
+                            ? 'Foto selecionada'
+                            : photoUploadEnabled
+                                ? 'Adicionar foto'
+                                : 'Foto indisponível',
+                      ),
                     ),
                   ),
+                  if (!photoUploadEnabled)
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: Text(
+                        'Upload de fotos temporariamente indisponível. Você ainda pode criar o ponto normalmente.',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ),
                   if (_errorMessage != null) ...[
                     const SizedBox(height: 8),
                     Padding(

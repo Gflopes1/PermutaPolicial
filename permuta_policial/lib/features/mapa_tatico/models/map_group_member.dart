@@ -20,11 +20,17 @@ class MapGroupMember {
   });
 
   factory MapGroupMember.fromJson(Map<String, dynamic> json) {
+    int parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
     return MapGroupMember(
-      id: json['id'] as int,
-      groupId: json['group_id'] as int,
-      userId: json['user_id'] as int,
-      role: json['role'] as String,
+      id: parseInt(json['id']),
+      groupId: parseInt(json['group_id']),
+      userId: parseInt(json['user_id']),
+      role: json['role'] as String? ?? 'MEMBER',
       nomeDeGuerra: json['nome_de_guerra'] as String?,
       isMuted: json['is_muted'] == true || json['is_muted'] == 1,
       nome: json['nome'] as String? ?? 'Usuário',

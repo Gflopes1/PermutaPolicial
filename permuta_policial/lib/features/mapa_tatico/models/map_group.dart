@@ -8,6 +8,7 @@ class MapGroup {
   final String? role;
   final String? nomeDeGuerra;
   final bool isMuted;
+  final bool isGlobal;
 
   MapGroup({
     required this.id,
@@ -17,17 +18,25 @@ class MapGroup {
     this.role,
     this.nomeDeGuerra,
     this.isMuted = false,
+    this.isGlobal = false,
   });
 
   factory MapGroup.fromJson(Map<String, dynamic> json) {
+    int parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
     return MapGroup(
-      id: json['id'] as int,
-      name: json['name'] as String,
-      creatorId: json['creator_id'] as int,
+      id: parseInt(json['id']),
+      name: json['name'] as String? ?? '',
+      creatorId: parseInt(json['creator_id']),
       creatorNome: json['creator_nome'] as String?,
       role: json['role'] as String?,
       nomeDeGuerra: json['nome_de_guerra'] as String?,
       isMuted: json['is_muted'] == true || json['is_muted'] == 1,
+      isGlobal: json['is_global'] == true || json['is_global'] == 1,
     );
   }
 

@@ -1,19 +1,24 @@
 // /lib/features/mapa_tatico/screens/detalhe_ponto_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
 
-import '../providers/mapa_tatico_provider.dart';
+import '../../../core/config/app_styles.dart';
+import '../../../core/utils/error_handler.dart';
+import '../../../core/widgets/cached_network_image_wrapper.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/map_point.dart';
 import '../models/map_point_comment.dart';
 import '../models/map_point_visit.dart';
-import '../../../core/config/app_config.dart';
-import '../../../core/config/app_styles.dart';
-import '../../../core/utils/error_handler.dart';
-import '../../dashboard/providers/dashboard_provider.dart';
+import '../providers/mapa_tatico_provider.dart';
+import '../utils/mapa_tatico_map_styles.dart';
+import '../utils/mapa_tatico_marker_utils.dart';
+import '../utils/mapa_tatico_navigation_utils.dart';
+import '../utils/mapa_tatico_photo_url.dart';
 
 class DetalhePontoScreen extends StatefulWidget {
   final int pointId;
@@ -28,7 +33,12 @@ class _DetalhePontoScreenState extends State<DetalhePontoScreen> {
   MapPoint? _point;
   List<MapPointComment> _comments = [];
   List<MapPointVisit> _visits = [];
+  List<dynamic> _auditLogs = [];
   bool _isLoading = true;
+  bool _loadingMoreComments = false;
+  bool _hasMoreComments = false;
+  int _commentsOffset = 0;
+  static const _commentsPageSize = 20;
   String? _errorMessage;
   final _commentController = TextEditingController();
 
@@ -50,10 +60,18 @@ class _DetalhePontoScreenState extends State<DetalhePontoScreen> {
     try {
       _point = await provider.getPoint(widget.pointId);
       if (_point != null) {
-        _comments = await provider.getComments(widget.pointId);
+        _comments = await provider.getComments(widget.pointId, limit: _commentsPageSize, offset: 0);
+        _commentsOffset = _comments.length;
+        _hasMoreComments = _comments.length >= _commentsPageSize;
         if (_point!.mapType == 'LOGISTICS') {
           _visits = await provider.getVisits(widget.pointId, lastDays: 7);
         }
+        final auth = context.read<AuthProvider>().user;
+        if (auth?.isModerator == true || auth?.isEmbaixador == true) {
+          _auditLogs = await provider.getAudit(widget.pointId);
+        }
+      } else {
+        _errorMessage = provider.errorMessage ?? 'Ponto não encontrado';
       }
     } catch (e) {
       _errorMessage = ErrorHandler.getErrorMessage(e);
@@ -72,12 +90,6 @@ class _DetalhePontoScreenState extends State<DetalhePontoScreen> {
     return 'Expira em ${diff.inMinutes} min';
   }
 
-  String _photoUrl(String? path) {
-    if (path == null || path.isEmpty) return '';
-    if (path.startsWith('http')) return path;
-    return '${AppConfig.apiBaseUrl}$path';
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -94,11 +106,13 @@ class _DetalhePontoScreenState extends State<DetalhePontoScreen> {
 
     final point = _point!;
     final provider = context.read<MapaTaticoProvider>();
-    final dashboardProvider = context.read<DashboardProvider>();
+    final authUser = context.read<AuthProvider>().user;
+    final currentUserId = authUser?.id;
+    final isSiteAdmin = authUser?.isModerator == true || authUser?.isEmbaixador == true;
     final activeGroup = provider.activeGroup;
-    final currentUserId = dashboardProvider.userData?.id;
-    final canEdit = activeGroup != null &&
-        (activeGroup.isModerator || point.creatorId == currentUserId);
+    final canEdit = isSiteAdmin ||
+        (activeGroup != null &&
+            (activeGroup.isModerator || point.creatorId == currentUserId));
 
     return Scaffold(
       appBar: AppBar(
@@ -119,13 +133,24 @@ class _DetalhePontoScreenState extends State<DetalhePontoScreen> {
             if (point.photoUrl != null && point.photoUrl!.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: CachedNetworkImage(
-                  imageUrl: _photoUrl(point.photoUrl),
-                  height: 200,
+                child: SizedBox(
                   width: double.infinity,
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => const Center(
-                    child: CircularProgressIndicator(),
+                  height: 200,
+                  child: CachedNetworkImageWrapper(
+                    imageUrl: resolveMapaTaticoPhotoUrl(point.photoUrl),
+                    height: 200,
+                    fit: BoxFit.cover,
+                    useCacheBusting: false,
+                    placeholder: Container(
+                      color: Colors.grey.shade200,
+                      child: const Center(child: CircularProgressIndicator()),
+                    ),
+                    errorWidget: Container(
+                      color: Colors.grey.shade300,
+                      child: const Center(
+                        child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -156,6 +181,72 @@ class _DetalhePontoScreenState extends State<DetalhePontoScreen> {
                 ],
               ),
             ],
+            if (point.description != null && point.description!.trim().isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Descrição',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text(point.description!),
+            ],
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                height: 180,
+                child: FlutterMap(
+                  options: MapOptions(
+                    initialCenter: LatLng(point.lat, point.lng),
+                    initialZoom: 15,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
+                    ),
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: MapaTaticoTileStyle.standard.urlTemplate,
+                      subdomains: MapaTaticoTileStyle.standard.subdomains,
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: LatLng(point.lat, point.lng),
+                          width: 40,
+                          height: 40,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: markerColorForPointType(point),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(markerEmojiForPointType(point)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: () {
+                final pos = provider.currentPosition;
+                showNavigationChooser(
+                  context,
+                  lat: point.lat,
+                  lng: point.lng,
+                  label: point.title,
+                  fromLat: pos?.latitude,
+                  fromLng: pos?.longitude,
+                  onRouteLoaded: provider.setNavigationRoute,
+                );
+              },
+              icon: const Icon(Icons.navigation),
+              label: const Text('Navegar até este ponto'),
+            ),
             if (point.expiresAt != null) ...[
               const SizedBox(height: 8),
               Container(
@@ -231,6 +322,20 @@ class _DetalhePontoScreenState extends State<DetalhePontoScreen> {
               ),
             ],
             const SizedBox(height: 8),
+            if (_hasMoreComments)
+              Center(
+                child: TextButton.icon(
+                  onPressed: _loadingMoreComments ? null : _loadMoreComments,
+                  icon: _loadingMoreComments
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.expand_more),
+                  label: const Text('Carregar mais comentários'),
+                ),
+              ),
             ..._comments.map(
               (c) => Card(
                 margin: const EdgeInsets.only(bottom: 8),
@@ -261,6 +366,23 @@ class _DetalhePontoScreenState extends State<DetalhePontoScreen> {
                 ),
               ),
             ),
+            if (_auditLogs.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              const Text('Auditoria (admin)',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              ..._auditLogs.map(
+                (log) => ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.history, size: 18),
+                  title: Text(log['action']?.toString() ?? ''),
+                  subtitle: Text(
+                    '${log['user_nome'] ?? 'Sistema'} • '
+                    '${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.parse(log['created_at'] as String))}',
+                  ),
+                ),
+              ),
+            ],
             if (point.mapType == 'LOGISTICS' && _visits.isNotEmpty) ...[
               const SizedBox(height: 24),
               const Text('Visitas (últimos 7 dias)',
@@ -285,6 +407,24 @@ class _DetalhePontoScreenState extends State<DetalhePontoScreen> {
     );
   }
 
+  Future<void> _loadMoreComments() async {
+    setState(() => _loadingMoreComments = true);
+    final provider = context.read<MapaTaticoProvider>();
+    final more = await provider.getComments(
+      widget.pointId,
+      limit: _commentsPageSize,
+      offset: _commentsOffset,
+    );
+    if (mounted) {
+      setState(() {
+        _comments.addAll(more);
+        _commentsOffset += more.length;
+        _hasMoreComments = more.length >= _commentsPageSize;
+        _loadingMoreComments = false;
+      });
+    }
+  }
+
   Future<void> _addComment(MapaTaticoProvider provider) async {
     final text = _commentController.text.trim();
     if (text.isEmpty) return;
@@ -294,6 +434,10 @@ class _DetalhePontoScreenState extends State<DetalhePontoScreen> {
       setState(() => _comments.insert(0, comment));
       ScaffoldMessenger.of(context).showSnackBar(
         AppStyles.successSnackBar('Comentário adicionado.'),
+      );
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        AppStyles.errorSnackBar(provider.errorMessage ?? 'Não foi possível adicionar o comentário.'),
       );
     }
   }

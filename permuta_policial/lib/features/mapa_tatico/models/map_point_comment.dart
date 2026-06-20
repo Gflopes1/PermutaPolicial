@@ -18,10 +18,16 @@ class MapPointComment {
   });
 
   factory MapPointComment.fromJson(Map<String, dynamic> json) {
+    int parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse('$value') ?? 0;
+    }
+
     return MapPointComment(
-      id: json['id'] as int,
-      pointId: json['point_id'] as int,
-      userId: json['user_id'] as int,
+      id: parseInt(json['id']),
+      pointId: parseInt(json['point_id']),
+      userId: parseInt(json['user_id']),
       text: json['text'] as String,
       createdAt: DateTime.parse(json['created_at'] as String),
       authorDisplayName: json['author_display_name'] as String?,

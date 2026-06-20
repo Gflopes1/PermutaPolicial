@@ -88,6 +88,7 @@ class MapPoint {
   final int creatorId;
   final String title;
   final String? address;
+  final String? description;
   final double lat;
   final double lng;
   final String type;
@@ -104,6 +105,7 @@ class MapPoint {
     required this.creatorId,
     required this.title,
     this.address,
+    this.description,
     required this.lat,
     required this.lng,
     required this.type,
@@ -133,6 +135,7 @@ class MapPoint {
       creatorId: parseInt(json['creator_id']),
       title: json['title'] as String,
       address: json['address'] as String?,
+      description: json['description'] as String?,
       lat: parseDouble(json['lat']),
       lng: parseDouble(json['lng']),
       type: json['type'] as String,

@@ -1,22 +1,43 @@
 import 'dart:async';
-import 'dart:html' as html;
-import 'dart:math' as math;
+import 'dart:js_interop';
+
+import 'package:flutter/foundation.dart';
+import 'package:geolocator/geolocator.dart' show Geolocator;
+import 'package:web/web.dart' as web;
 
 import '../models/patrol_location.dart';
 import 'location_tracking_service.dart';
 
+/// Implementação web usando a API nativa do navegador (navigator.geolocation).
+///
+/// O plugin geolocator na web usa a Permissions API para checar/pedir
+/// permissão, o que em muitos navegadores NÃO dispara o prompt nativo.
+/// O prompt só aparece de forma confiável ao chamar getCurrentPosition
+/// diretamente — é isso que fazemos aqui.
 class WebLocationTrackingService implements LocationTrackingService {
-  final StreamController<PatrolLocation> _controller =
-      StreamController<PatrolLocation>.broadcast();
-  Timer? _pollingTimer;
-  bool _streamStarted = false;
+  bool get _isSecureContext => web.window.isSecureContext;
+
+  bool _permissionGranted = false;
+  int _lastErrorCode = 0;
 
   @override
-  void dispose() {
-    _pollingTimer?.cancel();
-    _pollingTimer = null;
-    _controller.close();
+  String get locationUnavailableMessage {
+    if (!_isSecureContext) {
+      return 'A localização no navegador só funciona com HTTPS. '
+          'Acesse o site por https:// ou use o app no celular.';
+    }
+    if (_lastErrorCode == 1) {
+      return 'Permissão de localização negada. Clique no ícone de cadeado '
+          'na barra de endereço e permita a localização para este site.';
+    }
+    return 'Clique em "Ativar" e permita o acesso à localização quando o navegador solicitar.';
   }
+
+  @override
+  void dispose() {}
+
+  @override
+  void setBackgroundMode(bool enabled) {}
 
   @override
   double distanceBetween(
@@ -25,78 +46,135 @@ class WebLocationTrackingService implements LocationTrackingService {
     double endLatitude,
     double endLongitude,
   ) {
-    const earthRadiusMeters = 6371000.0;
-    final startLatRad = _toRadians(startLatitude);
-    final endLatRad = _toRadians(endLatitude);
-    final deltaLat = _toRadians(endLatitude - startLatitude);
-    final deltaLng = _toRadians(endLongitude - startLongitude);
+    return Geolocator.distanceBetween(
+      startLatitude,
+      startLongitude,
+      endLatitude,
+      endLongitude,
+    );
+  }
 
-    final a = _sinSquared(deltaLat / 2) +
-        _cos(startLatRad) *
-            _cos(endLatRad) *
-            _sinSquared(deltaLng / 2);
-    final c = 2 * _atan2Sqrt(a, 1 - a);
-    return earthRadiusMeters * c;
+  /// Chama navigator.geolocation.getCurrentPosition diretamente.
+  /// É a única forma garantida de disparar o prompt de permissão.
+  Future<PatrolLocation?> _getNativePosition({int timeoutMs = 15000}) {
+    final completer = Completer<PatrolLocation?>();
+
+    void onSuccess(web.GeolocationPosition position) {
+      _permissionGranted = true;
+      _lastErrorCode = 0;
+      debugPrint(
+        '[MapaTatico/Web] Posição OK: '
+        '${position.coords.latitude}, ${position.coords.longitude}',
+      );
+      if (!completer.isCompleted) {
+        completer.complete(
+          PatrolLocation(
+            latitude: position.coords.latitude.toDouble(),
+            longitude: position.coords.longitude.toDouble(),
+          ),
+        );
+      }
+    }
+
+    void onError(web.GeolocationPositionError error) {
+      _lastErrorCode = error.code;
+      debugPrint(
+        '[MapaTatico/Web] geolocation erro ${error.code}: ${error.message} '
+        '(1=negado, 2=indisponível, 3=timeout)',
+      );
+      if (!completer.isCompleted) completer.complete(null);
+    }
+
+    try {
+      web.window.navigator.geolocation.getCurrentPosition(
+        onSuccess.toJS,
+        onError.toJS,
+        web.PositionOptions(
+          enableHighAccuracy: true,
+          timeout: timeoutMs,
+          maximumAge: 5000,
+        ),
+      );
+    } catch (e) {
+      debugPrint('[MapaTatico/Web] navigator.geolocation falhou: $e');
+      if (!completer.isCompleted) completer.complete(null);
+    }
+
+    return completer.future;
   }
 
   @override
   Future<bool> ensurePermission() async {
-    if (html.window.isSecureContext != true) {
+    if (!_isSecureContext) {
+      debugPrint('[MapaTatico/Web] Contexto inseguro — geolocalização bloqueada');
       return false;
     }
-    final location = await getCurrentLocation();
-    return location != null;
+    if (_permissionGranted) return true;
+
+    final position = await _getNativePosition();
+    return position != null;
   }
 
   @override
-  Future<PatrolLocation?> getCurrentLocation() {
-    if (html.window.isSecureContext != true) {
-      return Future.value(null);
-    }
-    return html.window.navigator.geolocation
-        .getCurrentPosition(
-          enableHighAccuracy: true,
-          timeout: const Duration(seconds: 10),
-          maximumAge: Duration.zero,
-        )
-        .then(
-      (position) => PatrolLocation(
-        latitude: (position.coords?.latitude ?? 0).toDouble(),
-        longitude: (position.coords?.longitude ?? 0).toDouble(),
-      ),
-      onError: (_) => null,
-    );
+  Future<PatrolLocation?> getCurrentLocation() async {
+    if (!_isSecureContext) return null;
+    return _getNativePosition();
   }
 
   @override
   Stream<PatrolLocation> getLocationStream() {
-    if (!_streamStarted) {
-      _streamStarted = true;
-      _emitCurrentLocation();
-      _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-        _emitCurrentLocation();
-      });
+    final controller = StreamController<PatrolLocation>();
+    int? watchId;
+
+    void onSuccess(web.GeolocationPosition position) {
+      _permissionGranted = true;
+      _lastErrorCode = 0;
+      if (!controller.isClosed) {
+        controller.add(
+          PatrolLocation(
+            latitude: position.coords.latitude.toDouble(),
+            longitude: position.coords.longitude.toDouble(),
+          ),
+        );
+      }
     }
-    return _controller.stream;
+
+    void onError(web.GeolocationPositionError error) {
+      _lastErrorCode = error.code;
+      debugPrint('[MapaTatico/Web] watchPosition erro ${error.code}: ${error.message}');
+      // Permissão negada: encerra o stream para o app exibir o aviso
+      if (error.code == 1 && !controller.isClosed) {
+        controller.close();
+      }
+    }
+
+    controller.onListen = () {
+      if (!_isSecureContext) {
+        controller.close();
+        return;
+      }
+      try {
+        watchId = web.window.navigator.geolocation.watchPosition(
+          onSuccess.toJS,
+          onError.toJS,
+          web.PositionOptions(enableHighAccuracy: true, maximumAge: 5000),
+        );
+      } catch (e) {
+        debugPrint('[MapaTatico/Web] watchPosition falhou: $e');
+        controller.close();
+      }
+    };
+
+    controller.onCancel = () {
+      if (watchId != null) {
+        try {
+          web.window.navigator.geolocation.clearWatch(watchId!);
+        } catch (_) {}
+      }
+    };
+
+    return controller.stream;
   }
-
-  Future<void> _emitCurrentLocation() async {
-    final current = await getCurrentLocation();
-    if (current == null) return;
-    if (current.latitude == 0 && current.longitude == 0) return;
-    _controller.add(current);
-  }
-
-  double _toRadians(double degrees) => degrees * 0.017453292519943295;
-  double _sinSquared(double value) {
-    final sine = math.sin(value);
-    return sine * sine;
-  }
-
-  double _cos(double value) => math.cos(value);
-
-  double _atan2Sqrt(double a, double b) =>
-      math.atan2(math.sqrt(a), math.sqrt(b));
 }
 
 LocationTrackingService createLocationTrackingServiceImpl() =>

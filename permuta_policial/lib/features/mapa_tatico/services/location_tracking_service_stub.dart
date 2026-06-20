@@ -3,7 +3,14 @@ import 'location_tracking_service.dart';
 
 class UnsupportedLocationTrackingService implements LocationTrackingService {
   @override
+  String get locationUnavailableMessage =>
+      'Localização não disponível nesta plataforma.';
+
+  @override
   void dispose() {}
+
+  @override
+  void setBackgroundMode(bool enabled) {}
 
   @override
   double distanceBetween(

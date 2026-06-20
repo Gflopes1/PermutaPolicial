@@ -4,6 +4,9 @@ import 'location_tracking_service_stub.dart'
     if (dart.library.io) 'location_tracking_service_mobile.dart';
 
 abstract class LocationTrackingService {
+  /// Mensagem amigável quando a localização não está disponível.
+  String get locationUnavailableMessage;
+
   Future<PatrolLocation?> getCurrentLocation();
   Stream<PatrolLocation> getLocationStream();
   Future<bool> ensurePermission();
@@ -14,6 +17,9 @@ abstract class LocationTrackingService {
     double endLongitude,
   );
   void dispose();
+
+  /// Android: ativa serviço em primeiro plano para rastrear em background.
+  void setBackgroundMode(bool enabled) {}
 }
 
 LocationTrackingService createLocationTrackingService() =>
