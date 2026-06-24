@@ -1,44 +1,100 @@
-// /src/modules/mapa-tatico/mapa-tatico-storage.service.js
-// Armazenamento de fotos em filesystem (preparado para migração S3/R2)
+// Armazenamento de fotos no Cloudflare R2 (CDN)
 
-const fs = require('fs');
 const path = require('path');
+const sharp = require('sharp');
+const storageService = require('../../core/services/storage.service');
+const { validateImageMagicBytes } = require('./mapa-tatico-security.utils');
+const ApiError = require('../../core/utils/ApiError');
 
-const UPLOADS_DIR = path.join(__dirname, '..', '..', 'uploads', 'mapa-tatico');
-const BASE_URL = process.env.BASE_URL || '';
+const UPLOAD_FOLDER = 'mapa-tatico';
 
-function ensureDir(dirPath) {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
+function generateFileName(ext = 'jpg') {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${ext}`;
 }
 
-function generateFileName() {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+function isStorageConfigured() {
+  return !!(process.env.AWS_BUCKET_NAME && process.env.AWS_ENDPOINT);
 }
 
 /**
- * Faz upload de uma foto para o filesystem
- * @param {Buffer} buffer - Buffer do arquivo
- * @param {string} mimeType - Tipo MIME (ex: image/jpeg)
- * @returns {Promise<string>} URL relativa ou absoluta do arquivo (ex: /uploads/mapa-tatico/2025/xxx.jpg)
+ * Valida magic bytes, reprocessa com sharp e envia para R2/CDN.
+ * @param {Buffer} buffer
+ * @param {string} [_mimeType] - ignorado; tipo real vem dos magic bytes
+ * @returns {Promise<string>} URL pública na CDN
  */
-async function uploadPhoto(buffer, mimeType = 'image/jpeg') {
+async function uploadPhoto(buffer, _mimeType = 'image/jpeg') {
+  if (!isStorageConfigured()) {
+    throw new ApiError(
+      503,
+      'Upload de fotos temporariamente indisponível. Crie o ponto sem foto ou tente mais tarde.',
+      null,
+      'PHOTO_UPLOAD_UNAVAILABLE'
+    );
+  }
+
+  const { mime } = validateImageMagicBytes(buffer);
+
+  let processedBuffer;
+  let outputMime = 'image/jpeg';
+  let ext = 'jpg';
+
+  try {
+    processedBuffer = await sharp(buffer)
+      .rotate()
+      .resize(1600, 1600, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 82, mozjpeg: true })
+      .toBuffer();
+  } catch (err) {
+    if (mime === 'image/png') {
+      processedBuffer = await sharp(buffer).rotate().png({ compressionLevel: 8 }).toBuffer();
+      outputMime = 'image/png';
+      ext = 'png';
+    } else {
+      throw new ApiError(400, 'Não foi possível processar a imagem enviada.');
+    }
+  }
+
+  const fileName = generateFileName(ext);
   const year = new Date().getFullYear().toString();
-  const dirPath = path.join(UPLOADS_DIR, year);
-  ensureDir(dirPath);
+  const folder = path.posix.join(UPLOAD_FOLDER, year);
 
-  const ext = mimeType.includes('png') ? 'png' : 'jpg';
-  const fileName = `${generateFileName()}.${ext}`;
-  const filePath = path.join(dirPath, fileName);
+  try {
+    return await storageService.uploadFile(
+      processedBuffer,
+      fileName,
+      outputMime,
+      folder
+    );
+  } catch (error) {
+    console.error('[mapa-tatico-storage] Falha no upload da foto:', {
+      folder,
+      fileName,
+      bytes: processedBuffer?.length,
+      mime: outputMime,
+      storage: storageService.getConfig?.() || {},
+      message: error.message,
+    });
+    throw new ApiError(
+      503,
+      `Upload de foto falhou: ${error.message || 'erro no storage'}`,
+      null,
+      'PHOTO_UPLOAD_FAILED'
+    );
+  }
+}
 
-  fs.writeFileSync(filePath, buffer);
-
-  const relativePath = `/uploads/mapa-tatico/${year}/${fileName}`;
-  return BASE_URL ? `${BASE_URL.replace(/\/$/, '')}${relativePath}` : relativePath;
+/**
+ * Remove foto do R2 (ignora URLs legadas em /uploads/).
+ */
+async function deletePhoto(photoUrl) {
+  if (!photoUrl) return;
+  if (photoUrl.includes('/uploads/mapa-tatico/')) return;
+  await storageService.deleteFile(photoUrl);
 }
 
 module.exports = {
   uploadPhoto,
-  UPLOADS_DIR,
+  deletePhoto,
+  isStorageConfigured,
+  UPLOAD_FOLDER,
 };

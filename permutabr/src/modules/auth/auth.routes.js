@@ -7,43 +7,29 @@ const rateLimit = require('express-rate-limit');
 const authValidation = require('./auth.validation');
 const authController = require('./auth.controller');
 const logger = require('../../core/utils/logger');
+const {
+  resolveSafeFrontendOrigin,
+  saveOAuthOriginToSession,
+  isAllowedFrontendOrigin,
+} = require('../../core/utils/frontend-url.utils');
 
 const router = express.Router();
 
-// ✅ FUNÇÃO AUXILIAR: Valida se uma origem é segura (não é domínio OAuth)
-function isSafeOrigin(origin) {
-    if (!origin) return false;
-    try {
-        const oauthDomains = [
-            'login.microsoftonline.com',
-            'accounts.google.com',
-            'oauth.google.com',
-            'login.live.com'
-        ];
-        const originHost = new URL(origin).hostname;
-        return !oauthDomains.some(domain => originHost.includes(domain));
-    } catch (error) {
-        // Se não conseguir fazer parse da URL, considera inseguro
-        return false;
-    }
+// ✅ FUNÇÃO AUXILIAR: Obtém frontendUrl seguro (whitelist de domínios)
+function getSafeFrontendUrl(req, defaultUrl) {
+  const fallback = defaultUrl || process.env.FRONTEND_URL || 'https://br.permutapolicial.com.br';
+  return resolveSafeFrontendOrigin(req.session?.oauthOrigin, fallback);
 }
 
-// ✅ FUNÇÃO AUXILIAR: Obtém frontendUrl seguro (prioriza sessão, depois valida origin)
-function getSafeFrontendUrl(req, defaultUrl) {
-    const frontendUrl = defaultUrl || process.env.FRONTEND_URL || 'https://br.permutapolicial.com.br';
-    
-    // Prioridade 1: Sessão (sempre seguro, foi salvo antes do OAuth)
-    if (req.session?.oauthOrigin) {
-        return req.session.oauthOrigin;
-    }
-    
-    // Prioridade 2: Header Origin (mas só se for seguro)
-    if (req.headers.origin && isSafeOrigin(req.headers.origin)) {
-        return req.headers.origin;
-    }
-    
-    // Fallback: URL padrão
-    return frontendUrl;
+function trySaveOAuthOrigin(req) {
+  if (req.query.origin && saveOAuthOriginToSession(req, req.query.origin)) {
+    logger.debug('Origem OAuth salva (query)', { oauthOrigin: req.session.oauthOrigin });
+    return;
+  }
+  if (req.headers.origin && isAllowedFrontendOrigin(req.headers.origin)) {
+    saveOAuthOriginToSession(req, req.headers.origin);
+    logger.debug('Origem OAuth salva (header)', { oauthOrigin: req.session.oauthOrigin });
+  }
 }
 
 // ✅ SEGURANÇA: Rate limit para login (mais restritivo)
@@ -74,17 +60,8 @@ router.get('/google', (req, res, next) => {
         sessionId: req.sessionID || 'não presente'
     });
     
-    // ✅ CORREÇÃO: Salva a origem do frontend na sessão para usar no callback
-    if (req.query.origin) {
-        req.session = req.session || {};
-        req.session.oauthOrigin = req.query.origin;
-        logger.debug('Origem salva na sessão (query) - Google OAuth', { oauthOrigin: req.session.oauthOrigin });
-    } else if (req.headers.origin) {
-        // Fallback: usa o header Origin se não foi passado como query param
-        req.session = req.session || {};
-        req.session.oauthOrigin = req.headers.origin;
-        logger.debug('Origem salva da header Origin - Google OAuth', { oauthOrigin: req.session.oauthOrigin });
-    }
+    // Salva origem do frontend na sessão (somente whitelist)
+    trySaveOAuthOrigin(req);
     
     // Salva platform na sessão também
     if (req.query.platform) {
@@ -111,6 +88,13 @@ router.get('/google', (req, res, next) => {
     });
 });
 
+router.post(
+  '/google/native',
+  loginLimiter,
+  celebrate(authValidation.googleNative),
+  authController.googleNative
+);
+
 router.get('/google/callback',
     (req, res, next) => {
         // ✅ CORREÇÃO: Usa origem dinâmica para failureRedirect também
@@ -135,17 +119,8 @@ router.get('/microsoft', (req, res, next) => {
         callbackUrl: process.env.MICROSOFT_CALLBACK_URL || `${process.env.BASE_URL || 'https://br.permutapolicial.com.br'}/api/auth/microsoft/callback`
     });
     
-    // ✅ CORREÇÃO: Salva a origem do frontend na sessão para usar no callback
-    if (req.query.origin) {
-        req.session = req.session || {};
-        req.session.oauthOrigin = req.query.origin;
-        logger.debug('Origem salva na sessão (query) - Microsoft OAuth', { oauthOrigin: req.session.oauthOrigin });
-    } else if (req.headers.origin) {
-        // Fallback: usa o header Origin se não foi passado como query param
-        req.session = req.session || {};
-        req.session.oauthOrigin = req.headers.origin;
-        logger.debug('Origem salva da header Origin - Microsoft OAuth', { oauthOrigin: req.session.oauthOrigin });
-    }
+    // Salva origem do frontend na sessão (somente whitelist)
+    trySaveOAuthOrigin(req);
     
     // Salva platform na sessão também
     if (req.query.platform) {

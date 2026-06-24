@@ -8,11 +8,13 @@ const authRoutes = require('../modules/auth/auth.routes');
 const policiaisRoutes = require('../modules/policiais/policiais.routes');
 const intencoesRoutes = require('../modules/intencoes/intencoes.routes');
 const permutasRoutes = require('../modules/permutas/permutas.routes');
+const permutasInteligentesRoutes = require('../modules/permutas-inteligentes/permutas-inteligentes.routes');
 const dadosRoutes = require('../modules/dados/dados.routes');
 const mapaRoutes = require('../modules/mapa/mapa.routes');
 const mapaTaticoRoutes = require('../modules/mapa-tatico/mapa-tatico.routes');
 const adminRoutes = require('../modules/admin/admin.routes');
-const novosSoldadosRoutes = require('../modules/novos-soldados/novos-soldados.routes');
+const editaisRoutes = require('../modules/editais/editais.routes');
+const editaisAdminRoutes = require('../modules/editais/editais-admin.routes');
 const parceirosRoutes = require('../modules/parceiros/parceiros.routes');
 const chatRoutes = require('../modules/chat/chat.routes');
 const forumRoutes = require('../modules/forum/forum.routes');
@@ -27,8 +29,10 @@ const questionsRoutes = require('../modules/questions/questions.routes');
 const simuladosRoutes = require('../modules/questions/simulados.routes');
 const commentsRoutes = require('../modules/questions/comments.routes');
 const paymentsRoutes = require('../modules/questions/payments.routes');
-const assistantRoutes = require('../modules/assistant/assistant.routes');
 const problemasRoutes = require('../modules/problemas/problemas.routes');
+const pushRoutes = require('../modules/push/push.routes');
+const mediaRoutes = require('../modules/media/media.routes');
+const consultoriaJuridicaRoutes = require('../modules/consultoria-juridica/consultoria-juridica.routes');
 
 router.get('/', (req, res) => {
     res.json({
@@ -37,17 +41,23 @@ router.get('/', (req, res) => {
     });
 });
 
+// Proxy público de imagens R2 (sem auth — keys aleatórias, prefixos restritos)
+router.use('/', mediaRoutes);
+
 // Define os prefixos para cada conjunto de rotas
 router.use('/auth', authRoutes);
 router.use('/policiais', policiaisRoutes);
 router.use('/intencoes', intencoesRoutes);
 router.use('/permutas', permutasRoutes);
+router.use('/permutas-inteligentes', permutasInteligentesRoutes);
 router.use('/dados', dadosRoutes);
 router.use('/mapa', mapaRoutes);
 router.use('/mapa-tatico', mapaTaticoRoutes);
 router.use('/admin', adminRoutes);
-router.use('/novos-soldados', novosSoldadosRoutes);
+router.use('/admin/editais', editaisAdminRoutes);
+router.use('/editais', editaisRoutes);
 router.use('/parceiros', parceirosRoutes);
+router.use('/consultoria-juridica', consultoriaJuridicaRoutes);
 router.use('/chat', chatRoutes);
 router.use('/forum', forumRoutes);
 router.use('/marketplace', marketplaceRoutes);
@@ -61,7 +71,7 @@ router.use('/questions', questionsRoutes);
 router.use('/simulado', simuladosRoutes);
 router.use('/comments', commentsRoutes);
 router.use('/payments', paymentsRoutes);
-router.use('/assistant', assistantRoutes);
 router.use('/problemas', problemasRoutes);
+router.use('/push', pushRoutes);
 
 module.exports = router;

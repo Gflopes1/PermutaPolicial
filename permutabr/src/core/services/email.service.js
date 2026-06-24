@@ -2,19 +2,41 @@
 
 const nodemailer = require('nodemailer');
 const logger = require('../utils/logger');
+const { escapeHtml } = require('../utils/html.utils');
 
-// Configura o "transportador" de email uma única vez, lendo as variáveis de ambiente
+/**
+ * Nome TLS/SNI para validação do certificado SMTP.
+ * Quando MAIL_HOST é mail.dominio.com mas o cert cobre só dominio.com,
+ * informe MAIL_TLS_SERVERNAME=dominio.com ou deixe o fallback remover o prefixo mail.
+ */
+function resolveTlsServername() {
+    if (process.env.MAIL_TLS_SERVERNAME) {
+        return process.env.MAIL_TLS_SERVERNAME;
+    }
+    const host = process.env.MAIL_HOST || '';
+    if (host.startsWith('mail.')) {
+        return host.slice(5);
+    }
+    return undefined;
+}
+
+const tlsServername = resolveTlsServername();
+const tlsOptions = {
+    rejectUnauthorized: process.env.NODE_ENV === 'production',
+};
+if (tlsServername) {
+    tlsOptions.servername = tlsServername;
+}
+
 const transporter = nodemailer.createTransport({
     host: process.env.MAIL_HOST,
     port: process.env.MAIL_PORT,
-    secure: process.env.MAIL_PORT == 465, // true para porta 465, false para outras
+    secure: process.env.MAIL_PORT == 465,
     auth: {
         user: process.env.MAIL_USER,
         pass: process.env.MAIL_PASS,
     },
-    tls: {
-        rejectUnauthorized: false
-    }
+    tls: tlsOptions,
 });
 
 /**
@@ -104,10 +126,10 @@ const sendContactRequestFromMapEmail = async (to, dados) => {
                 
                 <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
                     <h2 style="color: #333; margin-top: 0;">Informações do Solicitante:</h2>
-                    <p style="margin: 8px 0;"><strong>Nome:</strong> ${solicitanteNome}</p>
-                    ${solicitanteForca ? `<p style="margin: 8px 0;"><strong>Força:</strong> ${solicitanteForca}</p>` : ''}
-                    ${solicitanteEstado ? `<p style="margin: 8px 0;"><strong>Estado:</strong> ${solicitanteEstado}</p>` : ''}
-                    ${solicitanteCidade ? `<p style="margin: 8px 0;"><strong>Cidade:</strong> ${solicitanteCidade}</p>` : ''}
+                    <p style="margin: 8px 0;"><strong>Nome:</strong> ${escapeHtml(solicitanteNome)}</p>
+                    ${solicitanteForca ? `<p style="margin: 8px 0;"><strong>Força:</strong> ${escapeHtml(solicitanteForca)}</p>` : ''}
+                    ${solicitanteEstado ? `<p style="margin: 8px 0;"><strong>Estado:</strong> ${escapeHtml(solicitanteEstado)}</p>` : ''}
+                    ${solicitanteCidade ? `<p style="margin: 8px 0;"><strong>Cidade:</strong> ${escapeHtml(solicitanteCidade)}</p>` : ''}
                 </div>
                 
                 <p style="font-size: 16px; line-height: 1.6;">
@@ -174,16 +196,16 @@ const sendContactRequestFromPermutaEmail = async (to, dados) => {
                 
                 <div style="background-color: #e8f5e9; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #34a853;">
                     <p style="margin: 0; font-weight: bold; color: #2e7d32;">
-                        Tipo de Permuta: ${tipoPermuta || 'Permuta Fechada'}
+                        Tipo de Permuta: ${escapeHtml(tipoPermuta || 'Permuta Fechada')}
                     </p>
                 </div>
                 
                 <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
                     <h2 style="color: #333; margin-top: 0;">Informações do Solicitante:</h2>
-                    <p style="margin: 8px 0;"><strong>Nome:</strong> ${solicitanteNome}</p>
-                    ${solicitanteForca ? `<p style="margin: 8px 0;"><strong>Força:</strong> ${solicitanteForca}</p>` : ''}
-                    ${solicitanteEstado ? `<p style="margin: 8px 0;"><strong>Estado:</strong> ${solicitanteEstado}</p>` : ''}
-                    ${solicitanteCidade ? `<p style="margin: 8px 0;"><strong>Cidade:</strong> ${solicitanteCidade}</p>` : ''}
+                    <p style="margin: 8px 0;"><strong>Nome:</strong> ${escapeHtml(solicitanteNome)}</p>
+                    ${solicitanteForca ? `<p style="margin: 8px 0;"><strong>Força:</strong> ${escapeHtml(solicitanteForca)}</p>` : ''}
+                    ${solicitanteEstado ? `<p style="margin: 8px 0;"><strong>Estado:</strong> ${escapeHtml(solicitanteEstado)}</p>` : ''}
+                    ${solicitanteCidade ? `<p style="margin: 8px 0;"><strong>Cidade:</strong> ${escapeHtml(solicitanteCidade)}</p>` : ''}
                 </div>
                 
                 <p style="font-size: 16px; line-height: 1.6;">
@@ -356,6 +378,127 @@ const sendContactRequestRejectedEmail = async (to, dados) => {
     }
 };
 
+/**
+ * Avisa que as intenções de permuta expiram em breve.
+ */
+const sendIntencoesExpiringSoonEmail = async (to, dados) => {
+    const {
+        nome,
+        quantidadeIntencoes = 1,
+        diasRestantes = 7,
+        expiraEm,
+    } = dados;
+
+    const dataExpiracao = expiraEm
+        ? new Date(expiraEm).toLocaleDateString('pt-BR')
+        : 'em breve';
+
+    const mailOptions = {
+        from: `"Permuta Policial" <${process.env.MAIL_USER}>`,
+        to,
+        subject: 'Suas intenções de permuta expiram em breve',
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h1 style="color: #e37400; border-bottom: 2px solid #e37400; padding-bottom: 10px;">
+                    Aviso de expiração de intenções
+                </h1>
+                <p>Olá, <strong>${nome || 'usuário'}</strong>,</p>
+                <p>
+                    Você tem <strong>${quantidadeIntencoes}</strong> intenção(ões) de permuta que
+                    <strong>expira(m) em ${diasRestantes} dia(s)</strong> (${dataExpiracao}).
+                </p>
+                <div style="background-color: #fff8e1; padding: 16px; border-radius: 8px; border-left: 4px solid #f9a825; margin: 20px 0;">
+                    <p style="margin: 0;">
+                        Se você ainda está buscando permuta, renove suas intenções no site para mantê-las ativas no mapa.
+                        Caso contrário, elas serão removidas automaticamente e contabilizadas como permuta concluída por inatividade.
+                    </p>
+                </div>
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="${process.env.FRONTEND_URL || 'https://br.permutapolicial.com.br'}/meus-dados"
+                       style="background-color: #1a73e8; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+                        Renovar minhas intenções
+                    </a>
+                </div>
+                <p style="font-size: 14px; color: #666;">
+                    Este é um email automático. Verifique também a caixa de spam caso não encontre nossas mensagens.
+                </p>
+            </div>
+        `,
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        logger.debug('Email de aviso de expiração de intenções enviado', { to });
+    } catch (error) {
+        logger.error('Erro ao enviar email de expiração de intenções', { error: error.message });
+        throw new Error('Falha ao enviar email de aviso de expiração.');
+    }
+};
+
+/**
+ * Email de comunicado em massa enviado pelo painel admin.
+ * @param {string} to
+ * @param {{ subject: string, bodyHtml: string, bodyText?: string }} dados
+ */
+const sendAdminBroadcastEmail = async (to, dados) => {
+    const { subject, bodyHtml, bodyText } = dados;
+    const frontendUrl = process.env.FRONTEND_URL || 'https://br.permutapolicial.com.br';
+
+    const mailOptions = {
+        from: `"Permuta Policial" <${process.env.MAIL_USER}>`,
+        to,
+        subject,
+        text: bodyText || undefined,
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="border-bottom: 2px solid #1a73e8; padding-bottom: 12px; margin-bottom: 20px;">
+                    <h1 style="color: #1a73e8; margin: 0; font-size: 22px;">Permuta Policial</h1>
+                </div>
+                ${bodyHtml}
+                <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+                <p style="font-size: 13px; color: #666; line-height: 1.5;">
+                    Você recebeu este e-mail por estar cadastrado na plataforma
+                    <a href="${frontendUrl}" style="color: #1a73e8;">Permuta Policial</a>.
+                    Para alteração de dados ou exclusão de conta, entre em contato pelo WhatsApp:
+                    <a href="https://wa.me/51986200626">(51) 98620-0626</a>.
+                </p>
+            </div>
+        `,
+    };
+
+    await transporter.sendMail(mailOptions);
+};
+
+/**
+ * Convite para grupo do mapa tático.
+ */
+const sendMapaTaticoInviteEmail = async (to, groupName, groupId) => {
+    if (!process.env.MAIL_HOST || !process.env.MAIL_USER) {
+        logger.debug('[email] SMTP não configurado — convite mapa tático não enviado');
+        return;
+    }
+    const frontendUrl = process.env.FRONTEND_URL || 'https://br.permutapolicial.com.br';
+    const mailOptions = {
+        from: `"Permuta Policial" <${process.env.MAIL_USER}>`,
+        to,
+        subject: `Convite para o mapa tático: ${groupName}`,
+        html: `
+            <h1>Convite — Mapa Tático</h1>
+            <p>Você foi convidado para participar do grupo <strong>${escapeHtml(groupName)}</strong> no Mapa Tático e Logístico.</p>
+            <p>Acesse o app e abra <strong>Mapa Tático → Grupo → Convites</strong> para aceitar.</p>
+            <p><a href="${frontendUrl}/mapa-tatico">Abrir Permuta Policial</a></p>
+            <p style="font-size:12px;color:#666;">Grupo #${groupId}</p>
+        `,
+    };
+    try {
+        await transporter.sendMail(mailOptions);
+        logger.debug('[email] Convite mapa tático enviado', { to, groupId });
+    } catch (error) {
+        logger.error('[email] Falha convite mapa tático', { to, error: error.message });
+        throw error;
+    }
+};
+
 // Exporta as funções para serem usadas em outros lugares da aplicação
 module.exports = {
     sendVerificationCodeEmail,
@@ -364,4 +507,7 @@ module.exports = {
     sendContactRequestFromPermutaEmail,
     sendContactRequestAcceptedEmail,
     sendContactRequestRejectedEmail,
+    sendIntencoesExpiringSoonEmail,
+    sendAdminBroadcastEmail,
+    sendMapaTaticoInviteEmail,
 };

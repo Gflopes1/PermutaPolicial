@@ -2,10 +2,11 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const db = require('./db');
 const ApiError = require('../core/utils/ApiError');
+const logger = require('../core/utils/logger');
 
 // Exporta uma função que configura o passport
 module.exports = function () {
-    console.log('🔐 Configurando Google Strategy...');
+    logger.log('🔐 Configurando Google Strategy...');
 
     passport.use('google', new GoogleStrategy({
         clientID: process.env.GOOGLE_CLIENT_ID,
@@ -14,7 +15,7 @@ module.exports = function () {
     },
         async (accessToken, refreshToken, profile, done) => {
             try {
-                console.log('🔐 Google OAuth Profile:', profile.id);
+                logger.log('🔐 Google OAuth Profile:', profile.id);
 
                 const { id, displayName, emails } = profile;
                 const email = emails[0].value;
@@ -32,7 +33,7 @@ module.exports = function () {
                 );
 
                 if (userRows.length > 0) {
-                    console.log('✅ Usuário encontrado pelo Google ID');
+                    logger.log('✅ Usuário encontrado pelo Google ID');
                     return done(null, userRows[0]);
                 }
 
@@ -47,12 +48,12 @@ module.exports = function () {
                     [email]
                 );
                 if (userRows.length > 0) {
-                    console.log('⚠️  Usuário já existe com este email');
+                    logger.log('⚠️  Usuário já existe com este email');
                     return done(new ApiError(409, 'Este email já está cadastrado. Por favor, faça login com sua senha.'), false);
                 }
 
                 // 3. Se não existe, cria novo usuário
-                console.log('👤 Criando novo usuário Google');
+                logger.log('👤 Criando novo usuário Google');
                 const [result] = await db.execute(
                     `INSERT INTO policiais (nome, email, google_id, auth_provider, status_verificacao)
            VALUES (?, ?, ?, 'google', 'VERIFICADO')`,
@@ -68,7 +69,7 @@ module.exports = function () {
                      FROM policiais WHERE id = ?`,
                     [result.insertId]
                 );
-                console.log('✅ Novo usuário criado');
+                logger.log('✅ Novo usuário criado');
 
                 return done(null, newUser[0]);
 
@@ -79,7 +80,7 @@ module.exports = function () {
         }
     ));
 
-    console.log('✅ Google Strategy configurada com sucesso!');
+    logger.log('✅ Google Strategy configurada com sucesso!');
 
     return passport;
 };

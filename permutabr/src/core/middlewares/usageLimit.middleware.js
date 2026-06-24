@@ -2,6 +2,7 @@
 
 const db = require('../../config/db');
 const ApiError = require('../utils/ApiError');
+const logger = require('../../core/utils/logger');
 
 /**
  * Middleware para verificar e incrementar limites diários de uso
@@ -11,7 +12,7 @@ const ApiError = require('../utils/ApiError');
  *   - Se count >= maxLimit, retorna erro 403 com code LIMIT_REACHED
  *   - Caso contrário, incrementa o contador e permite
  * 
- * @param {string} featureName - Nome da feature (ex: 'ai_consult', 'simulado_questions')
+ * @param {string} featureName - Nome da feature (ex: 'practice_questions', 'simulado_questions')
  * @param {number} maxLimit - Limite máximo diário para usuários Free
  * @returns {Function} Middleware function
  */
@@ -21,12 +22,12 @@ function usageLimitMiddleware(featureName, maxLimit) {
       const isDevelopment = process.env.NODE_ENV !== 'production';
       
       if (isDevelopment) {
-        console.log(`[usageLimit] Verificando: ${featureName}, limite: ${maxLimit}`);
+        logger.log(`[usageLimit] Verificando: ${featureName}, limite: ${maxLimit}`);
       }
       
       // Verifica se o usuário está autenticado primeiro
       if (!req.user || !req.user.id) {
-        if (isDevelopment) console.log('[usageLimit] Usuário não autenticado');
+        if (isDevelopment) logger.log('[usageLimit] Usuário não autenticado');
         return next(new ApiError(401, 'Usuário não autenticado'));
       }
 
@@ -40,7 +41,7 @@ function usageLimitMiddleware(featureName, maxLimit) {
                        false;
 
       if (isDevelopment) {
-        console.log(`[usageLimit] User ${userId} - Premium: ${isPremium}`);
+        logger.log(`[usageLimit] User ${userId} - Premium: ${isPremium}`);
       }
 
       // Se for Premium, ignora limite
@@ -87,14 +88,14 @@ function usageLimitMiddleware(featureName, maxLimit) {
         recordId = rows[0].id;
         currentCount = rows[0].count;
         if (isDevelopment) {
-          console.log(`[usageLimit] User ${userId} - Count atual: ${currentCount}/${maxLimit}`);
+          logger.log(`[usageLimit] User ${userId} - Count atual: ${currentCount}/${maxLimit}`);
         }
       }
 
       // Verifica se já atingiu o limite
       if (currentCount >= maxLimit) {
         if (isDevelopment) {
-          console.log(`[usageLimit] ⚠️ Limite atingido para user ${userId}: ${currentCount}/${maxLimit}`);
+          logger.log(`[usageLimit] ⚠️ Limite atingido para user ${userId}: ${currentCount}/${maxLimit}`);
         }
         return next(new ApiError(
           403,
@@ -123,7 +124,7 @@ function usageLimitMiddleware(featureName, maxLimit) {
           );
         }
         if (isDevelopment) {
-          console.log(`[usageLimit] ✅ Contador incrementado: ${currentCount + 1}/${maxLimit}`);
+          logger.log(`[usageLimit] ✅ Contador incrementado: ${currentCount + 1}/${maxLimit}`);
         }
       } catch (insertError) {
         console.error('[usageLimit] Erro ao inserir/atualizar registro:', insertError.message);

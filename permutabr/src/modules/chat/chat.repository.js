@@ -4,9 +4,11 @@ const db = require('../../config/db');
 
 class ChatRepository {
   // Busca ou cria uma conversa entre dois usuários
-  async findOrCreateConversa(usuario1Id, usuario2Id, anonima = false) {
+  async findOrCreateConversa(iniciadorId, destinatarioId, anonima = false) {
     // Garante que usuario1_id sempre seja menor que usuario2_id para evitar duplicatas
-    const [id1, id2] = usuario1Id < usuario2Id ? [usuario1Id, usuario2Id] : [usuario2Id, usuario1Id];
+    const [id1, id2] = iniciadorId < destinatarioId
+      ? [iniciadorId, destinatarioId]
+      : [destinatarioId, iniciadorId];
     
     // Tenta encontrar conversa existente
     const [existing] = await db.execute(
@@ -15,13 +17,21 @@ class ChatRepository {
     );
 
     if (existing.length > 0) {
-      return existing[0];
+      const conv = existing[0];
+      if (anonima && (!conv.anonima || !conv.iniciada_por)) {
+        await db.execute(
+          'UPDATE conversas SET anonima = TRUE, iniciada_por = ?, remetente_revelado = FALSE WHERE id = ?',
+          [iniciadorId, conv.id]
+        );
+        return this.findConversaById(conv.id);
+      }
+      return conv;
     }
 
     // Cria nova conversa (anonima se especificado)
     const [result] = await db.execute(
       'INSERT INTO conversas (usuario1_id, usuario2_id, anonima, iniciada_por) VALUES (?, ?, ?, ?)',
-      [id1, id2, anonima, anonima ? usuario1Id : null]
+      [id1, id2, anonima, anonima ? iniciadorId : null]
     );
 
     const [newConversa] = await db.execute(
@@ -279,6 +289,39 @@ class ChatRepository {
     return rows[0] || null;
   }
 
+  async findConversaForUser(conversaId, usuarioId) {
+    const query = `
+      SELECT
+        c.id,
+        c.usuario1_id,
+        c.usuario2_id,
+        c.criado_em,
+        c.atualizado_em,
+        c.anonima,
+        c.iniciada_por,
+        c.remetente_revelado,
+        CASE WHEN c.usuario1_id = ? THEN c.usuario2_id ELSE c.usuario1_id END AS outro_usuario_id,
+        CASE
+          WHEN c.anonima = 1 AND c.remetente_revelado = 0 AND c.iniciada_por = ? THEN 'Usuário não identificado'
+          ELSE p.nome
+        END AS outro_usuario_nome,
+        CASE
+          WHEN c.anonima = 1 AND c.remetente_revelado = 0 AND c.iniciada_por = ? THEN 0
+          ELSE 1
+        END AS pode_ver_perfil
+      FROM conversas c
+      LEFT JOIN policiais p ON p.id = (
+        CASE WHEN c.usuario1_id = ? THEN c.usuario2_id ELSE c.usuario1_id END
+      )
+      WHERE c.id = ? AND (c.usuario1_id = ? OR c.usuario2_id = ?)
+    `;
+    const [rows] = await db.execute(query, [
+      usuarioId, usuarioId, usuarioId, usuarioId,
+      conversaId, usuarioId, usuarioId,
+    ]);
+    return rows[0] || null;
+  }
+
   // Verifica se usuário pertence à conversa
   async verificarParticipante(conversaId, usuarioId) {
     const [rows] = await db.execute(
@@ -308,6 +351,61 @@ class ChatRepository {
       'UPDATE conversas SET remetente_revelado = TRUE WHERE id = ?',
       [conversaId]
     );
+  }
+
+  // Aplica regras de anonimato a uma mensagem para um espectador específico
+  filterMensagemForViewer(mensagem, conversa, viewerId) {
+    if (!mensagem || !conversa) return mensagem;
+
+    if (mensagem.remetente_id === viewerId) {
+      return mensagem;
+    }
+
+    const isAnonima = conversa.anonima === 1 || conversa.anonima === true;
+    const remetenteRevelado = conversa.remetente_revelado === 1 || conversa.remetente_revelado === true;
+    const iniciadaPor = conversa.iniciada_por;
+
+    if (!isAnonima || remetenteRevelado || !iniciadaPor) {
+      return mensagem;
+    }
+
+    const isIniciador = viewerId === iniciadaPor;
+    const isFromDestinatario = mensagem.remetente_id !== iniciadaPor;
+
+    if (isIniciador && isFromDestinatario) {
+      return {
+        ...mensagem,
+        remetente_nome: 'Usuário não identificado',
+        remetente_email: null,
+        remetente_identificado: 0,
+      };
+    }
+
+    return mensagem;
+  }
+
+  // Nome exibido de um participante para outro (typing, notificações)
+  getParticipantDisplayName(conversa, participantId, viewerId, participantNome) {
+    if (!conversa || participantId === viewerId) {
+      return participantNome || 'Usuário';
+    }
+
+    const isAnonima = conversa.anonima === 1 || conversa.anonima === true;
+    const remetenteRevelado = conversa.remetente_revelado === 1 || conversa.remetente_revelado === true;
+    const iniciadaPor = conversa.iniciada_por;
+
+    if (!isAnonima || remetenteRevelado || !iniciadaPor) {
+      return participantNome || 'Usuário';
+    }
+
+    const isIniciador = viewerId === iniciadaPor;
+    const participantIsDestinatario = participantId !== iniciadaPor;
+
+    if (isIniciador && participantIsDestinatario) {
+      return 'Usuário não identificado';
+    }
+
+    return participantNome || 'Usuário';
   }
 
   // Exclui uma conversa e todas as mensagens

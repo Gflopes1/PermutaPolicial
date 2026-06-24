@@ -84,5 +84,26 @@ module.exports = {
       data_fim: Joi.string().optional(),
     }),
   },
+
+  getDemandaPorMunicipio: {
+    [Segments.QUERY]: Joi.object().keys({
+      forca_id: Joi.number().integer().optional(),
+      estado_id: Joi.number().integer().optional(),
+      limit: Joi.number().integer().min(1).max(200).default(50),
+    }),
+  },
+
+  getEngajamentoPermuta: {
+    [Segments.QUERY]: Joi.object().keys({
+      data_inicio: Joi.string().optional(),
+      data_fim: Joi.string().optional(),
+    }),
+  },
+
+  getHistoricoIntencoes: {
+    [Segments.QUERY]: Joi.object().keys({
+      limit: Joi.number().integer().min(1).max(100).default(20),
+    }),
+  },
 };
 

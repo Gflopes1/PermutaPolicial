@@ -35,8 +35,22 @@ module.exports = async (req, res, next) => {
             return next(new ApiError(401, 'Usuário do token não encontrado.'));
         }
 
-        // Anexa apenas os campos seguros à requisição
-        req.user = rows[0];
+        const policial = rows[0];
+        const blockedStatuses = ['REJEITADO', 'AGUARDANDO_VERIFICACAO_EMAIL', 'NAO_VERIFICADO'];
+        if (blockedStatuses.includes(policial.status_verificacao)) {
+            const messages = {
+                REJEITADO: 'Sua conta foi rejeitada. Entre em contato com o suporte.',
+                AGUARDANDO_VERIFICACAO_EMAIL: 'Confirme seu e-mail para acessar a plataforma.',
+                NAO_VERIFICADO: 'Sua conta ainda não foi verificada.',
+            };
+            return next(new ApiError(403, messages[policial.status_verificacao] || 'Conta não autorizada.'));
+        }
+
+        if (policial.status_verificacao !== 'VERIFICADO') {
+            return next(new ApiError(403, 'Conta não verificada.'));
+        }
+
+        req.user = policial;
 
         next();
     } catch (error) {

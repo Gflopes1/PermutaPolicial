@@ -2,6 +2,14 @@
 
 const authService = require('./auth.service');
 const logger = require('../../core/utils/logger');
+const { resolveSafeFrontendOrigin } = require('../../core/utils/frontend-url.utils');
+
+function getOAuthFrontendUrl(req) {
+  return resolveSafeFrontendOrigin(
+    req.session?.oauthOrigin,
+    process.env.FRONTEND_URL || 'https://br.permutapolicial.com.br'
+  );
+}
 
 // ✅ FUNÇÃO AUXILIAR: Detecta a plataforma (web/pwa/mobile)
 function detectPlatform(req) {
@@ -69,24 +77,7 @@ const googleCallbackHandler = async (req, res, next) => {
             if (platform === 'mobile') {
                 return res.redirect(`permutapolicial://auth/callback?error=oauth_failed`);
             }
-            // ✅ CORREÇÃO: Usa origem dinâmica também para erros (web e PWA)
-            let frontendUrl = process.env.FRONTEND_URL || 'https://br.permutapolicial.com.br';
-            if (req.session?.oauthOrigin) {
-                frontendUrl = req.session.oauthOrigin;
-            } else if (req.headers.origin) {
-                // ✅ CORREÇÃO: Ignora origins de provedores OAuth
-                const oauthDomains = [
-                    'login.microsoftonline.com',
-                    'accounts.google.com',
-                    'oauth.google.com',
-                    'login.live.com'
-                ];
-                const originHost = new URL(req.headers.origin).hostname;
-                const isOAuthDomain = oauthDomains.some(domain => originHost.includes(domain));
-                if (!isOAuthDomain) {
-                    frontendUrl = req.headers.origin;
-                }
-            }
+            const frontendUrl = getOAuthFrontendUrl(req);
             return res.redirect(`${frontendUrl}?error=oauth_failed`);
         }
 
@@ -111,38 +102,9 @@ const googleCallbackHandler = async (req, res, next) => {
             description: platform === 'mobile' ? 'Mobile (APK)' : platform === 'pwa' ? 'PWA (Instalado)' : 'Web (Navegador)'
         });
         
-        // ✅ CORREÇÃO: Detecta a origem do frontend dinamicamente
-        // Prioridade: 1) Sessão (salva no início do OAuth), 2) Header Origin (se não for OAuth), 3) FRONTEND_URL env, 4) Fallback
-        let frontendUrl = process.env.FRONTEND_URL || 'https://br.permutapolicial.com.br';
-        
+        const frontendUrl = platform !== 'mobile' ? getOAuthFrontendUrl(req) : null;
         if (platform !== 'mobile') {
-            // Para web e PWA, tenta usar a origem salva na sessão ou o header Origin
-            if (req.session?.oauthOrigin) {
-                frontendUrl = req.session.oauthOrigin;
-                logger.debug('Usando origem da sessão', { frontendUrl });
-            } else if (req.headers.origin) {
-                // ✅ CORREÇÃO CRÍTICA: Ignora origins de provedores OAuth (Microsoft, Google, etc.)
-                const oauthDomains = [
-                    'login.microsoftonline.com',
-                    'accounts.google.com',
-                    'oauth.google.com',
-                    'login.live.com'
-                ];
-                const originHost = new URL(req.headers.origin).hostname;
-                const isOAuthDomain = oauthDomains.some(domain => originHost.includes(domain));
-                
-                if (!isOAuthDomain) {
-                    frontendUrl = req.headers.origin;
-                    logger.debug('Usando origem do header', { frontendUrl });
-                } else {
-                    logger.warn('Origin do header é um domínio OAuth, ignorando', { 
-                        origin: req.headers.origin,
-                        usingDefault: frontendUrl 
-                    });
-                }
-            } else {
-                logger.debug('Usando FRONTEND_URL padrão', { frontendUrl });
-            }
+            logger.debug('Frontend URL OAuth', { frontendUrl });
         }
         
         // ✅ ENCODE do token para evitar problemas com caracteres especiais na URL
@@ -204,24 +166,7 @@ const googleCallbackHandler = async (req, res, next) => {
         if (platform === 'mobile') {
             return res.redirect(`permutapolicial://auth/callback?error=oauth_failed&message=${encodeURIComponent(error.message)}`);
         }
-        // Para web e PWA: usa origem dinâmica
-        let frontendUrl = process.env.FRONTEND_URL || 'https://br.permutapolicial.com.br';
-        if (req.session?.oauthOrigin) {
-            frontendUrl = req.session.oauthOrigin;
-        } else if (req.headers.origin) {
-            // ✅ CORREÇÃO: Ignora origins de provedores OAuth
-            const oauthDomains = [
-                'login.microsoftonline.com',
-                'accounts.google.com',
-                'oauth.google.com',
-                'login.live.com'
-            ];
-            const originHost = new URL(req.headers.origin).hostname;
-            const isOAuthDomain = oauthDomains.some(domain => originHost.includes(domain));
-            if (!isOAuthDomain) {
-                frontendUrl = req.headers.origin;
-            }
-        }
+        const frontendUrl = getOAuthFrontendUrl(req);
         res.redirect(`${frontendUrl}?error=oauth_failed&message=${encodeURIComponent(error.message)}`);
     }
 };
@@ -242,6 +187,7 @@ module.exports = {
 
     googleCallback: googleCallbackHandler,
 
+    googleNative: handleRequest((req) => authService.loginWithGoogleIdToken(req.body), 200),
 
 };
 

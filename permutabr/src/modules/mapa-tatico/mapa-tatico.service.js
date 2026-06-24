@@ -3,21 +3,48 @@
 const mapaTaticoRepository = require('./mapa-tatico.repository');
 const policiaisOAuthRepository = require('../policiais/policiais.oauth.repository');
 const mapaTaticoStorage = require('./mapa-tatico-storage.service');
+const {
+  emitPointCreated,
+  emitPointUpdated,
+  emitPointDeleted,
+  emitCommentAdded,
+  emitMemberJoined,
+  emitMemberLocationUpdated,
+} = require('./mapa-tatico.socket');
+const mapaTaticoNotifications = require('./mapa-tatico.notifications.service');
+const mapaTaticoGeocode = require('./mapa-tatico.geocode.service');
+const {
+  isHealthType,
+  isNationalInfraType,
+  NATIONAL_TYPES,
+  MAP_TYPES,
+  resolveMapTypeForPoint,
+} = require('./mapa-tatico.types');
+const storageService = require('../../core/services/storage.service');
 const ApiError = require('../../core/utils/ApiError');
+const {
+  MAX_GROUP_MEMBERS,
+  REPORT_RATE_LIMIT_HOURS,
+  REPORT_RATE_LIMIT_MAX,
+  normalizeEmail,
+  validateBrazilCoordinates,
+  sanitizeCommentText,
+  sanitizeAuditMetadata,
+  getInviteExpiresAt,
+  getExpiresAtForPointType,
+} = require('./mapa-tatico-security.utils');
 
-const OPERATIONAL_TYPES = ['ocorrencia_recente', 'suspeito', 'local_interesse'];
-const LOGISTICS_TYPES = ['restaurante', 'padaria', 'base'];
-
-function getExpiresAtForType(type) {
-  if (type === 'ocorrencia_recente') {
-    const d = new Date();
-    d.setDate(d.getDate() + 7);
-    return d;
-  }
-  return null;
-}
+const INVITE_GENERIC_MESSAGE =
+  'Convite enviado. Se o e-mail estiver cadastrado, o usuário será notificado.';
 
 // ========== GRUPOS ==========
+async function getStatus() {
+  return {
+    photo_upload_enabled: mapaTaticoStorage.isStorageConfigured(),
+    storage: storageService.getConfig?.() || {},
+  };
+}
+
 async function createGroup(req) {
   const { name } = req.body;
   const creatorId = req.user.id;
@@ -25,6 +52,7 @@ async function createGroup(req) {
 }
 
 async function getGroups(req) {
+  await mapaTaticoRepository.ensureGlobalGroupMembership(req.user.id);
   return await mapaTaticoRepository.findGroupsByUserId(req.user.id);
 }
 
@@ -40,6 +68,10 @@ async function switchGroup(req) {
 async function leaveGroup(req) {
   const groupId = parseInt(req.params.id);
   const userId = req.user.id;
+  const group = await mapaTaticoRepository.findGroupById(groupId);
+  if (group?.is_global) {
+    throw new ApiError(400, 'Não é possível sair do Mapa Nacional Colaborativo.');
+  }
   const member = await mapaTaticoRepository.findMember(groupId, userId);
   if (!member) throw new ApiError(403, 'Você não é membro deste grupo.');
 
@@ -64,50 +96,93 @@ async function inviteToGroup(req) {
     throw new ApiError(403, 'Apenas moderadores do grupo ou moderadores gerais do site podem convidar.');
   }
 
-  const policial = await policiaisOAuthRepository.findByEmail(email.toLowerCase().trim());
-  if (!policial) {
-    throw new ApiError(404, 'Nenhum usuário cadastrado com este e-mail.');
-  }
-  const existingMember = await mapaTaticoRepository.findMember(groupId, policial.id);
-  if (existingMember) {
-    throw new ApiError(400, 'Este usuário já é membro do grupo.');
-  }
-  const pendingInvite = await mapaTaticoRepository.findPendingInviteByGroupAndEmail(groupId, email);
-  if (pendingInvite) {
-    throw new ApiError(400, 'Já existe um convite pendente para este e-mail.');
+  const memberCount = await mapaTaticoRepository.countGroupMembers(groupId);
+  if (memberCount >= MAX_GROUP_MEMBERS) {
+    throw new ApiError(400, `O grupo atingiu o limite de ${MAX_GROUP_MEMBERS} membros.`);
   }
 
-  await mapaTaticoRepository.createInvite(groupId, email, invitedById);
-  return { success: true, message: 'Convite enviado. O usuário pode aceitar no app.' };
+  const normalizedEmail = normalizeEmail(email);
+  const policial = await policiaisOAuthRepository.findByEmail(normalizedEmail);
+
+  if (!policial) {
+    return { success: true, message: INVITE_GENERIC_MESSAGE };
+  }
+
+  const existingMember = await mapaTaticoRepository.findMember(groupId, policial.id);
+  if (existingMember) {
+    return { success: true, message: INVITE_GENERIC_MESSAGE };
+  }
+
+  const pendingInvite = await mapaTaticoRepository.findPendingInviteByGroupAndEmail(groupId, normalizedEmail);
+  if (pendingInvite) {
+    return { success: true, message: INVITE_GENERIC_MESSAGE };
+  }
+
+  const inviteExpires = getInviteExpiresAt();
+  await mapaTaticoRepository.createInvite(
+    groupId,
+    normalizedEmail,
+    invitedById,
+    inviteExpires
+  );
+
+  const group = await mapaTaticoRepository.findGroupById(groupId);
+  if (policial) {
+    await mapaTaticoNotifications.notifyUser(policial.id, {
+      tipo: 'MAPA_TATICO_CONVITE',
+      referenciaId: groupId,
+      titulo: 'Convite para mapa tático',
+      mensagem: `Você foi convidado para o grupo "${group?.name || 'Mapa tático'}".`,
+    });
+  }
+  unawaited(mapaTaticoNotifications.notifyGroupInvite(normalizedEmail, group?.name || 'Mapa tático', groupId));
+
+  return { success: true, message: INVITE_GENERIC_MESSAGE };
+}
+
+function unawaited(promise) {
+  promise.catch(() => {});
 }
 
 async function getPendingInvites(req) {
-  const email = req.user.email;
+  const email = normalizeEmail(req.user.email);
   if (!email) return [];
-  const db = require('../../config/db');
-  const [rows] = await db.execute(
-    `SELECT i.*, g.name as group_name FROM map_group_invites i
-     JOIN map_groups g ON i.group_id = g.id
-     WHERE i.email = ? AND i.status = ?`,
-    [email, 'PENDING']
-  );
-  return rows;
+  return await mapaTaticoRepository.findPendingInvitesByEmail(email);
 }
 
 async function acceptInvite(req) {
   const inviteId = parseInt(req.params.inviteId);
   const userId = req.user.id;
-  const userEmail = req.user.email?.toLowerCase().trim();
+  const userEmail = normalizeEmail(req.user.email);
+
   const db = require('../../config/db');
-  const [invites] = await db.execute('SELECT * FROM map_group_invites WHERE id = ? AND status = ?', [inviteId, 'PENDING']);
+  const [invites] = await db.execute(
+    `SELECT * FROM map_group_invites
+     WHERE id = ? AND status = ? AND (expires_at IS NULL OR expires_at > NOW())`,
+    [inviteId, 'PENDING']
+  );
   if (invites.length === 0) {
-    throw new ApiError(404, 'Convite não encontrado ou já utilizado.');
+    throw new ApiError(404, 'Convite não encontrado, expirado ou já utilizado.');
   }
   const invite = invites[0];
-  if (invite.email.toLowerCase().trim() !== userEmail) {
+  if (normalizeEmail(invite.email) !== userEmail) {
     throw new ApiError(403, 'Este convite não é para o seu e-mail.');
   }
+
+  const memberCount = await mapaTaticoRepository.countGroupMembers(invite.group_id);
+  if (memberCount >= MAX_GROUP_MEMBERS) {
+    throw new ApiError(400, 'O grupo atingiu o limite de membros.');
+  }
+
   const result = await mapaTaticoRepository.acceptInvite(inviteId, userId);
+  if (!result) {
+    throw new ApiError(404, 'Convite não encontrado ou expirado.');
+  }
+  const members = await mapaTaticoRepository.findGroupMembers(result.id);
+  const joined = members.find((m) => m.user_id === userId);
+  if (joined) {
+    emitMemberJoined(result.id, joined);
+  }
   return result;
 }
 
@@ -146,6 +221,24 @@ async function removeMember(req) {
   const removed = await mapaTaticoRepository.removeMember(groupId, targetUserId);
   if (!removed) throw new ApiError(500, 'Erro ao remover usuário.');
   return { success: true, message: 'Usuário removido do grupo.' };
+}
+
+async function promoteMember(req) {
+  const groupId = parseInt(req.params.groupId);
+  const targetUserId = parseInt(req.params.userId);
+  const member = await mapaTaticoRepository.findMember(groupId, req.user.id);
+  if (!member) throw new ApiError(403, 'Você não é membro deste grupo.');
+  if (member.role !== 'MODERATOR' && !req.user.is_moderator && !req.user.embaixador) {
+    throw new ApiError(403, 'Apenas moderadores do grupo ou moderadores gerais do site podem promover usuários.');
+  }
+  const targetMember = await mapaTaticoRepository.findMember(groupId, targetUserId);
+  if (!targetMember) throw new ApiError(404, 'Usuário não encontrado no grupo.');
+  if (targetMember.role === 'MODERATOR') {
+    throw new ApiError(400, 'Este usuário já é moderador do grupo.');
+  }
+  const updated = await mapaTaticoRepository.updateMemberRole(groupId, targetUserId, 'MODERATOR');
+  if (!updated) throw new ApiError(500, 'Erro ao promover usuário.');
+  return { success: true, message: 'Usuário promovido a moderador.' };
 }
 
 async function updateNomeDeGuerra(req) {
@@ -196,18 +289,31 @@ async function createPoint(req) {
   const groupId = parseInt(body.group_id);
   const creatorId = req.user.id;
 
+  const group = await mapaTaticoRepository.findGroupById(groupId);
+  if (!group) throw new ApiError(404, 'Grupo não encontrado.');
+
   const member = await mapaTaticoRepository.findMember(groupId, creatorId);
   if (!member) throw new ApiError(403, 'Você não é membro deste grupo.');
   if (member.is_muted) throw new ApiError(403, 'Você está mutado e não pode criar pontos.');
+
+  if (isNationalInfraType(body.type) && !group.is_global) {
+    throw new ApiError(400, 'Este tipo de ponto só pode ser criado no Mapa Nacional.');
+  }
+  if (isNationalInfraType(body.type) && !NATIONAL_TYPES.includes(body.type)) {
+    throw new ApiError(400, 'Tipo de ponto inválido para o mapa nacional.');
+  }
+
+  const resolvedMapType = resolveMapTypeForPoint(body.type, body.map_type);
+
+  const coords = validateBrazilCoordinates(body.lat, body.lng);
 
   let photoUrl = null;
   if (req.file && req.file.buffer) {
     photoUrl = await mapaTaticoStorage.uploadPhoto(req.file.buffer, req.file.mimetype);
   }
-
   let expiresAt = body.expires_at ? new Date(body.expires_at) : null;
-  if (body.type === 'ocorrencia_recente' && !expiresAt) {
-    expiresAt = getExpiresAtForType('ocorrencia_recente');
+  if (!expiresAt) {
+    expiresAt = getExpiresAtForPointType(body.type);
   }
 
   const point = await mapaTaticoRepository.createPoint({
@@ -215,29 +321,74 @@ async function createPoint(req) {
     creatorId,
     title: body.title,
     address: body.address || null,
-    lat: parseFloat(body.lat),
-    lng: parseFloat(body.lng),
+    description: body.description || null,
+    lat: coords.lat,
+    lng: coords.lng,
     type: body.type,
-    mapType: body.map_type,
+    mapType: resolvedMapType,
     expiresAt,
     photoUrl,
   });
 
-  await mapaTaticoRepository.createAuditLog(point.id, creatorId, 'CREATE', { title: point.title });
+  // Auditoria e notificações fora do caminho crítico da resposta.
+  unawaited(
+    mapaTaticoRepository.createAuditLog(
+      point.id,
+      creatorId,
+      'CREATE',
+      sanitizeAuditMetadata({ map_type: point.map_type })
+    )
+  );
+  emitPointCreated(groupId, point);
+  unawaited(mapaTaticoNotifications.notifyOperationalPointCreated(point, creatorId));
   return point;
 }
 
 async function getPoints(req) {
   const groupId = parseInt(req.query.group_id);
-  const mapType = req.query.map_type || null;
+  const mapType = req.query.map_type;
   if (!groupId) throw new ApiError(400, 'group_id é obrigatório.');
+  if (!mapType || ![...MAP_TYPES, 'ALL'].includes(mapType)) {
+    throw new ApiError(400, 'map_type é obrigatório (OPERATIONAL, LOGISTICS, SHARED ou ALL).');
+  }
   const member = await mapaTaticoRepository.findMember(groupId, req.user.id);
   if (!member) throw new ApiError(403, 'Você não é membro deste grupo.');
-  return await mapaTaticoRepository.findPointsByGroup(groupId, mapType);
+
+  const since = req.query.since ? new Date(req.query.since) : null;
+  const points = await mapaTaticoRepository.findPointsByGroup(
+    groupId,
+    mapType,
+    since && !Number.isNaN(since.getTime()) ? since : null
+  );
+
+  if (mapType === 'OPERATIONAL' && points.length > 0) {
+    // Log de leitura não bloqueia a resposta.
+    unawaited(
+      mapaTaticoRepository.createAuditLog(
+        points[0].id,
+        req.user.id,
+        'READ',
+        sanitizeAuditMetadata({ map_type: 'OPERATIONAL', list: true, group_id: groupId, count: points.length })
+      )
+    );
+  }
+
+  return points;
 }
 
 async function getPoint(req) {
-  return req.point;
+  const point = req.point;
+  if (point.map_type === 'OPERATIONAL') {
+    unawaited(
+      mapaTaticoRepository.createAuditLog(
+        point.id,
+        req.user.id,
+        'READ',
+        sanitizeAuditMetadata({ map_type: 'OPERATIONAL' })
+      )
+    );
+  }
+  return point;
 }
 
 async function updatePoint(req) {
@@ -247,24 +398,61 @@ async function updatePoint(req) {
   const updateData = {};
   if (body.title !== undefined) updateData.title = body.title;
   if (body.address !== undefined) updateData.address = body.address;
-  if (body.lat !== undefined) updateData.lat = body.lat;
-  if (body.lng !== undefined) updateData.lng = body.lng;
+  if (body.description !== undefined) updateData.description = body.description;
+  if (body.lat !== undefined || body.lng !== undefined) {
+    const lat = body.lat !== undefined ? body.lat : point.lat;
+    const lng = body.lng !== undefined ? body.lng : point.lng;
+    const coords = validateBrazilCoordinates(lat, lng);
+    updateData.lat = coords.lat;
+    updateData.lng = coords.lng;
+  }
   if (body.type !== undefined) updateData.type = body.type;
   if (body.map_type !== undefined) updateData.map_type = body.map_type;
-  if (body.expires_at !== undefined) updateData.expires_at = body.expires_at ? new Date(body.expires_at) : null;
+  if (body.expires_at !== undefined) {
+    updateData.expires_at = body.expires_at ? new Date(body.expires_at) : null;
+  }
   if (req.file && req.file.buffer) {
+    if (point.photo_url) {
+      await mapaTaticoStorage.deletePhoto(point.photo_url);
+    }
     updateData.photo_url = await mapaTaticoStorage.uploadPhoto(req.file.buffer, req.file.mimetype);
   }
 
   const updated = await mapaTaticoRepository.updatePoint(point.id, updateData);
-  await mapaTaticoRepository.createAuditLog(point.id, req.user.id, 'UPDATE', { changes: Object.keys(updateData) });
+  unawaited(
+    mapaTaticoRepository.createAuditLog(
+      point.id,
+      req.user.id,
+      'UPDATE',
+      sanitizeAuditMetadata({ changes: Object.keys(updateData) })
+    )
+  );
+  emitPointUpdated(point.group_id, updated);
   return updated;
 }
 
 async function deletePoint(req) {
   const point = req.point;
-  await mapaTaticoRepository.softDeletePoint(point.id);
-  await mapaTaticoRepository.createAuditLog(point.id, req.user.id, 'DELETE', {});
+  const groupId = point.group_id;
+  const pointId = point.id;
+  const mapType = point.map_type;
+
+  if (point.map_type === 'OPERATIONAL') {
+    if (point.photo_url) {
+      await mapaTaticoStorage.deletePhoto(point.photo_url);
+    }
+    await mapaTaticoRepository.hardDeletePoint(point.id);
+  } else {
+    await mapaTaticoRepository.softDeletePoint(point.id);
+    await mapaTaticoRepository.createAuditLog(
+      point.id,
+      req.user.id,
+      'DELETE',
+      sanitizeAuditMetadata({ map_type: 'LOGISTICS' })
+    );
+  }
+
+  emitPointDeleted(groupId, pointId, mapType);
   return { success: true };
 }
 
@@ -278,11 +466,19 @@ async function createComment(req) {
   if (!member) throw new ApiError(403, 'Você não é membro deste grupo.');
   if (member.is_muted) throw new ApiError(403, 'Você está mutado e não pode comentar.');
 
-  return await mapaTaticoRepository.createComment(point.id, userId, text);
+  const safeText = sanitizeCommentText(text);
+  if (!safeText) throw new ApiError(400, 'Comentário inválido.');
+
+  const comment = await mapaTaticoRepository.createComment(point.id, userId, safeText);
+  emitCommentAdded(point.group_id, point.id, comment);
+  unawaited(mapaTaticoNotifications.notifyPointComment(point, comment, userId));
+  return comment;
 }
 
 async function getComments(req) {
-  return await mapaTaticoRepository.findCommentsByPointId(req.point.id);
+  const limit = req.query.limit || 50;
+  const offset = req.query.offset || 0;
+  return await mapaTaticoRepository.findCommentsByPointId(req.point.id, limit, offset);
 }
 
 // ========== DENÚNCIAS ==========
@@ -292,8 +488,23 @@ async function reportPoint(req) {
   const member = await mapaTaticoRepository.findMember(point.group_id, userId);
   if (!member) throw new ApiError(403, 'Você não é membro deste grupo.');
 
+  const recentCount = await mapaTaticoRepository.countRecentReportsByUser(
+    point.id,
+    userId,
+    REPORT_RATE_LIMIT_HOURS
+  );
+  if (recentCount >= REPORT_RATE_LIMIT_MAX) {
+    throw new ApiError(429, 'Limite de denúncias atingido. Tente novamente mais tarde.');
+  }
+
   await mapaTaticoRepository.createReport(point.id, userId, req.body.reason || null);
-  await mapaTaticoRepository.createAuditLog(point.id, userId, 'REPORT', { reason: req.body.reason });
+  await mapaTaticoRepository.createAuditLog(
+    point.id,
+    userId,
+    'REPORT',
+    sanitizeAuditMetadata({ has_reason: !!req.body.reason })
+  );
+  unawaited(mapaTaticoNotifications.notifyReportToModerators(point, userId));
   return { success: true, message: 'Denúncia registrada.' };
 }
 
@@ -313,7 +524,9 @@ async function createVisit(req) {
 
 async function getVisits(req) {
   const lastDays = parseInt(req.query.lastDays) || 7;
-  return await mapaTaticoRepository.findVisitsByPointId(req.point.id, lastDays);
+  const limit = req.query.limit || 50;
+  const offset = req.query.offset || 0;
+  return await mapaTaticoRepository.findVisitsByPointId(req.point.id, lastDays, limit, offset);
 }
 
 // ========== AUDITORIA ==========
@@ -321,7 +534,98 @@ async function getAudit(req) {
   return await mapaTaticoRepository.findAuditLogsByPointId(req.point.id);
 }
 
+// ========== GEOCODE ==========
+async function geocodeSearch(req) {
+  return await mapaTaticoGeocode.searchAddress(req.query.q);
+}
+
+async function geocodeReverse(req) {
+  return await mapaTaticoGeocode.reverseGeocode(req.query.lat, req.query.lng);
+}
+
+// ========== LOCALIZAÇÃO DA EQUIPE ==========
+async function updateMemberLocation(req) {
+  const groupId = parseInt(req.params.id);
+  const userId = req.user.id;
+  const { lat, lng, sharing_enabled: sharingEnabled } = req.body;
+
+  const member = await mapaTaticoRepository.findMember(groupId, userId);
+  if (!member) throw new ApiError(403, 'Você não é membro deste grupo.');
+
+  const coords = validateBrazilCoordinates(lat, lng);
+  const location = await mapaTaticoRepository.upsertMemberLocation(
+    groupId,
+    userId,
+    coords.lat,
+    coords.lng,
+    sharingEnabled !== false
+  );
+
+  if (sharingEnabled !== false) {
+    emitMemberLocationUpdated(groupId, location);
+    unawaited(
+      mapaTaticoNotifications.checkProximityAlerts(userId, groupId, coords.lat, coords.lng, 200)
+    );
+  }
+
+  return location;
+}
+
+async function getMemberLocations(req) {
+  const groupId = parseInt(req.params.id);
+  const member = await mapaTaticoRepository.findMember(groupId, req.user.id);
+  if (!member) throw new ApiError(403, 'Você não é membro deste grupo.');
+
+  const maxAge = parseInt(req.query.max_age_minutes) || 30;
+  return await mapaTaticoRepository.findActiveMemberLocations(groupId, maxAge);
+}
+
+async function stopSharingLocation(req) {
+  const groupId = parseInt(req.params.id);
+  const userId = req.user.id;
+  const member = await mapaTaticoRepository.findMember(groupId, userId);
+  if (!member) throw new ApiError(403, 'Você não é membro deste grupo.');
+
+  await mapaTaticoRepository.setMemberLocationSharing(groupId, userId, false);
+  return { success: true };
+}
+
+// ========== INTELIGÊNCIA ==========
+async function getIntelligence(req) {
+  const groupId = parseInt(req.params.id);
+  const mapType = req.query.map_type;
+  const days = parseInt(req.query.days) || 7;
+  if (!['OPERATIONAL', 'LOGISTICS'].includes(mapType)) {
+    throw new ApiError(400, 'map_type é obrigatório (OPERATIONAL ou LOGISTICS).');
+  }
+  const member = await mapaTaticoRepository.findMember(groupId, req.user.id);
+  if (!member) throw new ApiError(403, 'Você não é membro deste grupo.');
+  return await mapaTaticoRepository.getGroupIntelligence(groupId, mapType, days);
+}
+
+// ========== DENÚNCIAS ADMIN ==========
+async function listReports(req) {
+  const isSiteAdmin = !!req.user.is_moderator || !!req.user.embaixador;
+  return await mapaTaticoRepository.findPendingReportsForUser(req.user.id, isSiteAdmin);
+}
+
+async function reviewReport(req) {
+  const reportId = parseInt(req.params.reportId);
+  const { status, admin_notes: adminNotes } = req.body;
+  if (!['REVIEWED', 'DISMISSED'].includes(status)) {
+    throw new ApiError(400, 'status inválido.');
+  }
+  const isSiteAdmin = !!req.user.is_moderator || !!req.user.embaixador;
+  const reports = await mapaTaticoRepository.findPendingReportsForUser(req.user.id, isSiteAdmin);
+  if (!reports.some((r) => r.id === reportId)) {
+    throw new ApiError(403, 'Sem permissão para revisar esta denúncia.');
+  }
+  await mapaTaticoRepository.updateReportStatus(reportId, status, req.user.id, adminNotes || null);
+  return { success: true };
+}
+
 module.exports = {
+  getStatus,
   createGroup,
   getGroups,
   switchGroup,
@@ -335,6 +639,7 @@ module.exports = {
   updateMemberNomeDeGuerra,
   muteMember,
   removeMember,
+  promoteMember,
   createPoint,
   getPoints,
   getPoint,
@@ -346,4 +651,12 @@ module.exports = {
   createVisit,
   getVisits,
   getAudit,
+  geocodeSearch,
+  geocodeReverse,
+  updateMemberLocation,
+  getMemberLocations,
+  stopSharingLocation,
+  getIntelligence,
+  listReports,
+  reviewReport,
 };

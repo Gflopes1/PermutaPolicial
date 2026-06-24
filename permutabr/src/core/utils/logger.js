@@ -83,17 +83,44 @@ class Logger {
     };
   }
 
-  // Verifica se está em modo de desenvolvimento
-  get isDevelopment() {
+  /**
+   * Logs de desenvolvimento: ENV=dev ou NODE_ENV=development (nunca ENV=prod).
+   * Em produção (NODE_ENV=production sem ENV=dev), info/warn/debug/log ficam silenciosos.
+   */
+  get isDevLogging() {
+    if (process.env.ENV === 'prod') return false;
+    if (process.env.ENV === 'dev') return true;
     return process.env.NODE_ENV !== 'production';
   }
 
-  info(message, data = {}) {
-    // INFO: Apenas em desenvolvimento (não em produção)
-    if (this.isDevelopment) {
-      const logEntry = this.formatMessage('INFO', message, data);
-      console.log(JSON.stringify(logEntry));
+  /** @deprecated use isDevLogging */
+  get isDevelopment() {
+    return this.isDevLogging;
+  }
+
+  _buildDataFromArgs(args) {
+    if (args.length === 0) return {};
+    if (
+      args.length === 1 &&
+      typeof args[0] === 'object' &&
+      args[0] !== null &&
+      !Array.isArray(args[0])
+    ) {
+      return args[0];
     }
+    return { detail: args.length === 1 ? args[0] : args };
+  }
+
+  log(message, ...args) {
+    if (!this.isDevLogging) return;
+    const logEntry = this.formatMessage('LOG', message, this._buildDataFromArgs(args));
+    console.log(JSON.stringify(logEntry));
+  }
+
+  info(message, ...args) {
+    if (!this.isDevLogging) return;
+    const logEntry = this.formatMessage('INFO', message, this._buildDataFromArgs(args));
+    console.log(JSON.stringify(logEntry));
   }
 
   error(message, data = {}) {
@@ -103,20 +130,16 @@ class Logger {
     console.error(JSON.stringify(logEntry));
   }
 
-  warn(message, data = {}) {
-    // WARN: Apenas em desenvolvimento (não em produção)
-    if (this.isDevelopment) {
-      const logEntry = this.formatMessage('WARN', message, data);
-      console.warn(JSON.stringify(logEntry));
-    }
+  warn(message, ...args) {
+    if (!this.isDevLogging) return;
+    const logEntry = this.formatMessage('WARN', message, this._buildDataFromArgs(args));
+    console.warn(JSON.stringify(logEntry));
   }
 
-  debug(message, data = {}) {
-    // DEBUG: Apenas em desenvolvimento
-    if (this.isDevelopment) {
-      const logEntry = this.formatMessage('DEBUG', message, data);
-      console.debug(JSON.stringify(logEntry));
-    }
+  debug(message, ...args) {
+    if (!this.isDevLogging) return;
+    const logEntry = this.formatMessage('DEBUG', message, this._buildDataFromArgs(args));
+    console.log(JSON.stringify(logEntry));
   }
 
   // Método para logs críticos que devem aparecer em produção (ex: erros de sistema)

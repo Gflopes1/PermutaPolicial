@@ -51,6 +51,26 @@ class AnalyticsService {
   async getCrescimentoUsuarios(dataInicio, dataFim) {
     return analyticsRepository.getCrescimentoUsuarios(dataInicio, dataFim);
   }
+
+  async getFunilPermuta() {
+    return analyticsRepository.getFunilPermuta();
+  }
+
+  async getDemandaPorMunicipio(filters) {
+    return analyticsRepository.getDemandaPorMunicipio(filters);
+  }
+
+  async getDemandaPorForca() {
+    return analyticsRepository.getDemandaPorForca();
+  }
+
+  async getEngajamentoPermuta(dataInicio, dataFim) {
+    return analyticsRepository.getEngajamentoPermuta(dataInicio, dataFim);
+  }
+
+  async getHistoricoIntencoes(options) {
+    return analyticsRepository.getHistoricoIntencoes(options);
+  }
 }
 
 module.exports = new AnalyticsService();

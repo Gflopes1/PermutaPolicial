@@ -10,13 +10,55 @@ class AdminRepository {
     const [unidades] = await db.execute('SELECT COUNT(*) as count FROM unidades');
     const [intencoes] = await db.execute('SELECT COUNT(*) as count FROM intencoes');
     const [verificacoes] = await db.execute("SELECT COUNT(*) as count FROM policiais WHERE agente_verificado = 0 AND status_verificacao = ?", ['VERIFICADO']);
+    let totalPermutasConcluidas = 0;
+    let totalRelatosPendentes = 0;
+    try {
+      const [permutasConcluidas] = await db.execute('SELECT COUNT(*) as count FROM permutas_concluidas_feedback');
+      totalPermutasConcluidas = permutasConcluidas[0]?.count || 0;
+    } catch (_) {
+      totalPermutasConcluidas = 0;
+    }
+    try {
+      const [relatosPendentes] = await db.execute(
+        "SELECT COUNT(*) as count FROM problema_relatos WHERE status = 'PENDENTE'"
+      );
+      totalRelatosPendentes = relatosPendentes[0]?.count || 0;
+    } catch (_) {
+      totalRelatosPendentes = 0;
+    }
 
     return {
       total_policiais: policiais[0].count,
       total_unidades: unidades[0].count,
       total_intencoes: intencoes[0].count,
       verificacoes_pendentes: verificacoes[0].count,
+      total_permutas_concluidas: totalPermutasConcluidas,
+      total_relatos_pendentes: totalRelatosPendentes,
     };
+  }
+
+  async findPermutasConcluidasFeedback() {
+    try {
+    const [rows] = await db.execute(`
+      SELECT
+        f.id,
+        f.policial_id,
+        f.quantidade_intencoes,
+        f.origem,
+        f.criado_em,
+        p.nome as policial_nome,
+        p.email as policial_email,
+        fp.sigla as forca_sigla
+      FROM permutas_concluidas_feedback f
+      JOIN policiais p ON p.id = f.policial_id
+      LEFT JOIN forcas_policiais fp ON fp.id = p.forca_id
+      ORDER BY f.criado_em DESC
+      LIMIT 200
+    `);
+    return rows;
+    } catch (_) {
+      return [];
+    }
   }
 
   async findSugestoesPendentes() {
@@ -26,21 +68,39 @@ class AdminRepository {
   }
 
   async aprovarSugestao(sugestaoId) {
-    // Verifica se a sugestão existe e está pendente
-    const [sugestoes] = await db.execute("SELECT * FROM sugestoes_unidades WHERE id = ? AND status = 'PENDENTE'", [sugestaoId]);
-    if (sugestoes.length === 0) {
-      throw new ApiError(404, 'Sugestão não encontrada ou já processada.');
-    }
-    const sugestao = sugestoes[0];
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
 
-    // Cria a unidade
-    await db.execute(
-      'INSERT INTO unidades (nome, municipio_id, forca_id, generica) VALUES (?, ?, ?, FALSE)',
-      [sugestao.nome_sugerido, sugestao.municipio_id, sugestao.forca_id]
-    );
-    
-    // Atualiza o status da sugestão
-    await db.execute("UPDATE sugestoes_unidades SET status = 'APROVADA' WHERE id = ?", [sugestaoId]);
+      const [sugestoes] = await connection.execute(
+        "SELECT * FROM sugestoes_unidades WHERE id = ? AND status = 'PENDENTE'",
+        [sugestaoId]
+      );
+      if (sugestoes.length === 0) {
+        throw new ApiError(404, 'Sugestão não encontrada ou já processada.');
+      }
+      const sugestao = sugestoes[0];
+
+      await connection.execute(
+        'INSERT INTO unidades (nome, municipio_id, forca_id, generica) VALUES (?, ?, ?, FALSE)',
+        [sugestao.nome_sugerido, sugestao.municipio_id, sugestao.forca_id]
+      );
+
+      const [updateResult] = await connection.execute(
+        "UPDATE sugestoes_unidades SET status = 'APROVADA' WHERE id = ? AND status = 'PENDENTE'",
+        [sugestaoId]
+      );
+      if (updateResult.affectedRows === 0) {
+        throw new ApiError(409, 'Sugestão já foi processada por outro administrador.');
+      }
+
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 
   async updateStatusSugestao(sugestaoId, status) {
@@ -61,15 +121,23 @@ class AdminRepository {
   }
 
   async updateStatusPolicial(policialId, status) {
-    // status pode ser 'VERIFICADO' ou 'REJEITADO'
-    // Se for VERIFICADO, marca agente_verificado = 1
-    // Se for REJEITADO, mantém agente_verificado = 0 (ou podemos criar uma coluna separada para rejeitado)
-    const agenteVerificado = status === 'VERIFICADO' ? 1 : 0;
-    const [result] = await db.execute(
-      "UPDATE policiais SET agente_verificado = ? WHERE id = ? AND agente_verificado = 0 AND status_verificacao = 'VERIFICADO'", 
-      [agenteVerificado, policialId]
-    );
-    return result.affectedRows > 0;
+    if (status === 'VERIFICADO') {
+      const [result] = await db.execute(
+        "UPDATE policiais SET agente_verificado = 1 WHERE id = ? AND agente_verificado = 0 AND status_verificacao = 'VERIFICADO'",
+        [policialId]
+      );
+      return result.affectedRows > 0;
+    }
+
+    if (status === 'REJEITADO') {
+      const [result] = await db.execute(
+        "UPDATE policiais SET status_verificacao = 'REJEITADO', agente_verificado = 0 WHERE id = ? AND agente_verificado = 0 AND status_verificacao = 'VERIFICADO'",
+        [policialId]
+      );
+      return result.affectedRows > 0;
+    }
+
+    return false;
   }
 
   async findAllPoliciais(filters = {}) {
@@ -106,15 +174,22 @@ class AdminRepository {
       params.push(searchTerm, searchTerm, searchTerm);
     }
 
-    const limit = parseInt(filters.limit, 10) || 50;
-    const offset = parseInt(filters.offset, 10) || 0;
+    const limit = Math.min(parseInt(filters.limit, 10) || 50, 100);
+    const offset = Math.max(parseInt(filters.offset, 10) || 0, 0);
 
     query += ' ORDER BY p.criado_em DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
 
-    // ✅ SEGURANÇA: Usar db.execute para queries com parâmetros
     const [policiais] = await db.execute(query, params);
     return policiais;
+  }
+
+  async findPolicialById(policialId) {
+    const [rows] = await db.execute(
+      'SELECT id, embaixador, is_moderator FROM policiais WHERE id = ?',
+      [policialId]
+    );
+    return rows[0] || null;
   }
 
   async countPoliciais(filters = {}) {
@@ -141,8 +216,22 @@ class AdminRepository {
   }
 
   async updatePolicial(policialId, updateData) {
-    const allowedFields = ['status_verificacao', 'embaixador', 'forca_id', 'unidade_atual_id', 'is_moderator', 'is_premium', 'nome', 'email', 'id_funcional', 'qso'];
+    const allowedFields = [
+      'status_verificacao', 'embaixador', 'forca_id', 'unidade_atual_id', 'is_moderator',
+      'is_premium', 'nome', 'email', 'id_funcional', 'qso', 'destaque_ate', 'alertas_match_ativo',
+    ];
     const fieldsToUpdate = {};
+
+    if (updateData.destaque_dias !== undefined) {
+      const dias = parseInt(updateData.destaque_dias, 10);
+      if (!dias || dias <= 0) {
+        fieldsToUpdate.destaque_ate = null;
+      } else {
+        const ate = new Date();
+        ate.setDate(ate.getDate() + dias);
+        fieldsToUpdate.destaque_ate = ate;
+      }
+    }
     
     for (const field of allowedFields) {
       if (updateData[field] !== undefined) {
@@ -228,10 +317,20 @@ class AdminRepository {
       'SELECT valor FROM configuracoes_gerais WHERE chave = ?',
       ['questoes_publico_geral']
     );
+    const [whatsappRows] = await db.execute(
+      'SELECT valor FROM configuracoes_gerais WHERE chave = ?',
+      ['editais_whatsapp_numero']
+    );
+    const [whatsappMsgRows] = await db.execute(
+      'SELECT valor FROM configuracoes_gerais WHERE chave = ?',
+      ['editais_whatsapp_mensagem']
+    );
 
     return {
       nota_atualizacao: notaRows.length > 0 ? notaRows[0].valor : '',
       questoes_publico_geral: questoesRows.length > 0 ? (questoesRows[0].valor === '1' || questoesRows[0].valor === 1) : 1,
+      editais_whatsapp_numero: whatsappRows.length > 0 ? whatsappRows[0].valor : '5551986200626',
+      editais_whatsapp_mensagem: whatsappMsgRows.length > 0 ? whatsappMsgRows[0].valor : 'Olá, gostaria de enviar um edital de transferência ou de novos agentes para adicionar ao site',
     };
   }
 
@@ -255,6 +354,22 @@ class AdminRepository {
         ['questoes_publico_geral', valor, valor]
       );
       updates.push('questoes_publico_geral');
+    }
+
+    if (updateData['editais_whatsapp_numero'] !== undefined) {
+      await db.execute(
+        'INSERT INTO configuracoes_gerais (chave, valor) VALUES (?, ?) ON DUPLICATE KEY UPDATE valor = ?',
+        ['editais_whatsapp_numero', updateData['editais_whatsapp_numero'], updateData['editais_whatsapp_numero']]
+      );
+      updates.push('editais_whatsapp_numero');
+    }
+
+    if (updateData['editais_whatsapp_mensagem'] !== undefined) {
+      await db.execute(
+        'INSERT INTO configuracoes_gerais (chave, valor) VALUES (?, ?) ON DUPLICATE KEY UPDATE valor = ?',
+        ['editais_whatsapp_mensagem', updateData['editais_whatsapp_mensagem'], updateData['editais_whatsapp_mensagem']]
+      );
+      updates.push('editais_whatsapp_mensagem');
     }
 
     return updates.length > 0;
@@ -351,6 +466,48 @@ class AdminRepository {
     // ✅ SEGURANÇA: Usar db.execute para queries com parâmetros
     const [result] = await db.execute(query, params);
     return result[0].total;
+  }
+
+  async findBroadcastRecipients() {
+    const [rows] = await db.execute(
+      `SELECT id, nome, email FROM policiais
+       WHERE email IS NOT NULL AND TRIM(email) != ''
+         AND status_verificacao IN ('VERIFICADO', 'NAO_VERIFICADO')`
+    );
+    return rows;
+  }
+
+  async deletePolicial(policialId) {
+    const { cleanupPolicialDependencies } = require('../../core/utils/policial-cleanup');
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      const [existing] = await connection.execute('SELECT id FROM policiais WHERE id = ?', [policialId]);
+      if (existing.length === 0) {
+        await connection.rollback();
+        return false;
+      }
+
+      await cleanupPolicialDependencies(connection, policialId);
+
+      const [result] = await connection.execute('DELETE FROM policiais WHERE id = ?', [policialId]);
+      await connection.commit();
+      return result.affectedRows > 0;
+    } catch (error) {
+      await connection.rollback();
+      if (error.code === 'ER_ROW_IS_REFERENCED_2') {
+        throw new ApiError(
+          409,
+          'Não foi possível excluir a conta pois existem registros vinculados. Entre em contato com o suporte técnico.',
+          null,
+          'DELETE_POLICIAL_REFERENCED'
+        );
+      }
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 }
 

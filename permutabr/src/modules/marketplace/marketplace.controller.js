@@ -4,11 +4,12 @@ const marketplaceService = require('./marketplace.service');
 const storageService = require('../../core/services/storage.service');
 const sharp = require('sharp');
 const path = require('path');
+const logger = require('../../core/utils/logger');
 
 const handleRequest = (servicePromise, successStatus) => async (req, res, next) => {
   try {
     const result = await servicePromise(req);
-    console.log(`✅ Success ${req.method} ${req.originalUrl}:`, result);
+    logger.log(`✅ Success ${req.method} ${req.originalUrl}:`, result);
     res.status(successStatus).json({ status: 'success', data: result });
   } catch (error) {
     console.error(`❌ Error ${req.method} ${req.originalUrl}:`, error);
@@ -72,7 +73,7 @@ async function processarImagens(files) {
 module.exports = {
   getAll: handleRequest(async (req) => {
     const { tipo, search, estado, cidade, page = 1, limit = 20 } = req.query;
-    console.log('📋 getAll chamado:', { tipo, search, estado, cidade, page, limit });
+    logger.log('📋 getAll chamado:', { tipo, search, estado, cidade, page, limit });
     const result = await marketplaceService.getAll({ 
       tipo, 
       search,
@@ -81,27 +82,27 @@ module.exports = {
       page: parseInt(page), 
       limit: parseInt(limit) 
     });
-    console.log(`📋 getAll retornou ${result.length} itens`);
+    logger.log(`📋 getAll retornou ${result.length} itens`);
     return result;
   }, 200),
   
   getById: handleRequest(async (req) => {
-    console.log('🔍 getById chamado:', req.params.id);
+    logger.log('🔍 getById chamado:', req.params.id);
     return await marketplaceService.getById(req.params.id);
   }, 200),
   
   getByUsuario: handleRequest(async (req) => {
-    console.log('👤 getByUsuario chamado:', req.params.policialId);
+    logger.log('👤 getByUsuario chamado:', req.params.policialId);
     const result = await marketplaceService.getByUsuario(req.params.policialId);
-    console.log(`👤 getByUsuario retornou ${result.length} itens`);
+    logger.log(`👤 getByUsuario retornou ${result.length} itens`);
     return result;
   }, 200),
   
   create: handleRequest(async (req) => {
-    console.log('➕ create chamado');
-    console.log('Body:', req.body);
-    console.log('Files:', req.files?.length || 0);
-    console.log('User:', req.user?.id);
+    logger.log('➕ create chamado');
+    logger.log('Body:', req.body);
+    logger.log('Files:', req.files?.length || 0);
+    logger.log('User:', req.user?.id);
     
     const fotos = await processarImagens(req.files);
     const dados = {
@@ -109,17 +110,17 @@ module.exports = {
       fotos: fotos,
       policial_id: req.user.id
     };
-    console.log('Dados a criar:', dados);
+    logger.log('Dados a criar:', dados);
     
     const result = await marketplaceService.create(dados);
-    console.log('✅ Item criado:', result);
+    logger.log('✅ Item criado:', result);
     return result;
   }, 201),
   
   update: handleRequest(async (req) => {
-    console.log('✏️ update chamado:', req.params.id);
-    console.log('Body:', req.body);
-    console.log('Files:', req.files?.length || 0);
+    logger.log('✏️ update chamado:', req.params.id);
+    logger.log('Body:', req.body);
+    logger.log('Files:', req.files?.length || 0);
     
     const fotos = await processarImagens(req.files);
     const dados = {
@@ -130,39 +131,39 @@ module.exports = {
   }, 200),
   
   delete: handleRequest(async (req) => {
-    console.log('🗑️ delete chamado:', req.params.id);
+    logger.log('🗑️ delete chamado:', req.params.id);
     return await marketplaceService.delete(req.params.id, req.user.id);
   }, 200),
   
   getAllAdmin: handleRequest(async (req) => {
     const { status, page = 1, limit = 20 } = req.query;
-    console.log('🔐 getAllAdmin chamado:', { status, page, limit });
+    logger.log('🔐 getAllAdmin chamado:', { status, page, limit });
     const result = await marketplaceService.getAllAdmin({ 
       status, 
       page: parseInt(page), 
       limit: parseInt(limit) 
     });
-    console.log(`🔐 getAllAdmin retornou ${result.length} itens`);
+    logger.log(`🔐 getAllAdmin retornou ${result.length} itens`);
     return result;
   }, 200),
   
   aprovar: handleRequest(async (req) => {
-    console.log('✅ aprovar chamado:', req.params.id);
+    logger.log('✅ aprovar chamado:', req.params.id);
     return await marketplaceService.aprovar(req.params.id);
   }, 200),
   
   rejeitar: handleRequest(async (req) => {
-    console.log('❌ rejeitar chamado:', req.params.id);
+    logger.log('❌ rejeitar chamado:', req.params.id);
     return await marketplaceService.rejeitar(req.params.id);
   }, 200),
   
   deleteAdmin: handleRequest(async (req) => {
-    console.log('🗑️ deleteAdmin chamado:', req.params.id);
+    logger.log('🗑️ deleteAdmin chamado:', req.params.id);
     return await marketplaceService.deleteAdmin(req.params.id);
   }, 200),
 
   countPendentes: handleRequest(async (req) => {
-    console.log('🔢 countPendentes chamado');
+    logger.log('🔢 countPendentes chamado');
     const count = await marketplaceService.countPendentes();
     return { count };
   }, 200),

@@ -96,5 +96,30 @@ module.exports = {
     const dataFim = req.query.data_fim || null;
     return analyticsService.getCrescimentoUsuarios(dataInicio, dataFim);
   }),
+
+  getFunilPermuta: handleRequest(async () => analyticsService.getFunilPermuta()),
+
+  getDemandaPorMunicipio: handleRequest(async (req) => {
+    return analyticsService.getDemandaPorMunicipio({
+      forca_id: req.query.forca_id ? parseInt(req.query.forca_id, 10) : null,
+      estado_id: req.query.estado_id ? parseInt(req.query.estado_id, 10) : null,
+      limit: req.query.limit ? parseInt(req.query.limit, 10) : 50,
+    });
+  }),
+
+  getDemandaPorForca: handleRequest(async () => analyticsService.getDemandaPorForca()),
+
+  getEngajamentoPermuta: handleRequest(async (req) => {
+    return analyticsService.getEngajamentoPermuta(
+      req.query.data_inicio || null,
+      req.query.data_fim || null
+    );
+  }),
+
+  getHistoricoIntencoes: handleRequest(async (req) => {
+    return analyticsService.getHistoricoIntencoes({
+      limit: req.query.limit ? parseInt(req.query.limit, 10) : 20,
+    });
+  }),
 };
 

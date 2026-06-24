@@ -6,24 +6,16 @@ const db = require('../../config/db');
 const emailService = require('../../core/services/email.service');
 const ApiError = require('../../core/utils/ApiError');
 const analyticsService = require('../analytics/analytics.service');
+const { isGovBrEmail } = require('../../core/utils/email.utils');
 
 // Função auxiliar para gerar código de 6 dígitos
 const generateSixDigitCode = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Função para determinar status de verificação baseado no domínio do email
-function determinarStatusVerificacao(email) {
-    if (!email || typeof email !== 'string') {
-        return 'NAO_VERIFICADO';
-    }
-    const dominio = email.toLowerCase().split('@')[1];
-    // Se o domínio termina em gov.br, a conta é verificada automaticamente
-    if (dominio && dominio.endsWith('.gov.br')) {
-        return 'VERIFICADO';
-    }
-    // Caso contrário, a conta fica como não verificada
-    return 'NAO_VERIFICADO';
+// Todos os e-mails exigem confirmação por código (inclui .gov.br)
+function determinarStatusVerificacao() {
+    return 'AGUARDANDO_VERIFICACAO_EMAIL';
 }
 
 class AuthService {
@@ -49,7 +41,7 @@ class AuthService {
         }
 
         // Determina o status de verificação baseado no domínio do email
-        const statusVerificacao = determinarStatusVerificacao(email);
+        const statusVerificacao = determinarStatusVerificacao();
 
         const connection = await db.getConnection();
         try {
@@ -64,6 +56,8 @@ class AuthService {
                 }
                 // Se está aguardando verificação de email, permite re-registro
                 if (existingEmail[0].status_verificacao === 'AGUARDANDO_VERIFICACAO_EMAIL') {
+                    const { cleanupPolicialDependencies } = require('../../core/utils/policial-cleanup');
+                    await cleanupPolicialDependencies(connection, existingEmail[0].id);
                     await connection.execute('DELETE FROM policiais WHERE id = ?', [existingEmail[0].id]);
                 }
             }
@@ -91,11 +85,8 @@ class AuthService {
                 throw new ApiError(500, 'Erro ao processar senha. Tente novamente.', null, 'PASSWORD_HASH_ERROR');
             }
             
-            // Se o status for VERIFICADO (gov.br), cria direto como VERIFICADO
-            // Caso contrário, cria como AGUARDANDO_VERIFICACAO_EMAIL para envio de código
-            const statusInicial = statusVerificacao === 'VERIFICADO' ? 'VERIFICADO' : 'AGUARDANDO_VERIFICACAO_EMAIL';
-            // Agente verificado: TRUE se for gov.br, FALSE caso contrário
-            const agenteVerificado = statusVerificacao === 'VERIFICADO' ? 1 : 0;
+            const statusInicial = 'AGUARDANDO_VERIFICACAO_EMAIL';
+            const agenteVerificado = 0;
             
             let result;
             try {
@@ -126,31 +117,26 @@ class AuthService {
 
             const newUserId = result.insertId;
             
-            // Só envia código de verificação se a conta não for verificada automaticamente
-            if (statusInicial === 'AGUARDANDO_VERIFICACAO_EMAIL') {
-                const codigoVerificacao = generateSixDigitCode();
-                const expiracao = new Date(Date.now() + 3600000); // 1 hora
+            const codigoVerificacao = generateSixDigitCode();
+            const expiracao = new Date(Date.now() + 3600000);
 
-                try {
-                    await connection.execute(
-                        `INSERT INTO codigos_recuperacao (policial_id, codigo, expira_em) VALUES (?, ?, ?)
-                         ON DUPLICATE KEY UPDATE codigo = ?, expira_em = ?, usado = FALSE`,
-                        [newUserId, codigoVerificacao, expiracao, codigoVerificacao, expiracao]
-                    );
-                } catch (codeError) {
-                    console.error('Erro ao salvar código de verificação:', codeError);
-                    throw new ApiError(500, 'Erro ao gerar código de verificação. Tente novamente.', null, 'CODE_GENERATION_ERROR');
-                }
+            try {
+                await connection.execute(
+                    `INSERT INTO codigos_recuperacao (policial_id, codigo, expira_em) VALUES (?, ?, ?)
+                     ON DUPLICATE KEY UPDATE codigo = ?, expira_em = ?, usado = FALSE`,
+                    [newUserId, codigoVerificacao, expiracao, codigoVerificacao, expiracao]
+                );
+            } catch (codeError) {
+                console.error('Erro ao salvar código de verificação:', codeError);
+                throw new ApiError(500, 'Erro ao gerar código de verificação. Tente novamente.', null, 'CODE_GENERATION_ERROR');
+            }
 
-                try {
-                    await emailService.sendVerificationCodeEmail(email, codigoVerificacao);
-                } catch (emailError) {
-                    console.error('Erro ao enviar email de verificação:', emailError);
-                    // Se falhar o envio do email, ainda commitamos a conta mas informamos o usuário
-                    // A conta fica criada e o usuário pode solicitar um novo código depois
-                    await connection.commit();
-                    throw new ApiError(500, 'Conta criada, mas não foi possível enviar o email de verificação. Entre em contato com o suporte ou tente fazer login e solicitar um novo código.', null, 'EMAIL_SEND_ERROR');
-                }
+            try {
+                await emailService.sendVerificationCodeEmail(email, codigoVerificacao);
+            } catch (emailError) {
+                console.error('Erro ao enviar email de verificação:', emailError);
+                await connection.commit();
+                throw new ApiError(500, 'Conta criada, mas não foi possível enviar o email de verificação. Entre em contato com o suporte ou tente fazer login e solicitar um novo código.', null, 'EMAIL_SEND_ERROR');
             }
             
             await connection.commit();
@@ -164,16 +150,13 @@ class AuthService {
                 user_agent: null,
             }).catch(err => console.error('Erro ao registrar evento:', err));
 
-            // Mensagem diferente dependendo do status
-            if (statusInicial === 'VERIFICADO') {
-                return {
-                    message: `Conta criada com sucesso! Você já pode fazer login.`
-                };
-            } else {
-                return {
-                    message: `Registro quase concluído! Enviamos um código de 6 dígitos para ${email}. Informe o código para ativar sua conta.`
-                };
-            }
+            const emailNormalizado = email.trim().toLowerCase();
+
+            return {
+                message: `Registro quase concluído! Enviamos um código de 6 dígitos para ${emailNormalizado}. Informe o código para ativar sua conta. Verifique também a caixa de spam.`,
+                requires_email_confirmation: true,
+                agente_verificado: false,
+            };
         } catch (error) {
             await connection.rollback();
             // Se já for ApiError, apenas re-lança
@@ -208,7 +191,11 @@ class AuthService {
             throw new ApiError(400, 'Este e-mail já foi verificado.', null, 'ALREADY_VERIFIED');
         }
 
-        await db.execute(`UPDATE policiais SET status_verificacao = 'VERIFICADO' WHERE id = ?`, [recuperacao.policial_id]);
+        const agenteVerificado = isGovBrEmail(email) ? 1 : 0;
+        await db.execute(
+            `UPDATE policiais SET status_verificacao = 'VERIFICADO', agente_verificado = ? WHERE id = ?`,
+            [agenteVerificado, recuperacao.policial_id]
+        );
         await db.execute('UPDATE codigos_recuperacao SET usado = TRUE WHERE id = ?', [recuperacao.id]);
 
         return { message: 'E-mail verificado com sucesso! Você já pode fazer login.' };
@@ -229,14 +216,28 @@ class AuthService {
 
         const policial = rows[0];
 
+        // Corrige contas .gov.br que ficaram presas aguardando confirmação por email
+        if (isGovBrEmail(email) && policial.status_verificacao === 'AGUARDANDO_VERIFICACAO_EMAIL') {
+            await db.execute(
+                `UPDATE policiais SET status_verificacao = 'VERIFICADO', agente_verificado = 1 WHERE id = ?`,
+                [policial.id]
+            );
+            policial.status_verificacao = 'VERIFICADO';
+            policial.agente_verificado = 1;
+        }
+
         // Verifica status de verificação de email
         if (policial.status_verificacao === 'AGUARDANDO_VERIFICACAO_EMAIL') {
-            throw new ApiError(403, 'Sua conta ainda não foi ativada. Verifique o código enviado para o seu email.');
+            throw new ApiError(403, 'Sua conta ainda não foi ativada. Verifique o código enviado para o seu email. Confira também a caixa de spam.');
         }
 
         // Verifica se o email foi verificado (status_verificacao deve ser 'VERIFICADO' para permitir login)
         if (policial.status_verificacao !== 'VERIFICADO') {
             throw new ApiError(403, 'Sua conta não foi verificada. Verifique seu email para ativar sua conta.');
+        }
+
+        if (!policial.senha_hash) {
+            throw new ApiError(401, 'Esta conta usa login social. Entre com Google ou Microsoft.', null, 'OAUTH_ACCOUNT');
         }
 
         const isMatch = await bcrypt.compare(senha, policial.senha_hash);
@@ -340,6 +341,21 @@ class AuthService {
         return { message: 'Senha redefinida com sucesso.' };
     }
 
+
+    async loginWithGoogleIdToken({ id_token: idToken }) {
+        const { verifyGoogleIdToken } = require('./google-id-token.utils');
+        const oauthService = require('./oauth.service');
+
+        const profile = await verifyGoogleIdToken(idToken);
+        const user = await oauthService.processOAuth({
+            providerId: profile.sub,
+            providerName: 'google',
+            email: profile.email,
+            nome: profile.name,
+        });
+
+        return this.handleOAuthLogin(user);
+    }
 
     async handleOAuthLogin(user) {
         if (!user) {

@@ -89,5 +89,43 @@ router.get(
   analyticsController.getCrescimentoUsuarios
 );
 
+router.get(
+  '/permuta/funil',
+  authMiddleware,
+  adminMiddleware,
+  analyticsController.getFunilPermuta
+);
+
+router.get(
+  '/permuta/demanda-municipios',
+  authMiddleware,
+  adminMiddleware,
+  celebrate(analyticsValidation.getDemandaPorMunicipio),
+  analyticsController.getDemandaPorMunicipio
+);
+
+router.get(
+  '/permuta/demanda-forcas',
+  authMiddleware,
+  adminMiddleware,
+  analyticsController.getDemandaPorForca
+);
+
+router.get(
+  '/permuta/engajamento',
+  authMiddleware,
+  adminMiddleware,
+  celebrate(analyticsValidation.getEngajamentoPermuta),
+  analyticsController.getEngajamentoPermuta
+);
+
+router.get(
+  '/permuta/historico-intencoes',
+  authMiddleware,
+  adminMiddleware,
+  celebrate(analyticsValidation.getHistoricoIntencoes),
+  analyticsController.getHistoricoIntencoes
+);
+
 module.exports = router;
 

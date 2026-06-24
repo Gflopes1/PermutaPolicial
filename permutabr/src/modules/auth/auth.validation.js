@@ -43,7 +43,7 @@ module.exports = {
       nome: Joi.string().required(),
       id_funcional: Joi.string().required(),
       forca_id: Joi.number().integer().required(),
-      email: Joi.string().email().required(),
+      email: Joi.string().email({ tlds: { allow: false } }).required(),
       qso: Joi.string().required(),
       senha: passwordSchema,
     }),
@@ -52,7 +52,7 @@ module.exports = {
   // POST /api/auth/login
   login: {
     [Segments.BODY]: Joi.object().keys({
-      email: Joi.string().email().required(),
+      email: Joi.string().email({ tlds: { allow: false } }).required(),
       senha: Joi.string().required(),
     }),
   },
@@ -60,7 +60,7 @@ module.exports = {
   // POST /api/auth/confirmar-email
   confirmarEmail: {
     [Segments.BODY]: Joi.object().keys({
-      email: Joi.string().email().required(),
+      email: Joi.string().email({ tlds: { allow: false } }).required(),
       codigo: Joi.string().length(6).required(),
     }),
   },
@@ -68,14 +68,14 @@ module.exports = {
   // POST /api/auth/solicitar-recuperacao
   solicitarRecuperacao: {
       [Segments.BODY]: Joi.object().keys({
-          email: Joi.string().email().required(),
+          email: Joi.string().email({ tlds: { allow: false } }).required(),
       }),
   },
 
   // POST /api/auth/validar-codigo
   validarCodigo: {
       [Segments.BODY]: Joi.object().keys({
-          email: Joi.string().email().required(),
+          email: Joi.string().email({ tlds: { allow: false } }).required(),
           codigo: Joi.string().length(6).required(),
       }),
   },
@@ -86,5 +86,12 @@ module.exports = {
           token_recuperacao: Joi.string().required(),
           nova_senha: passwordSchema,
       }),
+  },
+
+  // POST /api/auth/google/native — Google Sign-In no APK
+  googleNative: {
+    [Segments.BODY]: Joi.object().keys({
+      id_token: Joi.string().required(),
+    }),
   },
 };

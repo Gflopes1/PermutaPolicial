@@ -30,4 +30,14 @@ module.exports = {
     (req) => intencoesService.deleteByPolicialId(req.user.id),
     200
   ),
+
+  renewMyIntentions: handleRequest(
+    (req) => intencoesService.renewByPolicialId(req.user.id),
+    200
+  ),
+
+  markPermutaConcluida: handleRequest(
+    (req) => intencoesService.markPermutaConcluida(req.user.id),
+    200
+  ),
 };

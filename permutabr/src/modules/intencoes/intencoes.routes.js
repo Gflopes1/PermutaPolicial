@@ -11,6 +11,9 @@ const router = express.Router();
 // Protege todas as rotas de intenções com autenticação
 router.use(authMiddleware);
 
+router.post('/me/renovar', intencoesController.renewMyIntentions);
+router.post('/me/consegui-permutar', intencoesController.markPermutaConcluida);
+
 router.route('/me')
   .get(intencoesController.getMyIntentions)
   .put(

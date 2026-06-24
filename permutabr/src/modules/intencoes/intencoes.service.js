@@ -19,6 +19,24 @@ class IntencoesService {
     await intencoesRepository.deleteAll(policialId);
     return { message: 'Intenções excluídas com sucesso.' };
   }
+
+  async renewByPolicialId(policialId) {
+    const affectedRows = await intencoesRepository.renewAll(policialId);
+    return {
+      message: affectedRows > 0
+        ? 'Intenções renovadas com sucesso.'
+        : 'Nenhuma intenção encontrada para renovar.',
+      affectedRows,
+    };
+  }
+
+  async markPermutaConcluida(policialId) {
+    const result = await intencoesRepository.markPermutaConcluida(policialId);
+    return {
+      message: 'Obrigado pelo retorno! Registramos que você conseguiu permutar.',
+      quantidade_intencoes: result.quantidade,
+    };
+  }
 }
 
 module.exports = new IntencoesService();

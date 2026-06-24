@@ -1,6 +1,7 @@
 // /src/modules/mapa/mapa.routes.js
 
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const { celebrate } = require('celebrate');
 const mapaValidation = require('./mapa.validation');
 const mapaController = require('./mapa.controller');
@@ -9,10 +10,22 @@ const optionalAuthMiddleware = require('../../core/middlewares/optionalAuth.midd
 
 const router = express.Router();
 
+const mapaDadosLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    status: 'error',
+    message: 'Muitas requisições ao mapa. Aguarde um momento.',
+  },
+});
+
 // Rota de dados do mapa com autenticação opcional
 router.get(
   '/dados',
-  optionalAuthMiddleware, // Tenta autenticar, mas não falha se não houver token
+  mapaDadosLimiter,
+  optionalAuthMiddleware,
   celebrate(mapaValidation.getMapData),
   mapaController.getMapData
 );

@@ -1,7 +1,9 @@
 // /src/modules/chat/chat.service.js
 
 const chatRepository = require('./chat.repository');
+const { notifyNewChatMessage } = require('./chat.notifications');
 const ApiError = require('../../core/utils/ApiError');
+const logger = require('../../core/utils/logger');
 
 class ChatService {
   async getConversas(req) {
@@ -17,19 +19,11 @@ class ChatService {
     const { conversaId } = req.params;
     const usuarioId = req.user.id;
 
-    const conversa = await chatRepository.findConversaById(conversaId);
+    const conversa = await chatRepository.findConversaForUser(conversaId, usuarioId);
     if (!conversa) {
       throw new ApiError(404, 'Conversa não encontrada.');
     }
 
-    // Verifica se o usuário pertence à conversa
-    const isParticipante = await chatRepository.verificarParticipante(conversaId, usuarioId);
-    if (!isParticipante) {
-      throw new ApiError(403, 'Você não tem permissão para acessar esta conversa.');
-    }
-
-    // Retorna apenas os dados que o usuário pode ver
-    // Não expõe dados sensíveis que não devem ser vistos
     return conversa;
   }
 
@@ -73,23 +67,68 @@ class ChatService {
 
     // Cria a mensagem usando o ID do usuário autenticado (não confia no body)
     const mensagemCriada = await chatRepository.createMensagem(conversaId, remetenteId, mensagem.trim());
-    
-    // Retorna a mensagem criada (com dados completos, pois o remetente já sabe quem é)
+    logger.log(`[chat] REST mensagem criada conversa=${conversaId} remetente=${remetenteId}`);
+
+    // REST fallback (socket desconectado): notificação in-app + push + eventos realtime.
+    try {
+      const { getIO } = require('../../config/socket');
+      const io = getIO();
+      const conversa = await chatRepository.findConversaById(conversaId);
+      const participantes = [conversa.usuario1_id, conversa.usuario2_id];
+
+      for (const participanteId of participantes) {
+        // Remetente já recebe a mensagem na resposta REST — evita duplicata na UI.
+        if (participanteId === remetenteId) continue;
+        const payload = chatRepository.filterMensagemForViewer(
+          mensagemCriada,
+          conversa,
+          participanteId
+        );
+        io.to(`user_${participanteId}`).emit('mensagem_recebida', payload);
+      }
+
+      const outroUsuarioId =
+        conversa.usuario1_id === remetenteId
+          ? conversa.usuario2_id
+          : conversa.usuario1_id;
+      const payloadDestinatario = chatRepository.filterMensagemForViewer(
+        mensagemCriada,
+        conversa,
+        outroUsuarioId
+      );
+      io.to(`user_${outroUsuarioId}`).emit('nova_mensagem_notificacao', {
+        conversaId,
+        mensagem: payloadDestinatario,
+      });
+    } catch (socketError) {
+      // Socket pode não estar inicializado em testes unitários.
+    }
+
+    try {
+      await notifyNewChatMessage(conversaId, remetenteId);
+    } catch (notifError) {
+      console.error('[chat] Erro ao notificar nova mensagem (REST):', notifError.message);
+    }
+
     return mensagemCriada;
   }
 
   async iniciarConversa(req) {
     const { usuarioId, anonima } = req.body;
-    const usuarioAtualId = req.user.id;
+    const destinatarioId = parseInt(usuarioId, 10);
+    const usuarioAtualId = parseInt(req.user.id, 10);
 
-    if (!usuarioId || usuarioId === usuarioAtualId) {
+    if (!Number.isFinite(destinatarioId) || destinatarioId <= 0) {
       throw new ApiError(400, 'ID de usuário inválido.');
+    }
+    if (destinatarioId === usuarioAtualId) {
+      throw new ApiError(400, 'Você não pode iniciar conversa consigo mesmo.');
     }
 
     // Verifica se o destinatário está oculto no mapa
     // Se estiver oculto, força o anonimato da conversa para proteger a privacidade
     const policiaisRepository = require('../policiais/policiais.repository');
-    const destinatario = await policiaisRepository.findProfileById(usuarioId);
+    const destinatario = await policiaisRepository.findProfileById(destinatarioId);
     if (!destinatario) {
       throw new ApiError(404, 'Usuário não encontrado.');
     }
@@ -97,7 +136,7 @@ class ChatService {
     // Se o destinatário está oculto, a mensagem deve ser anônima automaticamente
     const deveSerAnonima = anonima || destinatario.ocultar_no_mapa;
 
-    const conversa = await chatRepository.findOrCreateConversa(usuarioAtualId, usuarioId, deveSerAnonima);
+    const conversa = await chatRepository.findOrCreateConversa(usuarioAtualId, destinatarioId, deveSerAnonima);
     return conversa;
   }
 
@@ -151,6 +190,37 @@ class ChatService {
     // Atualiza o flag de compartilhamento
     await chatRepository.aceitarCompartilharDados(conversaId);
     return { message: 'Dados compartilhados com sucesso.' };
+  }
+
+  async getPerfilContato(req) {
+    const { conversaId } = req.params;
+    const usuarioId = req.user.id;
+
+    const conversa = await chatRepository.findConversaForUser(conversaId, usuarioId);
+    if (!conversa) {
+      throw new ApiError(404, 'Conversa não encontrada.');
+    }
+
+    if (!conversa.pode_ver_perfil) {
+      throw new ApiError(403, 'Os dados deste usuário ainda não foram compartilhados.');
+    }
+
+    const policiaisRepository = require('../policiais/policiais.repository');
+    const perfil = await policiaisRepository.findProfileById(conversa.outro_usuario_id);
+    if (!perfil) {
+      throw new ApiError(404, 'Usuário não encontrado.');
+    }
+
+    return {
+      id: perfil.id,
+      nome: perfil.nome,
+      forca_sigla: perfil.forca_sigla,
+      forca_nome: perfil.forca_nome,
+      posto_graduacao_nome: perfil.posto_graduacao_nome,
+      municipio_atual_nome: perfil.municipio_atual_nome,
+      estado_atual_sigla: perfil.estado_atual_sigla,
+      unidade_atual_nome: perfil.unidade_atual_nome,
+    };
   }
 
   async excluirConversa(req) {

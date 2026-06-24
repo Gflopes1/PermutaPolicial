@@ -19,6 +19,7 @@ module.exports = {
   iniciarConversa: handleRequest((req) => chatService.iniciarConversa(req), 201),
   marcarComoLidas: handleRequest((req) => chatService.marcarComoLidas(req)),
   aceitarCompartilharDados: handleRequest((req) => chatService.aceitarCompartilharDados(req)),
+  getPerfilContato: handleRequest((req) => chatService.getPerfilContato(req)),
   excluirConversa: handleRequest((req) => chatService.excluirConversa(req)),
   getMensagensNaoLidas: handleRequest((req) => chatService.getMensagensNaoLidas(req)),
 };

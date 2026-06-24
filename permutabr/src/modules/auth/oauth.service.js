@@ -2,6 +2,7 @@
 
 const policiaisOAuthRepository = require('../policiais/policiais.oauth.repository');
 const logger = require('../../core/utils/logger');
+const { isGovBrEmail } = require('../../core/utils/email.utils');
 
 class OAuthService {
     /**
@@ -23,8 +24,7 @@ class OAuthService {
      * Verifica se email é de domínio .gov.br (agente verificado)
      */
     isAgenteVerificado(email) {
-        const dominio = email.toLowerCase().split('@')[1];
-        return dominio && dominio.endsWith('.gov.br');
+        return isGovBrEmail(email);
     }
 
     /**
