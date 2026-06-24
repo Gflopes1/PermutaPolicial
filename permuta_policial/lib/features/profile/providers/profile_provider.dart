@@ -3,13 +3,16 @@
 import 'package:flutter/material.dart';
 import '../../../core/api/repositories/policiais_repository.dart';
 import '../../../core/api/repositories/dados_repository.dart';
+import '../../../core/utils/error_handler.dart';
+import '../../../core/services/analytics_service.dart';
 import '../../../core/models/user_profile.dart';
 
 class ProfileProvider with ChangeNotifier {
   final PoliciaisRepository _policiaisRepository;
   final DadosRepository _dadosRepository;
+  final AnalyticsService _analyticsService;
 
-  ProfileProvider(this._policiaisRepository, this._dadosRepository);
+  ProfileProvider(this._policiaisRepository, this._dadosRepository, this._analyticsService);
 
   bool _isLoading = true;
   String? _errorMessage;
@@ -27,7 +30,8 @@ class ProfileProvider with ChangeNotifier {
     try {
       _userProfile = await _policiaisRepository.getMyProfile();
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = ErrorHandler.getErrorMessage(e);
+      await ErrorHandler.trackError(_analyticsService, e, endpoint: '/api/policiais/me', method: 'GET');
     }
     _isLoading = false;
     notifyListeners();
@@ -42,7 +46,8 @@ class ProfileProvider with ChangeNotifier {
       await loadProfile(); 
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = ErrorHandler.getErrorMessage(e);
+      await ErrorHandler.trackError(_analyticsService, e, endpoint: '/api/policiais/me', method: 'PUT');
       _isLoading = false;
       notifyListeners();
       return false;

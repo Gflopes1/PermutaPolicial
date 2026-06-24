@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/config/app_styles.dart';
 import '../../dados/providers/dados_provider.dart'; // Importa o novo provider
 
 class SugerirUnidadeModal extends StatefulWidget {
@@ -31,7 +32,7 @@ class _SugerirUnidadeModalState extends State<SugerirUnidadeModal> {
   Future<void> _enviarSugestao() async {
     if (_textController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, digite o nome da unidade.'), backgroundColor: Colors.orange),
+        AppStyles.errorSnackBar('Por favor, digite o nome da unidade.'),
       );
       return;
     }
@@ -50,12 +51,12 @@ class _SugerirUnidadeModalState extends State<SugerirUnidadeModal> {
 
     if (successMessage != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(successMessage), backgroundColor: Colors.green),
+        AppStyles.successSnackBar(successMessage),
       );
       Navigator.of(context).pop(); // Fecha o modal em caso de sucesso
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.errorMessage ?? 'Ocorreu um erro.'), backgroundColor: Colors.red),
+        AppStyles.errorSnackBar(provider.errorMessage ?? 'Ocorreu um erro.'),
       );
     }
     

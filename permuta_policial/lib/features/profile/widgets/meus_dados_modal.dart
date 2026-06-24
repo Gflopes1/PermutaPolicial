@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/user_profile.dart';
 import '../../../core/models/intencao.dart';
+import '../../../core/config/app_styles.dart';
 import '../../dashboard/providers/dashboard_provider.dart';
 import '../../../core/api/api_exception.dart';
+import '../../../core/api/repositories/dados_repository.dart';
+import '../../../shared/widgets/custom_dropdown_search.dart';
 import 'gerir_intencoes_modal.dart';
 
 class MeusDadosModal extends StatefulWidget {
@@ -24,22 +27,56 @@ class MeusDadosModal extends StatefulWidget {
 
 class _MeusDadosModalState extends State<MeusDadosModal> {
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _emailController;
   late TextEditingController _qsoController;
   late TextEditingController _antiguidadeController;
   bool _isSaving = false;
+  
+  int? _selectedForcaId;
+  int? _selectedPostoId;
+  List<dynamic> _forcasCache = [];
+  List<dynamic> _postosCache = [];
 
   @override
   void initState() {
     super.initState();
-    _emailController = TextEditingController(text: widget.userProfile.email ?? '');
     _qsoController = TextEditingController(text: widget.userProfile.qso ?? '');
     _antiguidadeController = TextEditingController(text: widget.userProfile.antiguidade ?? '');
+    _selectedForcaId = widget.userProfile.forcaId;
+    _selectedPostoId = widget.userProfile.postoGraduacaoId;
+    _carregarDados();
+  }
+  
+  Future<void> _carregarDados() async {
+    final dadosRepo = Provider.of<DadosRepository>(context, listen: false);
+    try {
+      final forcas = await dadosRepo.getForcas();
+      setState(() {
+        _forcasCache = forcas;
+      });
+      
+      // Carrega postos se tiver força selecionada
+      if (_selectedForcaId != null) {
+        try {
+          final forca = forcas.firstWhere(
+            (f) => f.id == _selectedForcaId,
+          );
+          if (forca.tipoPermuta.isNotEmpty) {
+            final postos = await dadosRepo.getPostosPorForca(forca.tipoPermuta);
+            setState(() {
+              _postosCache = postos;
+            });
+          }
+        } catch (e) {
+          debugPrint("Força não encontrada: $e");
+        }
+      }
+    } catch (e) {
+      debugPrint("Erro ao carregar dados: $e");
+    }
   }
 
   @override
   void dispose() {
-    _emailController.dispose();
     _qsoController.dispose();
     _antiguidadeController.dispose();
     super.dispose();
@@ -54,28 +91,32 @@ class _MeusDadosModalState extends State<MeusDadosModal> {
       final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
       final updateData = <String, dynamic>{};
 
-      if (_emailController.text != widget.userProfile.email) {
-        updateData['email'] = _emailController.text;
-      }
+      // Email não pode ser editado
       if (_qsoController.text != widget.userProfile.qso) {
         updateData['qso'] = _qsoController.text;
       }
       if (_antiguidadeController.text != widget.userProfile.antiguidade) {
         updateData['antiguidade'] = _antiguidadeController.text;
       }
+      if (_selectedForcaId != null && _selectedForcaId != widget.userProfile.forcaId) {
+        updateData['forca_id'] = _selectedForcaId;
+      }
+      if (_selectedPostoId != null && _selectedPostoId != widget.userProfile.postoGraduacaoId) {
+        updateData['posto_graduacao_id'] = _selectedPostoId;
+      }
 
       if (updateData.isNotEmpty) {
         final success = await dashboardProvider.updateProfile(updateData);
         if (success && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Dados atualizados com sucesso!')),
+            AppStyles.successSnackBar('Dados atualizados com sucesso!'),
           );
           Navigator.of(context).pop();
         }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Nenhuma alteração foi feita.')),
+            AppStyles.errorSnackBar('Nenhuma alteração foi feita.'),
           );
         }
       }
@@ -86,7 +127,7 @@ class _MeusDadosModalState extends State<MeusDadosModal> {
           message = e.userMessage;
         }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: Colors.red),
+          AppStyles.errorSnackBar(message),
         );
       }
     } finally {
@@ -125,33 +166,66 @@ class _MeusDadosModalState extends State<MeusDadosModal> {
                       _buildReadOnlyField('Nome', widget.userProfile.nome),
                       const SizedBox(height: 16),
                       _buildReadOnlyField('ID Funcional', widget.userProfile.idFuncional ?? 'Não informado'),
-                      const SizedBox(height: 16),
-                      _buildReadOnlyField('Força', widget.userProfile.forcaSigla ?? 'Não informado'),
-                      const SizedBox(height: 16),
-                      _buildReadOnlyField('Posto/Graduação', widget.userProfile.postoGraduacaoNome ?? 'Não informado'),
                       const SizedBox(height: 24),
                       const Divider(),
                       const SizedBox(height: 24),
                       
-                      // Dados editáveis
-                      TextFormField(
-                        controller: _emailController,
-                        decoration: const InputDecoration(
-                          labelText: 'Email',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.email),
-                        ),
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Email é obrigatório';
+                      // Força editável
+                      CustomDropdownSearch<dynamic>(
+                        label: "Força",
+                        selectedItem: _selectedForcaId != null
+                            ? _forcasCache.firstWhere(
+                                (f) => f.id == _selectedForcaId,
+                                orElse: () => _forcasCache.isNotEmpty ? _forcasCache.first : null,
+                              )
+                            : null,
+                        items: _forcasCache,
+                        itemAsString: (f) => f?.sigla ?? f?.nome ?? 'N/A',
+                        onChanged: (forca) async {
+                          setState(() {
+                            _selectedForcaId = forca?.id;
+                            _selectedPostoId = null; // Reseta posto ao mudar força
+                            _postosCache = [];
+                          });
+                          
+                          // Carrega postos da nova força
+                          if (forca != null && forca.tipoPermuta != null) {
+                            final dadosRepo = Provider.of<DadosRepository>(context, listen: false);
+                            try {
+                              final postos = await dadosRepo.getPostosPorForca(forca.tipoPermuta);
+                              setState(() {
+                                _postosCache = postos;
+                              });
+                            } catch (e) {
+                              debugPrint("Erro ao carregar postos: $e");
+                            }
                           }
-                          if (!value.contains('@')) {
-                            return 'Email inválido';
-                          }
-                          return null;
                         },
                       ),
+                      const SizedBox(height: 16),
+                      
+                      // Posto/Graduação editável
+                      CustomDropdownSearch<dynamic>(
+                        label: "Posto/Graduação",
+                        enabled: _selectedForcaId != null && _postosCache.isNotEmpty,
+                        selectedItem: _postosCache.firstWhere(
+                          (p) => p.id == _selectedPostoId,
+                          orElse: () => null,
+                        ),
+                        items: _postosCache,
+                        itemAsString: (p) => p.nome ?? 'N/A',
+                        onChanged: (posto) {
+                          setState(() {
+                            _selectedPostoId = posto?.id;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      const Divider(),
+                      const SizedBox(height: 24),
+                      
+                      // Email não editável
+                      _buildReadOnlyField('Email', widget.userProfile.email ?? 'Não informado'),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _qsoController,

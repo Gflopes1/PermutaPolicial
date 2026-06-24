@@ -7,6 +7,7 @@ import 'package:dropdown_search/dropdown_search.dart';
 import '../../../core/models/user_profile.dart';
 import '../../../core/models/forca_policial.dart';
 import '../../../core/models/posto_graduacao.dart';
+import '../../../core/config/app_styles.dart';
 import '../../../features/dashboard/providers/dashboard_provider.dart';
 import '../../../core/api/repositories/dados_repository.dart';
 import '../../../shared/widgets/custom_dropdown_search.dart';
@@ -147,10 +148,10 @@ class _EditLotacaoModalState extends State<EditLotacaoModal> {
     final success = await provider.updateProfile(payload);
 
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Perfil atualizado com sucesso!'), backgroundColor: Colors.green));
+      ScaffoldMessenger.of(context).showSnackBar(AppStyles.successSnackBar('Perfil atualizado com sucesso!'));
       navigator.pop();
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(provider.initialDataError ?? 'Falha ao atualizar o perfil.'), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(AppStyles.errorSnackBar(provider.initialDataError ?? 'Falha ao atualizar o perfil.'));
       setState(() => _isLoading = false);
     }
   }

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 
 import '../../../core/models/intencao.dart';
+import '../../../core/config/app_styles.dart';
 import '../../../features/dashboard/providers/dashboard_provider.dart';
 import '../../../core/api/repositories/dados_repository.dart';
 import '../../../shared/widgets/custom_dropdown_search.dart';
@@ -16,9 +17,12 @@ class IntencaoEditModel {
   dynamic selectedEstado;
   dynamic selectedMunicipio;
   dynamic selectedUnidade;
+  int? raioKm;
 
   IntencaoEditModel();
 }
+
+const List<int?> _opcoesRaioKm = [null, 30, 50, 80, 100, 150, 200];
 
 class GerirIntencoesModal extends StatefulWidget {
   const GerirIntencoesModal({super.key});
@@ -80,6 +84,7 @@ class _GerirIntencoesModalState extends State<GerirIntencoesModal> {
         if (intencaoSalva.unidadeId != null) {
           intencaoModel.selectedUnidade = {'id': intencaoSalva.unidadeId, 'nome': intencaoSalva.unidadeNome};
         }
+        intencaoModel.raioKm = intencaoSalva.raioKm;
       }
     }
   }
@@ -141,6 +146,7 @@ class _GerirIntencoesModalState extends State<GerirIntencoesModal> {
             "estado_id": tipo == 'ESTADO' ? estadoId : null,
             "municipio_id": tipo == 'MUNICIPIO' ? municipioId : null,
             "unidade_id": tipo == 'UNIDADE' ? unidadeId : null,
+            "raio_km": (tipo == 'MUNICIPIO' || tipo == 'UNIDADE') ? intencao.raioKm : null,
           });
         }
       }
@@ -149,10 +155,10 @@ class _GerirIntencoesModalState extends State<GerirIntencoesModal> {
     final success = await provider.updateIntencoes(payload);
 
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Intenções salvas com sucesso!'), backgroundColor: Colors.green));
+      ScaffoldMessenger.of(context).showSnackBar(AppStyles.successSnackBar('Intenções salvas com sucesso!'));
       navigator.pop();
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(provider.initialDataError ?? 'Falha ao salvar.'), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(AppStyles.errorSnackBar(provider.initialDataError ?? 'Falha ao salvar.'));
       setState(() => _isSaving = false);
     }
   }
@@ -170,7 +176,7 @@ class _GerirIntencoesModalState extends State<GerirIntencoesModal> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: AppStyles.dangerButton,
             child: const Text('Excluir'),
           ),
         ],
@@ -187,12 +193,12 @@ class _GerirIntencoesModalState extends State<GerirIntencoesModal> {
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Intenções excluídas com sucesso!'), backgroundColor: Colors.green),
+        AppStyles.successSnackBar('Intenções excluídas com sucesso!'),
       );
       navigator.pop();
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.initialDataError ?? 'Falha ao excluir.'), backgroundColor: Colors.red),
+        AppStyles.errorSnackBar(provider.initialDataError ?? 'Falha ao excluir.'),
       );
       setState(() => _isSaving = false);
     }
@@ -269,6 +275,7 @@ class _GerirIntencoesModalState extends State<GerirIntencoesModal> {
               intencao.selectedEstado = null;
               intencao.selectedMunicipio = null;
               intencao.selectedUnidade = null;
+              intencao.raioKm = null;
               _estadoKeys[index].currentState?.clear();
               _municipioKeys[index].currentState?.clear();
               _unidadeKeys[index].currentState?.clear();
@@ -319,6 +326,25 @@ class _GerirIntencoesModalState extends State<GerirIntencoesModal> {
                 _unidadeKeys[index].currentState?.clear();
               });
             },
+          ),
+        ],
+
+        if (intencao.tipo == 'MUNICIPIO' || intencao.tipo == 'UNIDADE') ...[
+          const SizedBox(height: 16),
+          DropdownButtonFormField<int?>(
+            initialValue: intencao.raioKm,
+            decoration: const InputDecoration(
+              labelText: 'Distância aceitável',
+              helperText: 'Opcional — inclui cidades próximas na aba Próximas',
+              border: OutlineInputBorder(),
+            ),
+            items: _opcoesRaioKm.map((raio) {
+              return DropdownMenuItem<int?>(
+                value: raio,
+                child: Text(raio == null ? 'Somente destino exato' : 'Até $raio km'),
+              );
+            }).toList(),
+            onChanged: (value) => setState(() => intencao.raioKm = value),
           ),
         ],
 
