@@ -6,42 +6,48 @@ class BoasVindasCard extends StatelessWidget {
   final String nome;
   final bool perfilIncompleto;
   final VoidCallback? onCompletarPerfil;
+  final bool compact;
 
   const BoasVindasCard({
     super.key,
     required this.nome,
     this.perfilIncompleto = false,
     this.onCompletarPerfil,
+    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final padding = compact ? 16.0 : 24.0;
     
     return Card(
       color: theme.cardColor,
+      margin: compact ? EdgeInsets.zero : null,
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: EdgeInsets.all(padding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: compact ? MainAxisSize.min : MainAxisSize.max,
           children: [
             Text(
               'Olá, $nome',
-              style: theme.textTheme.titleLarge?.copyWith(
+              style: (compact ? theme.textTheme.titleMedium : theme.textTheme.titleLarge)?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: compact ? 4 : 8),
             Text(
               'Bem-vindo de volta',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: Colors.grey[600],
+                fontSize: compact ? 13 : null,
               ),
             ),
             if (perfilIncompleto) ...[
-              const SizedBox(height: 16),
+              SizedBox(height: compact ? 10 : 16),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(

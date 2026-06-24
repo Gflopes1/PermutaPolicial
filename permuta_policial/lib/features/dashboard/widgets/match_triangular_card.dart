@@ -2,12 +2,21 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/services.dart';
 import '../../../core/models/match_results.dart';
+import '../../../core/utils/phone_copy_utils.dart';
+import '../../permutas/utils/permuta_contact_actions.dart';
 
 class MatchTriangularCard extends StatelessWidget {
   final MatchTriangular match;
-  const MatchTriangularCard({super.key, required this.match});
+  final bool Function(Match) jaSolicitado;
+  final void Function(int policialId) onContatoSolicitado;
+
+  const MatchTriangularCard({
+    super.key,
+    required this.match,
+    required this.jaSolicitado,
+    required this.onContatoSolicitado,
+  });
 
   void _showQsoDialog(BuildContext context, String nome, String? qso) {
     showDialog(
@@ -111,22 +120,12 @@ class MatchTriangularCard extends StatelessWidget {
                 icon: const Icon(CupertinoIcons.doc_on_clipboard, size: 18),
                 label: const Text('Copiar Número'),
                 onPressed: () {
-                  Clipboard.setData(ClipboardData(text: qso));
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Row(
-                        children: [
-                          Icon(CupertinoIcons.check_mark_circled_solid, color: Colors.white),
-                          SizedBox(width: 8),
-                          Text('Número copiado!'),
-                        ],
-                      ),
-                      backgroundColor: Colors.green,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
+                  copiarTelefoneComAnalytics(
+                    context,
+                    telefone: qso,
+                    origem: 'permuta_triangular',
                   );
+                  Navigator.of(context).pop();
                 },
               ),
             TextButton(
@@ -175,13 +174,28 @@ class MatchTriangularCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Ciclo de Permuta Triangular',
+                    match.porAproximacao
+                        ? 'Ciclo Triangular por Proximidade'
+                        : 'Ciclo de Permuta Triangular',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),
                   ),
                 ),
+                if (match.porAproximacao && match.distanciaKm != null)
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade100.withAlpha(200),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '~${match.distanciaKm!.toStringAsFixed(0)} km',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+                    ),
+                  ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -216,14 +230,8 @@ class MatchTriangularCard extends StatelessWidget {
                 // Policial B
                 _buildPolicialInfo(
                   context,
-                  nome: match.policialB.nome,
-                  posto: match.policialB.postoGraduacaoNome,
-                  forca: match.policialB.forcaSigla,
-                  unidade: match.policialB.unidadeAtual,
-                  municipio: match.policialB.municipioAtual,
-                  estado: match.policialB.estadoAtual,
-                  hasQso: match.policialB.qso != null && match.policialB.qso!.isNotEmpty,
-                  onContactTap: () => _showQsoDialog(context, match.policialB.nome, match.policialB.qso),
+                  match: match.policialB,
+                  policialId: match.policialB.id,
                 ),
 
                 const SizedBox(height: 16),
@@ -231,14 +239,8 @@ class MatchTriangularCard extends StatelessWidget {
                 // Policial C
                 _buildPolicialInfo(
                   context,
-                  nome: match.policialC.nome,
-                  posto: match.policialC.postoGraduacaoNome,
-                  forca: match.policialC.forcaSigla,
-                  unidade: match.policialC.unidadeAtual,
-                  municipio: match.policialC.municipioAtual,
-                  estado: match.policialC.estadoAtual,
-                  hasQso: match.policialC.qso != null && match.policialC.qso!.isNotEmpty,
-                  onContactTap: () => _showQsoDialog(context, match.policialC.nome, match.policialC.qso),
+                  match: match.policialC,
+                  policialId: match.policialC.id,
                 ),
 
                 const SizedBox(height: 20),
@@ -255,15 +257,34 @@ class MatchTriangularCard extends StatelessWidget {
 
   Widget _buildPolicialInfo(
     BuildContext context, {
-    required String nome,
-    required String? posto,
-    required String forca,
-    required String? unidade,
-    required String? municipio,
-    required String? estado,
-    required bool hasQso,
-    required VoidCallback onContactTap,
+    required Match match,
+    required int policialId,
   }) {
+    // ✅ Se aceitou compartilhar, mostra dados mesmo que esteja oculto
+    final mostrarDados = !match.ocultarNoMapa || match.aceitouCompartilhar;
+    final dados = match.aceitouCompartilhar && match.dadosAceitacao != null ? match.dadosAceitacao! : null;
+    final nome = mostrarDados && dados != null
+        ? (dados['nome'] ?? dados['aceitador_nome'] ?? match.nome)
+        : (match.ocultarNoMapa ? 'Usuário não identificado' : match.nome);
+    final posto = mostrarDados && dados != null
+        ? (dados['postoNome'] ?? dados['aceitador_posto_nome'] ?? match.postoGraduacaoNome)
+        : match.postoGraduacaoNome;
+    final forca = mostrarDados && dados != null
+        ? (dados['forcaSigla'] ?? dados['aceitador_forca_sigla'] ?? match.forcaSigla)
+        : match.forcaSigla;
+    final unidade = mostrarDados && dados != null
+        ? (dados['unidadeNome'] ?? dados['aceitador_unidade_nome'] ?? match.unidadeAtual)
+        : match.unidadeAtual;
+    final municipio = mostrarDados && dados != null
+        ? (dados['cidadeNome'] ?? dados['aceitador_cidade_nome'] ?? match.municipioAtual)
+        : match.municipioAtual;
+    final estado = mostrarDados && dados != null
+        ? (dados['estadoSigla'] ?? dados['aceitador_estado_sigla'] ?? match.estadoAtual)
+        : match.estadoAtual;
+    final qso = mostrarDados && dados != null
+        ? (dados['contato'] ?? dados['aceitador_contato'] ?? match.qso)
+        : match.qso;
+    final hasQso = qso != null && qso.isNotEmpty;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -318,7 +339,7 @@ class MatchTriangularCard extends StatelessWidget {
                 Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: onContactTap,
+                    onTap: () => _showQsoDialog(context, nome, qso),
                     borderRadius: BorderRadius.circular(20),
                     child: Container(
                       padding: const EdgeInsets.all(8),
@@ -404,6 +425,56 @@ class MatchTriangularCard extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+          ],
+          
+          // ✅ Botões de ação se estiver oculto e não aceitou compartilhar
+          if (match.ocultarNoMapa && !match.aceitouCompartilhar) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: jaSolicitado(match)
+                        ? null
+                        : () => PermutaContactActions.solicitarContato(
+                              context,
+                              destinatarioId: policialId,
+                              tipoPermuta: 'triangular',
+                              onSuccess: () => onContatoSolicitado(policialId),
+                            ),
+                    icon: Icon(
+                      jaSolicitado(match) ? Icons.check_circle : Icons.person_add,
+                      size: 18,
+                    ),
+                    label: Text(
+                      jaSolicitado(match) ? 'Contato Solicitado' : 'Solicitar Contato',
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                      disabledBackgroundColor: const Color.fromARGB(255, 190, 190, 190),
+                      disabledForegroundColor: const Color.fromARGB(255, 35, 35, 35),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => PermutaContactActions.enviarMensagem(
+                          context,
+                          destinatarioId: policialId,
+                          isAnonima: true,
+                        ),
+                    icon: const Icon(Icons.message, size: 18),
+                    label: const Text('Enviar Mensagem'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.secondary,
+                      foregroundColor: Theme.of(context).colorScheme.onSecondary,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ],
