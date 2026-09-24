@@ -332,9 +332,7 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
                                       const SizedBox(height: 12),
                                       _buildPermutasInteligentesCard(context),
                                       const SizedBox(height: 12),
-                                      _buildCampoMinadoCard(context),
-                                      const SizedBox(height: 12),
-                                      const DashboardPixFooter(),
+                                      _buildExtrasSection(context),
                                     ],
                                   ),
                                   mobileColumn: Column(
@@ -376,9 +374,7 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
                                       const SizedBox(height: 12),
                                       _buildPermutasInteligentesCard(context),
                                       const SizedBox(height: 12),
-                                      _buildCampoMinadoCard(context),
-                                      const SizedBox(height: 12),
-                                      const DashboardPixFooter(),
+                                      _buildExtrasSection(context),
                                     ],
                                   ),
                                 ),
@@ -1092,6 +1088,39 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildExtrasSection(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: _card,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: _border),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.volunteer_activism, color: _muted, size: 16),
+                const SizedBox(width: 8),
+                Text(
+                  'Apoiar o Projeto',
+                  style: TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildCampoMinadoCard(context),
+          const SizedBox(height: 8),
+          const DashboardPixFooter(),
+        ],
       ),
     );
   }
