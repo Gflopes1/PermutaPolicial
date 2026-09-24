@@ -320,20 +320,21 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
                                                 .toList(),
                                           ),
                                         ),
-                                        const SizedBox(height: 16),
+                                        const SizedBox(height: 14),
                                       ],
                                       _buildSectionTitle('Ferramentas'),
                                       _buildToolsGrid(context, provider),
-                                      const SizedBox(height: 16),
+                                      const SizedBox(height: 14),
                                       _buildDivider(),
                                       _buildSectionTitle('Comunidade'),
                                       _buildCommunityLinks(context, provider),
-                                      const SizedBox(height: 12),
+                                      const SizedBox(height: 10),
                                       _buildPermutasInteligentesCard(context),
-                                      const SizedBox(height: 16),
+                                      const SizedBox(height: 14),
                                       _buildDivider(),
                                       _buildSectionTitle('Apoio'),
                                       const DashboardPixFooter(),
+                                      const SizedBox(height: 8),
                                     ],
                                   ),
                                   mobileColumn: Column(
@@ -348,11 +349,11 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
                                       _buildSectionTitle('Acesso rápido'),
                                       _buildQuickAccess(context),
                                       if (provider.consultoriaAdvogados.isNotEmpty) ...[
-                                        const SizedBox(height: 16),
+                                        const SizedBox(height: 14),
                                         _buildConsultoriaEntry(context, provider),
                                       ],
                                       if (provider.parceiros.isNotEmpty) ...[
-                                        const SizedBox(height: 16),
+                                        const SizedBox(height: 14),
                                         Padding(
                                           padding: const EdgeInsets.symmetric(horizontal: 12),
                                           child: ParceirosCard(
@@ -364,21 +365,21 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
                                           ),
                                         ),
                                       ],
-                                      const SizedBox(height: 16),
+                                      const SizedBox(height: 14),
                                       _buildDivider(),
                                       _buildSectionTitle('Ferramentas'),
                                       _buildToolsGrid(context, provider),
-                                      const SizedBox(height: 16),
+                                      const SizedBox(height: 14),
                                       _buildDivider(),
                                       _buildSectionTitle('Comunidade'),
                                       _buildCommunityLinks(context, provider),
-                                      const SizedBox(height: 12),
+                                      const SizedBox(height: 10),
                                       _buildPermutasInteligentesCard(context),
-                                      const SizedBox(height: 16),
+                                      const SizedBox(height: 14),
                                       _buildDivider(),
                                       _buildSectionTitle('Apoio'),
                                       const DashboardPixFooter(),
-                                      const SizedBox(height: 16),
+                                      const SizedBox(height: 8),
                                     ],
                                   ),
                                 ),
@@ -585,23 +586,31 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
                       pi.results,
                       piIds,
                     );
-                return Row(
+                return Column(
                   children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: () => context.push('${AppRoutes.permutas}?tab=interessados'),
-                        borderRadius: BorderRadius.circular(10),
-                        child: _heroStat('$interessados', 'Interessados na sua vaga'),
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => context.push('${AppRoutes.permutas}?tab=interessados'),
+                            borderRadius: BorderRadius.circular(10),
+                            child: _heroStat('$interessados', 'Interessados na sua vaga'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => context.push(AppRoutes.permutas),
+                            borderRadius: BorderRadius.circular(10),
+                            child: _heroStat('$matches', 'Matches compatíveis'),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: InkWell(
-                        onTap: () => context.push(AppRoutes.permutas),
-                        borderRadius: BorderRadius.circular(10),
-                        child: _heroStat('$matches', 'Matches compatíveis'),
-                      ),
-                    ),
+                    if (matches > 0 || incompleto || !vagaAtiva) ...[
+                      const SizedBox(height: 10),
+                      _buildHeroCTA(context, matches, incompleto, vagaAtiva),
+                    ],
                   ],
                 );
               },
@@ -625,6 +634,39 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
           const SizedBox(height: 2),
           Text(label, textAlign: TextAlign.center, style: const TextStyle(color: _muted, fontSize: 10)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildHeroCTA(BuildContext context, int matches, bool incompleto, bool vagaAtiva) {
+    String label;
+    VoidCallback action;
+    
+    if (incompleto) {
+      label = 'Completar perfil';
+      action = () => context.push(AppRoutes.completarPerfil);
+    } else if (!vagaAtiva) {
+      label = 'Gerenciar vaga';
+      action = () => context.push(AppRoutes.permutas);
+    } else if (matches > 0) {
+      label = 'Ver matches';
+      action = () => context.push(AppRoutes.permutas);
+    } else {
+      label = 'Ajustar intenções';
+      action = () => context.push(AppRoutes.permutas);
+    }
+
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.white,
+          side: const BorderSide(color: Colors.white24, width: 1),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+        onPressed: action,
+        child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
       ),
     );
   }
@@ -655,12 +697,12 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
         crossAxisCount: 4,
         mainAxisSpacing: 8,
         crossAxisSpacing: 8,
-        childAspectRatio: 0.85,
+        childAspectRatio: 1.15,
         children: [
-          _qaItem(Icons.psychology_outlined, 'Permutas\nInteligentes', () => context.push(AppRoutes.permutas)),
           _qaItem(Icons.map_outlined, 'Mapa de\nPermutas', () => context.push(AppRoutes.mapa)),
           _qaItem(Icons.map, 'Mapa\nTático', () => context.push(AppRoutes.mapaTatico)),
           _qaItem(Icons.description_outlined, 'Editais', () => context.push(AppRoutes.editaisHub)),
+          _qaItem(Icons.calendar_month_outlined, 'Calendário', () => context.push(AppRoutes.calendar)),
         ],
       ),
     );
@@ -929,19 +971,24 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
   Widget _buildToolsGrid(BuildContext context, DashboardProvider provider) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: GridView.count(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 2,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-        childAspectRatio: 1.6,
-        children: [
-          _toolCard(Icons.schedule, 'Gestor de Horas e Soldo', 'Escalas e etapas', () => context.push(AppRoutes.calendar)),
-          _toolCard(Icons.school_outlined, 'Questões & Simulados', 'Prepare-se para provas', () => context.push(AppRoutes.questions)),
-          _toolCard(Icons.shopping_bag_outlined, 'Marketplace', 'Anúncios e vendas', () => context.push(AppRoutes.marketplace)),
-          _toolCard(Icons.swap_horiz, 'Ambiente de Permutas', 'Gerenciar sua vaga', () => context.push(AppRoutes.permutas)),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= kDashboardDesktopBreakpoint;
+          return GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: isWide ? 2.2 : 1.6,
+            children: [
+              _toolCard(Icons.school_outlined, 'Questões & Simulados', 'Prepare-se para provas', () => context.push(AppRoutes.questions)),
+              _toolCard(Icons.shopping_bag_outlined, 'Marketplace', 'Anúncios e vendas', () => context.push(AppRoutes.marketplace)),
+              _toolCard(Icons.swap_horiz, 'Ambiente de Permutas', 'Gerenciar sua vaga', () => context.push(AppRoutes.permutas)),
+              _toolCard(Icons.schedule, 'Gestor de Horas', 'Escalas e etapas', () => context.push(AppRoutes.calendar)),
+            ],
+          );
+        },
       ),
     );
   }
