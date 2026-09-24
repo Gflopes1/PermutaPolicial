@@ -1,0 +1,37 @@
+# Permuta Policial
+
+> Plataforma brasileira independente para conectar agentes de segurança pública em serviço ativo e facilitar permutas de lotação. Oferece matches diretos, triangulares e ciclos N-way, mapa nacional de demanda, chat, fórum, marketplace, hub de editais, questões para estudo e gestor de horas. Site sem vínculo governamental. Domínio: https://br.permutapolicial.com.br
+
+O Permuta Policial é um software de conexão entre colegas policiais — **não garante permutas** nem é parte em negociações. O acesso é restrito a agentes verificados por e-mail institucional ou login Microsoft/Google. Permutas, chat, mapa, fórum, marketplace e gestor de horas são gratuitos; apenas questões e simulados têm plano Premium (R$ 11,90/mês via Mercado Pago).
+
+## Páginas principais
+
+- [Página inicial](https://br.permutapolicial.com.br/): Aplicativo web (Flutter) — ponto de entrada da plataforma
+- [Autenticação / Cadastro](https://br.permutapolicial.com.br/auth): Criar conta ou entrar (e-mail institucional, Google ou Microsoft)
+- [Mapa visitante](https://br.permutapolicial.com.br/mapa/visitante): Mapa público de demanda de permutas por município (sem login)
+- [Central de Ajuda](https://br.permutapolicial.com.br/help.md): Guia completo de uso da plataforma (Markdown)
+- [Termos de Uso](https://br.permutapolicial.com.br/termos.md): Regras, elegibilidade e responsabilidades (Markdown)
+- [Política de Privacidade](https://br.permutapolicial.com.br/privacidade.md): Coleta, uso e proteção de dados — LGPD (Markdown)
+- [Central de Ajuda (HTML)](https://br.permutapolicial.com.br/help.html): Versão web do guia
+- [Termos de Uso (HTML)](https://br.permutapolicial.com.br/termos.html): Versão web dos termos
+- [Política de Privacidade (HTML)](https://br.permutapolicial.com.br/privacidade.html): Versão web da política
+
+## Landing pages por corporação
+
+- [Polícia Militar](https://br.permutapolicial.com.br/app/pm.html): Permutas para PM de todos os estados
+- [Bombeiros Militares](https://br.permutapolicial.com.br/app/bm.html): Permutas para BM
+- [Polícia Civil](https://br.permutapolicial.com.br/app/pc.html): Permutas para PC
+- [PRF](https://br.permutapolicial.com.br/app/prf.html): Permutas para Polícia Rodoviária Federal
+- [Polícia Federal](https://br.permutapolicial.com.br/app/pf.html): Permutas para PF
+- [Guarda Municipal](https://br.permutapolicial.com.br/app/gm.html): Permutas para GM
+
+## Funcionalidades (requer login)
+
+- [Ambiente de Permutas](https://br.permutapolicial.com.br/permutas): Matches diretos, triangulares e interessados
+- [Hub de Editais](https://br.permutapolicial.com.br/editais): Editais de formação e transferência interna com simulador
+- [Marketplace](https://br.permutapolicial.com.br/marketplace): Classificados internos entre agentes
+
+## Optional
+
+- [Sitemap](https://br.permutapolicial.com.br/sitemap.xml): Índice de URLs indexáveis
+- [Robots.txt](https://br.permutapolicial.com.br/robots.txt): Regras de crawl para buscadores

@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Política de Privacidade — Permuta Policial</title>
+  <meta name="description" content="Política de Privacidade do Permuta Policial: coleta, uso, compartilhamento e proteção de dados pessoais em conformidade com a LGPD.">
+  <link rel="canonical" href="https://br.permutapolicial.com.br/privacidade.html">
+  <meta property="og:title" content="Política de Privacidade — Permuta Policial">
+  <meta property="og:description" content="Como tratamos seus dados na plataforma de permutas para agentes de segurança pública.">
+  <meta property="og:url" content="https://br.permutapolicial.com.br/privacidade.html">
+  <meta property="og:image" content="https://br.permutapolicial.com.br/assets/logo_tatico.png">
+  <link rel="icon" href="https://br.permutapolicial.com.br/assets/logo_tatico.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #1a365d;
+      --primary-dark: #0f1c2e;
+      --secondary: #4a5568;
+      --bg: #f7fafc;
+      --text: #1a202c;
+      --muted: #64748b;
+      --card: #ffffff;
+      --border: rgba(15, 28, 46, 0.1);
+      --shadow: 0 4px 24px rgba(15, 28, 46, 0.08);
+      --info-bg: #eff6ff;
+      --info-border: #93c5fd;
+      --warn-bg: #fffbeb;
+      --warn-border: #fcd34d;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+    }
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .container { max-width: 1140px; margin: 0 auto; padding: 0 1.25rem; }
+
+    .header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(15, 28, 46, 0.97);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .header-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.75rem 0; gap: 1rem;
+    }
+    .brand { display: flex; align-items: center; gap: 0.75rem; color: #fff; text-decoration: none; }
+    .brand:hover { text-decoration: none; opacity: 0.95; }
+    .brand img { width: 40px; height: 40px; object-fit: contain; }
+    .brand-text strong { display: block; font-size: 0.95rem; font-weight: 700; }
+    .brand-text span { font-size: 0.72rem; color: rgba(255,255,255,0.6); }
+    .header-links { display: flex; align-items: center; gap: 1rem; }
+    .header-links a { color: rgba(255,255,255,0.85); font-size: 0.875rem; font-weight: 500; text-decoration: none; }
+    .header-links a:hover { color: #fff; }
+    .btn {
+      display: inline-flex; align-items: center; padding: 0.55rem 1.1rem;
+      border-radius: 10px; font-weight: 600; font-size: 0.875rem;
+      background: var(--secondary); color: #fff; text-decoration: none;
+    }
+    .btn:hover { text-decoration: none; opacity: 0.95; }
+
+    .page-hero {
+      background: linear-gradient(145deg, var(--primary-dark) 0%, var(--primary) 100%);
+      color: #fff; padding: 2.5rem 0 3rem;
+    }
+    .page-hero h1 { font-size: clamp(1.6rem, 4vw, 2.25rem); font-weight: 800; margin-bottom: 0.5rem; }
+    .page-hero p { color: rgba(255,255,255,0.82); max-width: 680px; }
+    .meta-line { margin-top: 1rem; font-size: 0.82rem; color: rgba(255,255,255,0.6); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 2rem;
+      padding: 2.5rem 0 4rem;
+      align-items: start;
+    }
+
+    .sidebar {
+      position: sticky; top: 5.5rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.25rem;
+      box-shadow: var(--shadow);
+      max-height: calc(100vh - 7rem);
+      overflow-y: auto;
+    }
+    .sidebar h2 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 0.75rem; }
+    .sidebar nav ul { list-style: none; }
+    .sidebar nav a {
+      display: block; padding: 0.4rem 0.6rem; border-radius: 8px;
+      font-size: 0.84rem; font-weight: 500; color: var(--secondary);
+      text-decoration: none;
+    }
+    .sidebar nav a:hover { background: rgba(26, 54, 93, 0.08); color: var(--primary); }
+
+    .content section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.75rem;
+      margin-bottom: 1.25rem;
+      box-shadow: var(--shadow);
+      scroll-margin-top: 5.5rem;
+    }
+    .content h2 {
+      font-size: 1.35rem; font-weight: 800; color: var(--primary-dark);
+      margin-bottom: 0.75rem; padding-bottom: 0.6rem;
+      border-bottom: 2px solid rgba(26, 54, 93, 0.12);
+    }
+    .content h3 { font-size: 1rem; font-weight: 700; color: var(--primary); margin: 1.5rem 0 0.5rem; }
+    .content p, .content li { color: var(--secondary); font-size: 0.925rem; }
+    .content ul, .content ol { padding-left: 1.25rem; margin: 0.5rem 0 0.75rem; }
+    .content li { margin-bottom: 0.4rem; }
+
+    .summary-box {
+      background: rgba(26, 54, 93, 0.05);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+    .summary-box ul { margin-bottom: 0; }
+    .summary-box li { font-size: 0.875rem; }
+
+    .alert {
+      padding: 1rem 1.15rem; border-radius: 10px;
+      border: 1px solid; margin-top: 1rem; font-size: 0.875rem;
+    }
+    .alert strong { display: block; margin-bottom: 0.25rem; }
+    .alert p { margin: 0.35rem 0 0; }
+    .alert-info { background: var(--info-bg); border-color: var(--info-border); color: #1e40af; }
+    .alert-warning { background: var(--warn-bg); border-color: var(--warn-border); color: #92400e; }
+
+    .btn-whatsapp {
+      display: inline-flex; align-items: center;
+      background: #25D366; color: #fff; padding: 0.75rem 1.25rem;
+      border-radius: 10px; font-weight: 700; font-size: 0.95rem;
+      text-decoration: none; margin-top: 0.75rem;
+    }
+    .btn-whatsapp:hover { background: #1DAE54; text-decoration: none; color: #fff; }
+
+    .footer {
+      background: var(--primary-dark); color: rgba(255,255,255,0.75);
+      padding: 2.5rem 0 1.5rem; font-size: 0.875rem;
+    }
+    .footer-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 2rem; margin-bottom: 2rem;
+    }
+    .footer h3 { color: #fff; font-size: 0.9rem; margin-bottom: 0.75rem; }
+    .footer-links { list-style: none; }
+    .footer-links li { margin-bottom: 0.4rem; }
+    .footer-links a { color: rgba(255,255,255,0.7); text-decoration: none; }
+    .footer-links a:hover { color: #fff; }
+    .footer-bottom {
+      border-top: 1px solid rgba(255,255,255,0.1);
+      padding-top: 1.25rem; display: flex; flex-wrap: wrap;
+      justify-content: space-between; gap: 0.5rem; font-size: 0.78rem;
+    }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; max-height: none; }
+      .header-links .hide-mobile { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="container header-inner">
+      <a href="https://br.permutapolicial.com.br" class="brand">
+        <img src="https://br.permutapolicial.com.br/assets/logo_tatico.png" alt="Permuta Policial" width="40" height="40">
+        <div class="brand-text">
+          <strong>Permuta Policial</strong>
+          <span>Política de Privacidade</span>
+        </div>
+      </a>
+      <div class="header-links">
+        <a href="https://br.permutapolicial.com.br/termos.html" class="hide-mobile">Termos de Uso</a>
+        <a href="https://br.permutapolicial.com.br/help.html" class="hide-mobile">Central de Ajuda</a>
+        <a href="https://br.permutapolicial.com.br/auth" class="btn">Entrar</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="page-hero">
+    <div class="container">
+      <h1>Política de Privacidade</h1>
+      <p>Como coletamos, usamos, compartilhamos e protegemos suas informações pessoais na plataforma Permuta Policial.</p>
+      <p class="meta-line">Última atualização: 16 de setembro de 2026 · Conformidade com a LGPD (Lei nº 13.709/2018)</p>
+    </div>
+  </div>
+
+  <div class="container layout">
+    <aside class="sidebar">
+      <h2>Índice</h2>
+      <nav aria-label="Seções da política de privacidade">
+        <ul>
+          <li><a href="#resumo">Resumo</a></li>
+          <li><a href="#coleta">1. Dados coletados</a></li>
+          <li><a href="#uso">2. Como usamos</a></li>
+          <li><a href="#compartilhamento">3. Compartilhamento</a></li>
+          <li><a href="#protecao-dados">4. Proteção de Dados</a></li>
+          <li><a href="#seguranca">5. Segurança</a></li>
+          <li><a href="#retencao">6. Retenção</a></li>
+          <li><a href="#direitos">7. Seus direitos (LGPD)</a></li>
+          <li><a href="#alteracoes">8. Alterações</a></li>
+          <li><a href="#contato">9. Contato</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <main class="content">
+
+      <section id="resumo">
+        <h2>Resumo</h2>
+        <div class="summary-box">
+          <ul>
+            <li><strong>Não vendemos</strong> seus dados pessoais a terceiros.</li>
+            <li><strong>Você controla</strong> a visibilidade com a opção "Proteção de Dados" no perfil.</li>
+            <li><strong>Dados essenciais:</strong> perfil, intenções de permuta e mensagens são necessários para operar o serviço.</li>
+            <li><strong>Compartilhamento entre usuários:</strong> depende do módulo (match, fórum, marketplace) e das suas configurações de privacidade.</li>
+            <li><strong>Pagamentos Premium:</strong> processados pelo Mercado Pago; não armazenamos dados completos de cartão.</li>
+            <li><strong>Localização no Mapa Tático:</strong> compartilhada apenas quando você ativa explicitamente com seu grupo.</li>
+          </ul>
+        </div>
+        <p style="margin-top:1rem;">Ao se cadastrar e utilizar o Permuta Policial, você concorda com a coleta e uso de informações conforme esta política. Consulte também os <a href="/termos.html">Termos de Uso</a>.</p>
+      </section>
+
+      <section id="coleta">
+        <h2>1. Informações que coletamos</h2>
+        <p>Coletamos informações que você nos fornece diretamente e dados gerados pelo uso da plataforma.</p>
+
+        <h3>Cadastro e perfil</h3>
+        <ul>
+          <li><strong>Identificação:</strong> nome completo e e-mail.</li>
+          <li><strong>Dados funcionais:</strong> ID funcional (matrícula), força policial, posto/graduação e lotação (estado, município e unidade).</li>
+          <li><strong>Contato:</strong> QSO (telefone), usado para contato entre agentes conforme suas configurações.</li>
+          <li><strong>Privacidade:</strong> escolha de ativar ou não a "Proteção de Dados".</li>
+        </ul>
+
+        <h3>Login por terceiros (OAuth)</h3>
+        <p>Se você se cadastrar ou entrar com Google ou Microsoft, recebemos:</p>
+        <ul>
+          <li>Nome, e-mail e identificador único (Google ID ou Microsoft OID).</li>
+          <li>No login Microsoft (e-mail funcional), podemos receber ID funcional e cargo se disponíveis no perfil corporativo, para facilitar o cadastro.</li>
+        </ul>
+
+        <h3>Conteúdo gerado pelo usuário</h3>
+        <ul>
+          <li><strong>Permutas:</strong> intenções de destino (estado, município ou unidade) e opção de permuta interestadual.</li>
+          <li><strong>Chat:</strong> conteúdo e histórico de mensagens diretas.</li>
+          <li><strong>Fórum:</strong> títulos, postagens e respostas.</li>
+          <li><strong>Marketplace:</strong> título, descrição, categoria, preço, fotos e localização de negociação dos anúncios.</li>
+          <li><strong>Hub de Editais:</strong> opções de vaga e dados de simulação inseridos por participantes cadastrados.</li>
+          <li><strong>Mapa Tático:</strong> pontos georreferenciados, comentários, fotos e localização em tempo real (quando ativada).</li>
+          <li><strong>Questões e simulados:</strong> respostas, resultados e histórico de estudo.</li>
+          <li><strong>Gestor de horas:</strong> escalas, configurações salariais e relatórios gerados.</li>
+        </ul>
+
+        <h3>Dados técnicos</h3>
+        <ul>
+          <li>Endereço IP, tipo de navegador/dispositivo e logs de acesso para segurança e diagnóstico.</li>
+          <li>Tokens de autenticação (JWT) e preferências de sessão.</li>
+          <li>Tokens de notificação push (quando autorizado no dispositivo).</li>
+        </ul>
+      </section>
+
+      <section id="uso">
+        <h2>2. Como usamos suas informações</h2>
+        <p>Utilizamos seus dados exclusivamente para:</p>
+        <ul>
+          <li><strong>Operar a plataforma:</strong> criar e gerenciar conta, autenticar acesso e permitir atualização do perfil.</li>
+          <li><strong>Encontrar matches:</strong> cruzar lotação atual e intenções para permutas diretas, triangulares e interessados.</li>
+          <li><strong>Exibir conteúdo:</strong> mostrar postagens no fórum e anúncios no marketplace a usuários verificados.</li>
+          <li><strong>Facilitar contato:</strong> permitir chat ou revelação de QSO conforme configurações de privacidade e contexto (match ou marketplace).</li>
+          <li><strong>Enviar notificações:</strong> alertas sobre matches, mensagens, solicitações de contato e atividade no fórum.</li>
+          <li><strong>Processar pagamentos Premium:</strong> via Mercado Pago, para ativar assinatura do módulo de questões.</li>
+          <li><strong>Comunicação administrativa:</strong> confirmação de e-mail, redefinição de senha e avisos importantes sobre a conta.</li>
+          <li><strong>Melhorar o serviço:</strong> análises agregadas e anônimas de uso para correção de bugs e evolução da plataforma.</li>
+        </ul>
+      </section>
+
+      <section id="compartilhamento">
+        <h2>3. Compartilhamento de informações</h2>
+        <p>Nós <strong>não vendemos</strong> suas informações pessoais. O que outros usuários veem depende do contexto e das suas configurações de privacidade.</p>
+
+        <h3>3.1. Mapa de exploração</h3>
+        <p>Seu perfil básico (nome, posto/graduação, lotação) pode ser visível a agentes logados que exploram o mapa.</p>
+        <div class="alert alert-warning">
+          <strong>Exceção</strong>
+          Com "Proteção de Dados" ativa, seu perfil é ocultado e não aparece no mapa.
+        </div>
+
+        <h3>3.2. Contato por match de permuta</h3>
+        <ul>
+          <li><strong>Proteção desativada (padrão):</strong> seu QSO é revelado ao colega compatível, permitindo contato direto.</li>
+          <li><strong>Proteção ativada:</strong> QSO não é revelado. O colega envia "Solicitação de Contato" via chat e você decide se aceita.</li>
+        </ul>
+
+        <h3>3.3. Chat direto</h3>
+        <div class="alert alert-info">
+          <strong>Agente Protegido</strong>
+          Com "Proteção de Dados" ativa, seu nome aparece como "Agente Protegido" até que você abra e responda à conversa, aceitando o contato.
+        </div>
+
+        <h3>3.4. Fórum</h3>
+        <p>Seu nome e posto/graduação são exibidos ao lado das postagens dentro da plataforma.</p>
+
+        <h3>3.5. Marketplace</h3>
+        <p>Ao criar um anúncio, seu nome, posto/graduação e QSO ficam visíveis na página do anúncio, ou o interessado pode iniciar chat direto.</p>
+
+        <h3>3.6. Mapa Tático</h3>
+        <p>Pontos, comentários e fotos são visíveis aos membros do grupo. Localização em tempo real só é compartilhada quando você ativa explicitamente com sua equipe.</p>
+
+        <h3>3.7. Prestadores de serviço</h3>
+        <p>Podemos compartilhar dados mínimos necessários com:</p>
+        <ul>
+          <li><strong>Mercado Pago:</strong> processamento de assinatura Premium.</li>
+          <li><strong>Google / Microsoft:</strong> autenticação OAuth, quando você escolhe esses métodos.</li>
+          <li><strong>Infraestrutura de hospedagem:</strong> armazenamento e operação do serviço, sob contratos de confidencialidade.</li>
+        </ul>
+        <p>Não compartilhamos dados com anunciantes nem vendemos listas de usuários.</p>
+      </section>
+
+      <section id="protecao-dados">
+        <h2>4. Proteção de Dados (controle do usuário)</h2>
+        <p>A opção <strong>"Proteção de Dados"</strong>, disponível em "Minha Lotação", permite que você:</p>
+        <ol>
+          <li>Oculte seu perfil no Mapa de Exploração.</li>
+          <li>Impeça a revelação automática do QSO em matches — exigindo solicitação de contato via chat.</li>
+          <li>Apareça como "Agente Protegido" em conversas iniciadas por colegas, até aceitar o contato.</li>
+        </ol>
+        <p>Você pode ativar ou desativar a qualquer momento. Para instruções detalhadas, consulte a <a href="/help.html#perfil">Central de Ajuda</a>.</p>
+      </section>
+
+      <section id="seguranca">
+        <h2>5. Segurança dos dados</h2>
+        <p>Empregamos medidas de segurança padrão do setor, incluindo:</p>
+        <ul>
+          <li>Criptografia de senhas (bcrypt).</li>
+          <li>Autenticação por tokens de acesso (JWT).</li>
+          <li>Comunicação criptografada (HTTPS/TLS).</li>
+          <li>Controle de acesso restrito a agentes verificados.</li>
+        </ul>
+        <p>Nenhum método de transmissão ou armazenamento eletrônico é 100% seguro. Embora nos esforcemos para proteger seus dados, não podemos garantir segurança absoluta.</p>
+      </section>
+
+      <section id="retencao">
+        <h2>6. Retenção de dados</h2>
+        <ul>
+          <li>Mantemos seus dados enquanto sua conta estiver ativa e forem necessários para operar o serviço.</li>
+          <li>Ao solicitar exclusão da conta, removemos ou anonimizamos seus dados pessoais, salvo obrigações legais de retenção.</li>
+          <li>Logs de segurança e registros administrativos podem ser mantidos por período limitado para prevenção de fraudes e cumprimento legal.</li>
+        </ul>
+      </section>
+
+      <section id="direitos">
+        <h2>7. Seus direitos (LGPD)</h2>
+        <p>Em conformidade com a LGPD, você tem direito a:</p>
+        <ul>
+          <li><strong>Acesso:</strong> saber quais dados temos sobre você.</li>
+          <li><strong>Correção:</strong> atualizar dados incorretos ou incompletos no painel de perfil.</li>
+          <li><strong>Exclusão:</strong> solicitar remoção da conta e dos dados associados.</li>
+          <li><strong>Portabilidade:</strong> solicitar exportação dos seus dados, quando aplicável.</li>
+          <li><strong>Revogação de consentimento:</strong> desativar recursos opcionais como compartilhamento de localização ou notificações push.</li>
+          <li><strong>Informação:</strong> obter esclarecimentos sobre como seus dados são tratados.</li>
+        </ul>
+        <p>A maioria dos dados pode ser gerenciada diretamente no painel. Para exclusão de conta ou solicitações formais, entre em contato pelo canal abaixo.</p>
+      </section>
+
+      <section id="alteracoes">
+        <h2>8. Alterações nesta política</h2>
+        <p>Podemos atualizar esta Política de Privacidade periodicamente. Se houver mudanças materiais, avisaremos com antecedência razoável por e-mail ou notificação na plataforma.</p>
+        <p>A data da última atualização será sempre indicada no topo desta página.</p>
+      </section>
+
+      <section id="contato">
+        <h2>9. Contato</h2>
+        <p>Para dúvidas sobre esta política, exercer seus direitos LGPD ou reportar problemas relacionados a dados:</p>
+
+        <div class="alert alert-info">
+          <strong>Nota do desenvolvedor</strong>
+          Esta plataforma é um projeto de um colega policial, para colegas, em constante melhoria. Sua colaboração é fundamental.
+        </div>
+
+        <a href="https://wa.me/555186200626" target="_blank" rel="noopener" class="btn-whatsapp">
+          Falar no WhatsApp
+        </a>
+        <p style="margin-top:1rem;font-size:0.85rem;color:var(--muted);">
+          <a href="/help.html">Central de Ajuda</a> · <a href="/termos.html">Termos de Uso</a>
+        </p>
+      </section>
+
+    </main>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <h3>Permuta Policial</h3>
+          <p>Plataforma brasileira para conectar agentes de segurança pública. Site independente, sem vínculo governamental.</p>
+        </div>
+        <div>
+          <h3>Links</h3>
+          <ul class="footer-links">
+            <li><a href="https://br.permutapolicial.com.br/help.html">Central de ajuda</a></li>
+            <li><a href="https://br.permutapolicial.com.br/termos.html">Termos de uso</a></li>
+            <li><a href="https://br.permutapolicial.com.br/auth">Criar conta</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© <span id="year"></span> Permuta Policial. Todos os direitos reservados.</span>
+        <span>Conformidade com a LGPD (Lei nº 13.709/2018).</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+
+</body>
+</html>

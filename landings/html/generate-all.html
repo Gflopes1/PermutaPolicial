@@ -1,0 +1,130 @@
+<!-- Script para gerar todos os HTMLs - Execute este arquivo em Node.js ou use como referência -->
+
+<script>
+  // Dados das forças
+  const forces = {
+    pm: {
+      name: 'Polícia Militar',
+      primary: '#1a365d',
+      primaryDark: '#0f2027',
+      primaryLight: '#2d4a6b',
+      secondary: '#4a5568',
+      background: '#f7fafc',
+      headline: 'Para quem vive a rotina do patrulhamento e precisa de equipamentos confiáveis.',
+      whyBenefit: 'Fardamento e acessórios específicos de PM nem sempre são fáceis de achar fora da corporação, e negociar com estranhos em grupos abertos de redes sociais é arriscado. O Permuta Policial reúne PMs com perfil verificado, para comprar e vender direto com quem também veste a fardação — sem intermediário e com mais segurança.',
+      benefits: [
+        'Compra e venda direta entre operadores',
+        'Perfis verificados',
+        'Crescimento orgânico da comunidade (média 4% ao dia — 2 a 8 novos cadastros/dia)',
+        'Mais de 140 usuários ativos e crescendo',
+        'Produtos e conteúdos específicos para PM',
+      ],
+      categories: [
+        { title: 'Fardamento e uniformes', description: 'Uniformes, coturnos e peças de fardamento em bom estado' },
+        { title: 'Acessórios táticos', description: 'Coldres, cintos de guarnição, mochilas e porta-carregadores' },
+        { title: 'Equipamentos de serviço', description: 'Lanternas, apitos, algemas e itens de uso diário na atividade' },
+        { title: 'Material de estudo', description: 'Apostilas, cursos e simulados para concursos e promoções' },
+        { title: 'Itens de coleção', description: 'Distintivos, brevês e itens históricos da corporação' },
+      ],
+    },
+    bm: {
+      name: 'Bombeiros Militares',
+      primary: '#c53030',
+      primaryDark: '#9b2c2c',
+      primaryLight: '#e53e3e',
+      secondary: '#d69e2e',
+      background: '#fffaf0',
+      headline: 'Para quem atua no fogo, resgate e salvamento.',
+      whyBenefit: 'Itens de fardamento e EPIs específicos de Bombeiros Militares costumam ser difíceis de encontrar fora da corporação, e comprar de estranhos em grupos abertos nem sempre é seguro. O Permuta Policial reúne bombeiros com perfil verificado, para negociar direto entre colegas — sem intermediário e com mais confiança.',
+      benefits: [
+        'Compra e venda direta entre operadores',
+        'Perfis verificados',
+        'Crescimento orgânico da comunidade (média 4% ao dia — 2 a 8 novos cadastros/dia)',
+        'Mais de 140 usuários ativos e crescendo',
+        'Produtos e conteúdos específicos para BM',
+      ],
+      categories: [
+        { title: 'Fardamento e uniformes', description: 'Uniformes, botas e peças de fardamento em bom estado' },
+        { title: 'EPIs e equipamentos de resgate', description: 'Luvas, capacetes, cordas e itens de proteção individual' },
+        { title: 'Equipamentos de serviço', description: 'Lanternas, canivetes e ferramentas de uso no dia a dia operacional' },
+        { title: 'Material de estudo', description: 'Apostilas, cursos e simulados para concursos e promoções' },
+        { title: 'Itens de coleção', description: 'Distintivos, brevês e itens históricos da corporação' },
+      ],
+    },
+    pc: {
+      name: 'Polícia Civil',
+      primary: '#1a202c',
+      primaryDark: '#0d1117',
+      primaryLight: '#2d3748',
+      secondary: '#d4af37',
+      background: '#fafafa',
+      headline: 'Para quem investiga, apura e precisa de ferramentas eficientes.',
+      whyBenefit: 'Trajes de identificação e acessórios discretos usados pela Polícia Civil raramente são vendidos em loja comum, e negociar com estranhos em grupos abertos é arriscado. O Permuta Policial reúne agentes com perfil verificado, para comprar e vender direto entre colegas — sem intermediário e com mais segurança.',
+      benefits: [
+        'Compra e venda direta entre operadores',
+        'Perfis verificados',
+        'Crescimento orgânico da comunidade (média 4% ao dia — 2 a 8 novos cadastros/dia)',
+        'Mais de 140 usuários ativos e crescendo',
+        'Produtos e conteúdos específicos para PC',
+      ],
+      categories: [
+        { title: 'Trajes e identificação', description: 'Coletes de identificação, capas de chuva e peças de uso civil' },
+        { title: 'Acessórios operacionais', description: 'Coldres, cintos e porta-carregadores para uso discreto' },
+        { title: 'Equipamentos de serviço', description: 'Lanternas, HDs, gravadores e itens de apoio à investigação' },
+        { title: 'Material de estudo', description: 'Apostilas, cursos e simulados para concursos e promoções' },
+        { title: 'Itens de coleção', description: 'Distintivos, carteiras funcionais antigas e itens históricos' },
+      ],
+    },
+    prf: {
+      name: 'Polícia Rodoviária Federal',
+      primary: '#2c5282',
+      primaryDark: '#1a365d',
+      primaryLight: '#3182ce',
+      secondary: '#d69e2e',
+      background: '#ebf8ff',
+      headline: 'Para quem vive a estrada e precisa de equipamentos de alta confiabilidade.',
+      whyBenefit: 'Fardamento e itens específicos de patrulhamento rodoviário nem sempre são fáceis de achar fora da corporação, e comprar de estranhos em grupos abertos nem sempre é seguro. O Permuta Policial reúne PRFs com perfil verificado, para negociar direto entre colegas — sem intermediário e com mais confiança.',
+      benefits: [
+        'Compra e venda direta entre operadores',
+        'Perfis verificados',
+        'Crescimento orgânico da comunidade (média 4% ao dia — 2 a 8 novos cadastros/dia)',
+        'Mais de 140 usuários ativos e crescendo',
+        'Produtos e conteúdos específicos para PRF',
+      ],
+      categories: [
+        { title: 'Fardamento e uniformes', description: 'Uniformes, botas e peças de fardamento em bom estado' },
+        { title: 'Acessórios táticos', description: 'Coldres, cintos de guarnição e mochilas para plantão' },
+        { title: 'Equipamentos de serviço', description: 'Lanternas, cones, cintas reflexivas e itens de sinalização' },
+        { title: 'Material de estudo', description: 'Apostilas, cursos e simulados para concursos e promoções' },
+        { title: 'Itens de coleção', description: 'Distintivos, brevês e itens históricos da corporação' },
+      ],
+    },
+    pf: {
+      name: 'Polícia Federal',
+      primary: '#744210',
+      primaryDark: '#5a2d0c',
+      primaryLight: '#975a16',
+      secondary: '#d4af37',
+      background: '#fffaf0',
+      headline: 'Para quem atua na proteção federal e busca desempenho e segurança.',
+      whyBenefit: 'Fardamento e acessórios específicos da Polícia Federal raramente são vendidos em loja comum, e negociar com estranhos em grupos abertos é arriscado. O Permuta Policial reúne agentes federais com perfil verificado, para comprar e vender direto entre colegas — sem intermediário e com mais segurança.',
+      benefits: [
+        'Compra e venda direta entre operadores',
+        'Perfis verificados',
+        'Crescimento orgânico da comunidade (média 4% ao dia — 2 a 8 novos cadastros/dia)',
+        'Mais de 140 usuários ativos e crescendo',
+        'Produtos e conteúdos específicos para PF',
+      ],
+      categories: [
+        { title: 'Fardamento e uniformes', description: 'Uniformes, coturnos e peças de fardamento em bom estado' },
+        { title: 'Acessórios táticos', description: 'Coldres, cintos de guarnição e mochilas para operações' },
+        { title: 'Equipamentos de serviço', description: 'Lanternas, luvas e itens de apoio ao trabalho diário' },
+        { title: 'Material de estudo', description: 'Apostilas, cursos e simulados para concursos e promoções' },
+        { title: 'Itens de coleção', description: 'Distintivos, brevês e itens históricos da corporação' },
+      ],
+    },
+  };
+  
+  // Template HTML (será usado para gerar todos)
+  // Veja pm.html como exemplo completo
+  </script>

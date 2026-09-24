@@ -1,0 +1,97 @@
+// /src/modules/analytics/analytics.service.js
+
+const analyticsRepository = require('./analytics.repository');
+
+class AnalyticsService {
+  async registrarEvento(eventData) {
+    await analyticsRepository.createUserEvent(eventData);
+    return { success: true };
+  }
+
+  async registrarPageView(pageViewData) {
+    const pageViewId = await analyticsRepository.createPageView(pageViewData);
+    return { id: pageViewId, success: true };
+  }
+
+  async atualizarTempoPermanencia(pageViewId, tempoSegundos) {
+    await analyticsRepository.updatePageViewDuration(pageViewId, tempoSegundos);
+    return { success: true };
+  }
+
+  async criarOuAtualizarSessao(sessionData) {
+    const sessionId = await analyticsRepository.createOrUpdateSession(sessionData);
+    return { sessionId, success: true };
+  }
+
+  async finalizarSessao(sessaoId, duracaoSegundos) {
+    await analyticsRepository.endSession(sessaoId, duracaoSegundos);
+    return { success: true };
+  }
+
+  async getEstatisticasGerais(dataInicio, dataFim) {
+    return analyticsRepository.getEstatisticasGerais(dataInicio, dataFim);
+  }
+
+  async getPageViewsStats(dataInicio, dataFim) {
+    return analyticsRepository.getPageViewsStats(dataInicio, dataFim);
+  }
+
+  async getEventosPorTipo(dataInicio, dataFim) {
+    return analyticsRepository.getEventosPorTipo(dataInicio, dataFim);
+  }
+
+  async getSessoesStats(dataInicio, dataFim) {
+    return analyticsRepository.getSessoesStats(dataInicio, dataFim);
+  }
+
+  async getAtividadePorHora(dataInicio, dataFim) {
+    return analyticsRepository.getAtividadePorHora(dataInicio, dataFim);
+  }
+
+  async getCrescimentoUsuarios(dataInicio, dataFim, options = {}) {
+    return analyticsRepository.getCrescimentoUsuarios(dataInicio, dataFim, options);
+  }
+
+  async getUsuariosPorEstado() {
+    return analyticsRepository.getUsuariosPorEstado();
+  }
+
+  async getUsuariosPorForcaDetalhado() {
+    return analyticsRepository.getUsuariosPorForcaDetalhado();
+  }
+
+  async getContasAtivas(dataInicio, dataFim, options = {}) {
+    return analyticsRepository.getContasAtivas(dataInicio, dataFim, options);
+  }
+
+  async getMediaKitExport(dataInicio, dataFim) {
+    return analyticsRepository.getMediaKitExport(dataInicio, dataFim);
+  }
+
+  async getResumoAdmin(dataInicio, dataFim, options = {}) {
+    return analyticsRepository.getResumoAdmin(dataInicio, dataFim, options);
+  }
+
+  async getFunilPermuta() {
+    return analyticsRepository.getFunilPermuta();
+  }
+
+  async getDemandaPorMunicipio(filters) {
+    return analyticsRepository.getDemandaPorMunicipio(filters);
+  }
+
+  async getDemandaPorForca() {
+    return analyticsRepository.getDemandaPorForca();
+  }
+
+  async getEngajamentoPermuta(dataInicio, dataFim) {
+    return analyticsRepository.getEngajamentoPermuta(dataInicio, dataFim);
+  }
+
+  async getHistoricoIntencoes(options) {
+    return analyticsRepository.getHistoricoIntencoes(options);
+  }
+}
+
+module.exports = new AnalyticsService();
+

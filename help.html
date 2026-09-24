@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Central de Ajuda — Permuta Policial</title>
+  <meta name="description" content="Guia completo da plataforma Permuta Policial: cadastro, permutas diretas e triangulares, mapa, chat, fórum, marketplace, editais e plano Premium.">
+  <link rel="canonical" href="https://br.permutapolicial.com.br/help.html">
+  <meta property="og:title" content="Central de Ajuda — Permuta Policial">
+  <meta property="og:description" content="Tudo o que você precisa saber para usar a plataforma de permutas para agentes de segurança pública.">
+  <meta property="og:url" content="https://br.permutapolicial.com.br/help.html">
+  <meta property="og:image" content="https://br.permutapolicial.com.br/assets/logo_tatico.png">
+  <link rel="icon" href="https://br.permutapolicial.com.br/assets/logo_tatico.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #1a365d;
+      --primary-dark: #0f1c2e;
+      --primary-light: #2d4a6b;
+      --secondary: #4a5568;
+      --bg: #f7fafc;
+      --text: #1a202c;
+      --muted: #64748b;
+      --card: #ffffff;
+      --border: rgba(15, 28, 46, 0.1);
+      --shadow: 0 4px 24px rgba(15, 28, 46, 0.08);
+      --success: #059669;
+      --warning: #d97706;
+      --danger: #dc2626;
+      --info-bg: #eff6ff;
+      --info-border: #93c5fd;
+      --warn-bg: #fffbeb;
+      --warn-border: #fcd34d;
+      --danger-bg: #fef2f2;
+      --danger-border: #fca5a5;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+    }
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .container { max-width: 1140px; margin: 0 auto; padding: 0 1.25rem; }
+
+    .header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(15, 28, 46, 0.97);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .header-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.75rem 0; gap: 1rem;
+    }
+    .brand { display: flex; align-items: center; gap: 0.75rem; color: #fff; text-decoration: none; }
+    .brand:hover { text-decoration: none; opacity: 0.95; }
+    .brand img { width: 40px; height: 40px; object-fit: contain; }
+    .brand-text strong { display: block; font-size: 0.95rem; font-weight: 700; }
+    .brand-text span { font-size: 0.72rem; color: rgba(255,255,255,0.6); }
+    .header-links { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .header-links a { color: rgba(255,255,255,0.85); font-size: 0.875rem; font-weight: 500; text-decoration: none; }
+    .header-links a:hover { color: #fff; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+      padding: 0.55rem 1.1rem; border-radius: 10px; font-weight: 600; font-size: 0.875rem;
+      border: none; cursor: pointer; text-decoration: none; transition: transform .15s, opacity .15s;
+    }
+    .btn:hover { transform: translateY(-1px); text-decoration: none; }
+    .btn-primary { background: var(--secondary); color: #fff; }
+
+    .page-hero {
+      background: linear-gradient(145deg, var(--primary-dark) 0%, var(--primary) 100%);
+      color: #fff; padding: 2.5rem 0 3rem;
+    }
+    .page-hero h1 { font-size: clamp(1.6rem, 4vw, 2.25rem); font-weight: 800; margin-bottom: 0.5rem; }
+    .page-hero p { color: rgba(255,255,255,0.82); max-width: 620px; }
+    .meta-line { margin-top: 1rem; font-size: 0.82rem; color: rgba(255,255,255,0.6); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 2rem;
+      padding: 2.5rem 0 4rem;
+      align-items: start;
+    }
+
+    .sidebar {
+      position: sticky; top: 5.5rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.25rem;
+      box-shadow: var(--shadow);
+      max-height: calc(100vh - 7rem);
+      overflow-y: auto;
+    }
+    .sidebar h2 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 0.75rem; }
+    .sidebar nav ul { list-style: none; }
+    .sidebar nav li { margin-bottom: 0.15rem; }
+    .sidebar nav a {
+      display: block; padding: 0.4rem 0.6rem; border-radius: 8px;
+      font-size: 0.84rem; font-weight: 500; color: var(--secondary);
+      text-decoration: none; transition: background .15s, color .15s;
+    }
+    .sidebar nav a:hover, .sidebar nav a.active {
+      background: rgba(26, 54, 93, 0.08); color: var(--primary);
+    }
+
+    .content section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.75rem;
+      margin-bottom: 1.25rem;
+      box-shadow: var(--shadow);
+      scroll-margin-top: 5.5rem;
+    }
+    .content h2 {
+      font-size: 1.35rem; font-weight: 800; color: var(--primary-dark);
+      margin-bottom: 0.75rem; padding-bottom: 0.6rem;
+      border-bottom: 2px solid rgba(26, 54, 93, 0.12);
+    }
+    .content h3 { font-size: 1rem; font-weight: 700; color: var(--primary); margin: 1.5rem 0 0.5rem; }
+    .content p, .content li { color: var(--secondary); font-size: 0.925rem; }
+    .content ul, .content ol { padding-left: 1.25rem; margin: 0.5rem 0 0.75rem; }
+    .content li { margin-bottom: 0.4rem; }
+
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .step-card {
+      background: rgba(26, 54, 93, 0.04);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.1rem;
+    }
+    .step-num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--primary); color: #fff;
+      font-size: 0.8rem; font-weight: 700; margin-bottom: 0.5rem;
+    }
+    .step-card strong { display: block; font-size: 0.9rem; color: var(--primary-dark); margin-bottom: 0.25rem; }
+    .step-card p { font-size: 0.82rem; margin: 0; }
+
+    .badge {
+      display: inline-block; background: #ede9fe; color: #6d28d9;
+      font-size: 0.68rem; font-weight: 700; padding: 2px 8px;
+      border-radius: 999px; vertical-align: middle; margin-left: 6px;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .badge-free {
+      background: #d1fae5; color: #047857;
+    }
+
+    code {
+      background: rgba(15, 28, 46, 0.06);
+      color: var(--primary);
+      padding: 2px 6px; border-radius: 4px;
+      font-family: ui-monospace, monospace; font-size: 0.85em;
+    }
+
+    .alert {
+      padding: 1rem 1.15rem; border-radius: 10px;
+      border: 1px solid; margin-top: 1rem; font-size: 0.875rem;
+    }
+    .alert strong { display: block; margin-bottom: 0.25rem; color: inherit; }
+    .alert p { margin: 0; color: inherit; }
+    .alert-info { background: var(--info-bg); border-color: var(--info-border); color: #1e40af; }
+    .alert-warning { background: var(--warn-bg); border-color: var(--warn-border); color: #92400e; }
+    .alert-danger { background: var(--danger-bg); border-color: var(--danger-border); color: #991b1b; }
+
+    table {
+      width: 100%; border-collapse: collapse; margin-top: 0.75rem; font-size: 0.875rem;
+    }
+    th, td { border: 1px solid var(--border); padding: 0.65rem 0.85rem; text-align: left; }
+    th { background: rgba(15, 28, 46, 0.04); color: var(--primary-dark); font-weight: 600; }
+
+    .faq details {
+      border: 1px solid var(--border); border-radius: 10px;
+      margin-bottom: 0.5rem; overflow: hidden;
+    }
+    .faq summary {
+      padding: 0.85rem 1rem; cursor: pointer; font-weight: 600;
+      font-size: 0.9rem; color: var(--primary-dark);
+      list-style: none; display: flex; justify-content: space-between; align-items: center;
+    }
+    .faq summary::-webkit-details-marker { display: none; }
+    .faq summary::after { content: '+'; font-size: 1.1rem; color: var(--muted); }
+    .faq details[open] summary::after { content: '−'; }
+    .faq details p {
+      padding: 0 1rem 1rem; font-size: 0.875rem; color: var(--secondary); margin: 0;
+    }
+
+    .btn-whatsapp {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      background: #25D366; color: #fff; padding: 0.75rem 1.25rem;
+      border-radius: 10px; font-weight: 700; font-size: 0.95rem;
+      text-decoration: none; margin-top: 0.75rem;
+    }
+    .btn-whatsapp:hover { background: #1DAE54; text-decoration: none; color: #fff; }
+
+    .footer {
+      background: var(--primary-dark); color: rgba(255,255,255,0.75);
+      padding: 2.5rem 0 1.5rem; font-size: 0.875rem;
+    }
+    .footer-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 2rem; margin-bottom: 2rem;
+    }
+    .footer h3 { color: #fff; font-size: 0.9rem; margin-bottom: 0.75rem; }
+    .footer-links { list-style: none; }
+    .footer-links li { margin-bottom: 0.4rem; }
+    .footer-links a { color: rgba(255,255,255,0.7); text-decoration: none; }
+    .footer-links a:hover { color: #fff; }
+    .footer-bottom {
+      border-top: 1px solid rgba(255,255,255,0.1);
+      padding-top: 1.25rem; display: flex; flex-wrap: wrap;
+      justify-content: space-between; gap: 0.5rem; font-size: 0.78rem;
+    }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; max-height: none; }
+      .header-links .hide-mobile { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="container header-inner">
+      <a href="https://br.permutapolicial.com.br" class="brand">
+        <img src="https://br.permutapolicial.com.br/assets/logo_tatico.png" alt="Permuta Policial" width="40" height="40">
+        <div class="brand-text">
+          <strong>Permuta Policial</strong>
+          <span>Central de Ajuda</span>
+        </div>
+      </a>
+      <div class="header-links">
+        <a href="https://br.permutapolicial.com.br/termos.html" class="hide-mobile">Termos de Uso</a>
+        <a href="https://br.permutapolicial.com.br/mapa/visitante" class="hide-mobile">Mapa</a>
+        <a href="https://br.permutapolicial.com.br/auth" class="btn btn-primary">Entrar</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="page-hero">
+    <div class="container">
+      <h1>Central de Ajuda</h1>
+      <p>Tudo o que você precisa para cadastrar seu perfil, encontrar permutas compatíveis e usar as ferramentas da plataforma.</p>
+      <p class="meta-line">Última atualização: 16 de setembro de 2025</p>
+    </div>
+  </div>
+
+  <div class="container layout">
+    <aside class="sidebar">
+      <h2>Índice</h2>
+      <nav aria-label="Tópicos da central de ajuda">
+        <ul>
+          <li><a href="#primeiros-passos">Primeiros passos</a></li>
+          <li><a href="#inicio">Como funciona</a></li>
+          <li><a href="#cadastro">Cadastro e login</a></li>
+          <li><a href="#perfil">Perfil e privacidade</a></li>
+          <li><a href="#intencoes">Intenções de permuta</a></li>
+          <li><a href="#permutas">Ambiente de permutas</a></li>
+          <li><a href="#permutas-inteligentes">Permutas inteligentes</a></li>
+          <li><a href="#chat">Mensagens (chat)</a></li>
+          <li><a href="#notificacoes">Notificações</a></li>
+          <li><a href="#mapa">Mapa de exploração</a></li>
+          <li><a href="#mapa-tatico">Mapa tático</a></li>
+          <li><a href="#forum">Fórum</a></li>
+          <li><a href="#marketplace">Marketplace</a></li>
+          <li><a href="#editais">Hub de editais</a></li>
+          <li><a href="#questoes">Questões e simulados</a></li>
+          <li><a href="#gestor-horas">Gestor de horas</a></li>
+          <li><a href="#premium">Plano Premium</a></li>
+          <li><a href="#faq">Perguntas frequentes</a></li>
+          <li><a href="#contato">Suporte</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <main class="content">
+
+      <section id="primeiros-passos">
+        <h2>Primeiros passos</h2>
+        <p>Se você acabou de chegar, siga esta sequência para começar a receber matches:</p>
+        <div class="steps-grid">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <strong>Crie sua conta</strong>
+            <p>Use e-mail institucional ou login Microsoft/Google para agilizar a verificação.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <strong>Complete o perfil</strong>
+            <p>Informe força policial, posto, lotação atual e QSO em "Meus Dados".</p>
+          </div>
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <strong>Cadastre intenções</strong>
+            <p>Registre até 3 destinos desejados, do mais específico ao mais amplo.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-num">4</div>
+            <strong>Veja seus matches</strong>
+            <p>Acesse "Ambiente de Permutas" e entre em contato com colegas compatíveis.</p>
+          </div>
+        </div>
+        <div class="alert alert-info">
+          <strong>Dica</strong>
+          Sem lotação atual e intenções cadastradas, o sistema não consegue cruzar dados para encontrar permutas para você.
+        </div>
+      </section>
+
+      <section id="inicio">
+        <h2>Como funciona?</h2>
+        <p>O Permuta Policial conecta agentes de segurança pública que desejam trocar de lotação, além de oferecer ferramentas complementares para o dia a dia profissional.</p>
+        <p>O núcleo de permutas se baseia em duas informações:</p>
+        <ul>
+          <li><strong>Seu perfil:</strong> onde você está lotado <em>agora</em>.</li>
+          <li><strong>Suas intenções:</strong> para onde você <em>deseja ir</em>.</li>
+        </ul>
+        <p>O sistema cruza essas informações continuamente. Quando encontra compatibilidade, gera um match — direto, triangular ou em cadeias maiores. A plataforma também oferece chat, mapas, fórum, marketplace, simulador de editais, questões para estudo e gestão de escalas.</p>
+        <div class="alert alert-warning">
+          <strong>Importante</strong>
+          A plataforma facilita o contato entre colegas. A negociação e os trâmites administrativos oficiais da permuta são de responsabilidade dos agentes envolvidos.
+        </div>
+      </section>
+
+      <section id="cadastro">
+        <h2>Cadastro e login</h2>
+        <p>A plataforma é um ambiente restrito e profissional, destinado a agentes de segurança pública em serviço ativo.</p>
+        <h3>Formas de acesso</h3>
+        <ul>
+          <li><strong>E-mail e senha:</strong> o cadastro é validado se o domínio do seu e-mail (ex.: <code>@pc.rs.gov.br</code>) estiver na lista de domínios permitidos.</li>
+          <li><strong>Login com Google:</strong> método rápido de acesso.</li>
+          <li><strong>Login com Microsoft (recomendado):</strong> preferencial para quem possui e-mail funcional (ex.: <code>@bm.rs.gov.br</code>, <code>@policiacivil.sp.gov.br</code>), pois agiliza a verificação.</li>
+        </ul>
+        <p>Após o cadastro, pode ser necessário confirmar o e-mail. Se esquecer a senha, use "Esqueceu a senha?" na tela de login.</p>
+        <p>Ao se cadastrar, você concorda com os <a href="/termos.html">Termos de Uso</a>.</p>
+      </section>
+
+      <section id="perfil">
+        <h2>Perfil e privacidade</h2>
+        <p>Preencha sua lotação atual em "Meus Dados":</p>
+        <ul>
+          <li><strong>ID funcional / matrícula:</strong> número de identificação na corporação.</li>
+          <li><strong>QSO (telefone):</strong> contato com DDD.</li>
+          <li><strong>Força policial:</strong> instituição à qual você pertence (ex.: PMRS, PCRS, PMPR).</li>
+          <li><strong>Lotação atual:</strong> estado, município e unidade.</li>
+          <li><strong>Posto / graduação:</strong> cargo atual (ex.: Soldado, Sargento, Investigador).</li>
+          <li><strong>Permuta interestadual:</strong> marque se tem autorização e deseja permutar com agentes de outros estados da mesma força.</li>
+        </ul>
+        <div class="alert alert-info">
+          <strong>Não encontrou sua unidade?</strong>
+          Após preencher estado e município, use "Não encontrou a unidade?" para sugerir uma nova unidade.
+        </div>
+
+        <h3>Proteção de dados</h3>
+        <p>Na tela "Minha Lotação", ative <strong>"Proteção de Dados"</strong> para:</p>
+        <ol>
+          <li>Ocultar seu perfil no Mapa de Exploração.</li>
+          <li>Impedir que seu QSO seja compartilhado automaticamente em matches — o colega deve enviar uma "Solicitação de Contato" via chat.</li>
+        </ol>
+      </section>
+
+      <section id="intencoes">
+        <h2>Intenções de permuta</h2>
+        <p>Registre para onde deseja ir. Você pode cadastrar até <strong>3 intenções</strong>, em ordem de prioridade:</p>
+        <ul>
+          <li><strong>Estado:</strong> interesse em qualquer cidade de um estado.</li>
+          <li><strong>Município:</strong> interesse em qualquer unidade de uma cidade.</li>
+          <li><strong>Unidade específica:</strong> destino exato (ex.: 4º BPM de Florianópolis - SC).</li>
+        </ul>
+        <p>Quanto mais intenções você registrar — e quanto mais específicas forem —, maiores as chances de encontrar um match.</p>
+      </section>
+
+      <section id="permutas">
+        <h2>Ambiente de permutas (matches)</h2>
+        <p>No painel principal, acesse <strong>"Ambiente de Permutas"</strong>. Os resultados são divididos em:</p>
+
+        <h3>1. Permutas diretas</h3>
+        <p>O match ideal: outro agente está lotado onde você quer ir e deseja ir para onde você está.</p>
+
+        <h3>2. Permutas triangulares</h3>
+        <p>Combinação de três agentes em cadeia:</p>
+        <ul>
+          <li>Você (A) quer o local do <strong>Agente B</strong>.</li>
+          <li>O <strong>Agente B</strong> quer o local do <strong>Agente C</strong>.</li>
+          <li>O <strong>Agente C</strong> quer o seu local (A).</li>
+        </ul>
+
+        <h3>3. Interessados</h3>
+        <p>Agentes que registraram intenção de ir para a sua lotação, mesmo que você não tenha interesse no local deles. Oportunidade para negociar.</p>
+
+        <h3>Privacidade e contato</h3>
+        <ul>
+          <li><strong>Proteção desativada:</strong> o QSO do colega aparece ao clicar no ícone de contato.</li>
+          <li><strong>Proteção ativada:</strong> aparece "Solicitar Contato". O colega recebe notificação e decide se responde.</li>
+        </ul>
+      </section>
+
+      <section id="permutas-inteligentes">
+        <h2>Permutas inteligentes <span class="badge">Beta</span></h2>
+        <p>Recurso experimental com motor gráfico avançado para descobrir ciclos de permuta além dos matches tradicionais:</p>
+        <ul>
+          <li>Visualização em mapa neural interativo.</li>
+          <li>Detecção de ciclos N-way (cadeias com mais de três participantes).</li>
+          <li>Score heurístico de compatibilidade entre intenções.</li>
+        </ul>
+        <div class="alert alert-warning">
+          <strong>Em desenvolvimento</strong>
+          Resultados indicativos. Não substituem negociação direta nem trâmites administrativos oficiais.
+        </div>
+      </section>
+
+      <section id="chat">
+        <h2>Mensagens (chat)</h2>
+        <p>Negocie permutas ou trate de anúncios do marketplace de forma privada, sem expor seu número imediatamente.</p>
+        <ul>
+          <li>Conversas em tempo real com indicador "digitando...".</li>
+          <li>Contador de mensagens não lidas no painel.</li>
+          <li>Histórico completo de conversas.</li>
+        </ul>
+        <div class="alert alert-info">
+          <strong>Privacidade no chat</strong>
+          Com "Proteção de Dados" ativa, seu nome aparece como <strong>"Agente Protegido"</strong> até que você responda à conversa, aceitando o contato.
+        </div>
+      </section>
+
+      <section id="notificacoes">
+        <h2>Notificações</h2>
+        <p>O ícone de sino centraliza as atualizações:</p>
+        <ul>
+          <li>Novos matches (diretos ou triangulares).</li>
+          <li>Novas mensagens de chat.</li>
+          <li>Solicitações de contato (com privacidade ativa).</li>
+          <li>Respostas em tópicos do fórum que você criou ou segue.</li>
+          <li>Convites e eventos do Mapa Tático (quando aplicável).</li>
+        </ul>
+      </section>
+
+      <section id="mapa">
+        <h2>Mapa de exploração</h2>
+        <p>Ferramenta visual para ver a "temperatura" das permutas no Brasil. Disponível em modo visitante (sem login).</p>
+        <ul>
+          <li><strong>Saindo (vermelho):</strong> agentes que querem <strong>sair</strong> daquele município.</li>
+          <li><strong>Vindo (azul):</strong> agentes com intenção de <strong>ir</strong> para aquele município.</li>
+          <li><strong>Balanço:</strong> saldo (Vindo − Saindo). Verde = mais demanda de entrada; laranja/vermelho = mais demanda de saída.</li>
+        </ul>
+        <p>Filtre por força policial e explore detalhes por município em <a href="https://br.permutapolicial.com.br/mapa/visitante">Mapa Visitante</a>.</p>
+        <div class="alert alert-warning">
+          <strong>Privacidade</strong>
+          Com "Proteção de Dados" ativa, você não aparece no mapa.
+        </div>
+      </section>
+
+      <section id="mapa-tatico">
+        <h2>Mapa tático <span class="badge">Beta</span></h2>
+        <p>Mapa colaborativo para equipes operacionais, com pontos georreferenciados, grupos privados e o Mapa Nacional Colaborativo.</p>
+
+        <h3>Camadas</h3>
+        <ul>
+          <li><strong>Operacional:</strong> ocorrências recentes, suspeitos, locais de interesse e pontos de saúde.</li>
+          <li><strong>Logística:</strong> restaurantes, padarias, bases e pontos de saúde.</li>
+          <li><strong>Nacional:</strong> hospitais, UBS, UPAs, delegacias, postos, clubes de tiro, unidades PM e parceiros.</li>
+        </ul>
+
+        <h3>Grupos e colaboração</h3>
+        <ul>
+          <li>Crie grupos privados ou participe do Mapa Nacional Colaborativo.</li>
+          <li>Convide colegas por e-mail; moderadores gerenciam membros.</li>
+          <li>Compartilhe localização em tempo real (opcional).</li>
+          <li>Adicione pontos com toque longo; anexe fotos quando disponível.</li>
+        </ul>
+
+        <div class="alert alert-warning">
+          <strong>Uso responsável</strong>
+          Não publique dados sigilosos de operações, informações pessoais de terceiros ou conteúdo que viole normas institucionais ou a legislação vigente.
+        </div>
+      </section>
+
+      <section id="forum">
+        <h2>Fórum da comunidade</h2>
+        <p>Espaço de discussão exclusivo para agentes cadastrados:</p>
+        <ul>
+          <li>Debater assuntos da carreira e da rotina policial.</li>
+          <li>Trocar experiências com colegas de outras unidades e estados.</li>
+          <li>Criar tópicos, responder postagens e curtir conteúdos.</li>
+        </ul>
+        <p>Seu <strong>nome e posto/graduação</strong> são visíveis nas postagens. Respeite os <a href="/termos.html">Termos de Uso</a>.</p>
+      </section>
+
+      <section id="marketplace">
+        <h2>Marketplace (classificados)</h2>
+        <p>Área interna para compra e venda de itens de interesse profissional:</p>
+        <ul>
+          <li>Equipamentos táticos, veículos, armamentos e outros itens.</li>
+          <li>Upload de múltiplas fotos por anúncio.</li>
+          <li>Anúncios passam por aprovação antes de serem publicados.</li>
+        </ul>
+        <div class="alert alert-info">
+          <strong>Contato</strong>
+          Ao criar um anúncio, seu <strong>nome e QSO</strong> ficam visíveis, ou o interessado pode iniciar um chat.
+        </div>
+        <div class="alert alert-danger">
+          <strong>Responsabilidade</strong>
+          A plataforma atua <strong>apenas</strong> como facilitador. Transações de itens controlados (armamentos, munições etc.) são de responsabilidade exclusiva dos usuários, que devem seguir a legislação vigente e regulamentos de suas corporações.
+        </div>
+      </section>
+
+      <section id="editais">
+        <h2>Hub de editais</h2>
+        <p>Central de editais de <strong>formação</strong> e <strong>transferência interna</strong>, com simulador de escolha de vagas.</p>
+        <h3>Como usar</h3>
+        <ol>
+          <li>Acesse "Hub de Editais" no painel.</li>
+          <li>Consulte editais abertos ou encerrados, filtrados por força e tipo.</li>
+          <li>Abra o edital para ver detalhes, prazo, critério de prioridade e link do PDF.</li>
+          <li>Se constar na lista de participantes, use o <strong>simulador</strong> para escolher até 3 opções e analisar a concorrência.</li>
+        </ol>
+        <div class="alert alert-warning">
+          <strong>Simulação estatística</strong>
+          Os resultados dependem dos dados inseridos pelos participantes e servem apenas como referência. A plataforma não garante o resultado real do edital.
+        </div>
+      </section>
+
+      <section id="questoes">
+        <h2>Questões e simulados</h2>
+        <p>Módulo de estudo com banco de questões, simulados personalizados e modo prática.</p>
+        <table>
+          <thead>
+            <tr><th>Recurso</th><th>Grátis</th><th>Premium</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Modo prática (questões/dia)</td><td>10</td><td>Ilimitado</td></tr>
+            <tr><td>Questões por simulado</td><td>Até 10</td><td>Até 120</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="gestor-horas">
+        <h2>Gestor de horas e soldo</h2>
+        <p>Ferramenta para registrar escalas e estimar o soldo mensal:</p>
+        <ul>
+          <li><strong>Calendário:</strong> dias de trabalho, intervalos e etapas de alimentação.</li>
+          <li><strong>Presets:</strong> templates (6h, 8h, 12×36) ou personalizados.</li>
+          <li><strong>Cálculo automático:</strong> horas extras, descontos e salário líquido estimado.</li>
+          <li><strong>Exportação:</strong> relatório mensal em PDF.</li>
+        </ul>
+        <div class="alert alert-info">
+          <strong>Atenção</strong>
+          Valores calculados são estimativas. Confira sempre com a folha oficial da sua corporação.
+        </div>
+      </section>
+
+      <section id="premium">
+        <h2>Plano Premium</h2>
+        <p>Assinatura de <strong>R$ 11,90/mês</strong> via Mercado Pago. Permutas, chat, mapa, fórum, marketplace e gestor de horas permanecem <span class="badge badge-free">Grátis</span>.</p>
+        <h3>Benefícios Premium</h3>
+        <ul>
+          <li>Modo prática ilimitado.</li>
+          <li>Simulados avançados com até 120 questões.</li>
+          <li>Sem limites diários no módulo de questões.</li>
+        </ul>
+        <h3>Como assinar</h3>
+        <ol>
+          <li>Ao atingir um limite do plano grátis, o app exibe o modal Premium.</li>
+          <li>Clique em "Assinar Agora" para ir ao Mercado Pago.</li>
+          <li>Após o pagamento, o Premium é ativado automaticamente.</li>
+        </ol>
+        <p>Cancelamento a qualquer momento pelo Mercado Pago.</p>
+      </section>
+
+      <section id="faq" class="faq">
+        <h2>Perguntas frequentes</h2>
+
+        <details>
+          <summary>A plataforma garante que minha permuta vai acontecer?</summary>
+          <p>Não. O Permuta Policial é um facilitador de conexões entre colegas. A efetivação depende de negociação, autorização da corporação e trâmites administrativos oficiais.</p>
+        </details>
+
+        <details>
+          <summary>Posso usar sem expor meu telefone?</summary>
+          <p>Sim. Ative "Proteção de Dados" em "Minha Lotação". Seu QSO não será compartilhado automaticamente e colegas precisarão solicitar contato via chat.</p>
+        </details>
+
+        <details>
+          <summary>Quem pode se cadastrar?</summary>
+          <p>Agentes de segurança pública em serviço ativo, com verificação por e-mail institucional ou login Microsoft/Google. Civis, aposentados e exonerados não podem usar a plataforma.</p>
+        </details>
+
+        <details>
+          <summary>O que é permuta triangular?</summary>
+          <p>Quando três agentes formam uma cadeia: A quer ir para onde B está, B quer ir para onde C está, e C quer ir para onde A está. Todos trocam simultaneamente.</p>
+        </details>
+
+        <details>
+          <summary>Preciso pagar para usar permutas?</summary>
+          <p>Não. Permutas, chat, mapa, fórum, marketplace e gestor de horas são gratuitos. Apenas o módulo de questões e simulados tem limites no plano grátis.</p>
+        </details>
+
+        <details>
+          <summary>Como reporto um problema ou sugestão?</summary>
+          <p>Entre em contato pelo WhatsApp na seção <a href="#contato">Suporte</a> abaixo. Este é um projeto de um colega policial para colegas, e seu feedback é muito bem-vindo.</p>
+        </details>
+      </section>
+
+      <section id="contato">
+        <h2>Suporte</h2>
+        <p>Encontrou um bug, tem uma sugestão ou dúvida que não está neste guia? Fale conosco:</p>
+        <a href="https://wa.me/555186200626" target="_blank" rel="noopener" class="btn-whatsapp">
+          Falar no WhatsApp
+        </a>
+        <p style="margin-top:1rem;font-size:0.85rem;color:var(--muted);">
+          Consulte também os <a href="/termos.html">Termos de Uso</a> para regras de conduta e responsabilidades.
+        </p>
+      </section>
+
+    </main>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <h3>Permuta Policial</h3>
+          <p>Plataforma brasileira para conectar agentes de segurança pública e viabilizar permutas de forma mais rápida e inteligente.</p>
+        </div>
+        <div>
+          <h3>Links</h3>
+          <ul class="footer-links">
+            <li><a href="https://br.permutapolicial.com.br/auth">Criar conta</a></li>
+            <li><a href="https://br.permutapolicial.com.br/mapa/visitante">Mapa visitante</a></li>
+            <li><a href="https://br.permutapolicial.com.br/termos.html">Termos de uso</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© <span id="year"></span> Permuta Policial. Todos os direitos reservados.</span>
+        <span>Site independente, sem vínculo governamental.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    const sections = document.querySelectorAll('.content section[id]');
+    const navLinks = document.querySelectorAll('.sidebar nav a');
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          navLinks.forEach((link) => {
+            link.classList.toggle('active', link.getAttribute('href') === '#' + entry.target.id);
+          });
+        }
+      });
+    }, { rootMargin: '-30% 0px -60% 0px' });
+
+    sections.forEach((section) => observer.observe(section));
+  </script>
+
+</body>
+</html>

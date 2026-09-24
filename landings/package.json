@@ -1,0 +1,35 @@
+{
+  "name": "permuta-policial-landings",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "build:safe": "NODE_OPTIONS='--max-old-space-size=2048' next build",
+    "start": "next start -p 3001",
+    "start:prod": "next start -p 3001",
+    "build:start": "npm run build && npm run start:prod",
+    "build:start:safe": "npm run build:safe && npm run start:prod",
+    "lint": "next lint",
+    "generate:sitemap": "node scripts/generate-sitemap.js",
+    "generate:html": "node html/generate-html.js",
+    "generate:all": "npm run generate:html && npm run generate:sitemap"
+  },
+  "dependencies": {
+    "next": "^14.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "autoprefixer": "^10.4.16",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.33",
+    "postcss": "^8.4.31",
+    "tailwindcss": "^3.3.5",
+    "typescript": "^5.2.2"
+  }
+}
+

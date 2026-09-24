@@ -1,0 +1,7 @@
+-- Migration: Seed códigos de indicação para usuários existentes
+-- Data: 2026-03-10
+-- Descrição: Execute o script Node após create_referral_tables.sql
+--
+--   cd backend_js && node scripts/seed-referral-codes.js
+--
+-- Códigos também são gerados automaticamente no primeiro GET /api/referral/me.

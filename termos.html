@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Termos de Uso — Permuta Policial</title>
+  <meta name="description" content="Termos de Uso da plataforma Permuta Policial: elegibilidade, conduta, privacidade, responsabilidades e regras dos módulos da plataforma.">
+  <link rel="canonical" href="https://br.permutapolicial.com.br/termos.html">
+  <meta property="og:title" content="Termos de Uso — Permuta Policial">
+  <meta property="og:description" content="Regras de uso da plataforma de permutas para agentes de segurança pública.">
+  <meta property="og:url" content="https://br.permutapolicial.com.br/termos.html">
+  <meta property="og:image" content="https://br.permutapolicial.com.br/assets/logo_tatico.png">
+  <link rel="icon" href="https://br.permutapolicial.com.br/assets/logo_tatico.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #1a365d;
+      --primary-dark: #0f1c2e;
+      --secondary: #4a5568;
+      --bg: #f7fafc;
+      --text: #1a202c;
+      --muted: #64748b;
+      --card: #ffffff;
+      --border: rgba(15, 28, 46, 0.1);
+      --shadow: 0 4px 24px rgba(15, 28, 46, 0.08);
+      --info-bg: #eff6ff;
+      --info-border: #93c5fd;
+      --warn-bg: #fffbeb;
+      --warn-border: #fcd34d;
+      --danger-bg: #fef2f2;
+      --danger-border: #fca5a5;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+    }
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .container { max-width: 1140px; margin: 0 auto; padding: 0 1.25rem; }
+
+    .header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(15, 28, 46, 0.97);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .header-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.75rem 0; gap: 1rem;
+    }
+    .brand { display: flex; align-items: center; gap: 0.75rem; color: #fff; text-decoration: none; }
+    .brand:hover { text-decoration: none; opacity: 0.95; }
+    .brand img { width: 40px; height: 40px; object-fit: contain; }
+    .brand-text strong { display: block; font-size: 0.95rem; font-weight: 700; }
+    .brand-text span { font-size: 0.72rem; color: rgba(255,255,255,0.6); }
+    .header-links { display: flex; align-items: center; gap: 1rem; }
+    .header-links a { color: rgba(255,255,255,0.85); font-size: 0.875rem; font-weight: 500; text-decoration: none; }
+    .header-links a:hover { color: #fff; }
+    .btn {
+      display: inline-flex; align-items: center; padding: 0.55rem 1.1rem;
+      border-radius: 10px; font-weight: 600; font-size: 0.875rem;
+      background: var(--secondary); color: #fff; text-decoration: none;
+    }
+    .btn:hover { text-decoration: none; opacity: 0.95; }
+
+    .page-hero {
+      background: linear-gradient(145deg, var(--primary-dark) 0%, var(--primary) 100%);
+      color: #fff; padding: 2.5rem 0 3rem;
+    }
+    .page-hero h1 { font-size: clamp(1.6rem, 4vw, 2.25rem); font-weight: 800; margin-bottom: 0.5rem; }
+    .page-hero p { color: rgba(255,255,255,0.82); max-width: 680px; }
+    .meta-line { margin-top: 1rem; font-size: 0.82rem; color: rgba(255,255,255,0.6); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 2rem;
+      padding: 2.5rem 0 4rem;
+      align-items: start;
+    }
+
+    .sidebar {
+      position: sticky; top: 5.5rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.25rem;
+      box-shadow: var(--shadow);
+      max-height: calc(100vh - 7rem);
+      overflow-y: auto;
+    }
+    .sidebar h2 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 0.75rem; }
+    .sidebar nav ul { list-style: none; }
+    .sidebar nav a {
+      display: block; padding: 0.4rem 0.6rem; border-radius: 8px;
+      font-size: 0.84rem; font-weight: 500; color: var(--secondary);
+      text-decoration: none;
+    }
+    .sidebar nav a:hover { background: rgba(26, 54, 93, 0.08); color: var(--primary); }
+
+    .content section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.75rem;
+      margin-bottom: 1.25rem;
+      box-shadow: var(--shadow);
+      scroll-margin-top: 5.5rem;
+    }
+    .content h2 {
+      font-size: 1.35rem; font-weight: 800; color: var(--primary-dark);
+      margin-bottom: 0.75rem; padding-bottom: 0.6rem;
+      border-bottom: 2px solid rgba(26, 54, 93, 0.12);
+    }
+    .content h3 { font-size: 1rem; font-weight: 700; color: var(--primary); margin: 1.5rem 0 0.5rem; }
+    .content p, .content li { color: var(--secondary); font-size: 0.925rem; }
+    .content ul, .content ol { padding-left: 1.25rem; margin: 0.5rem 0 0.75rem; }
+    .content li { margin-bottom: 0.4rem; }
+
+    .summary-box {
+      background: rgba(26, 54, 93, 0.05);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 0;
+    }
+    .summary-box ul { margin-bottom: 0; }
+    .summary-box li { font-size: 0.875rem; }
+
+    .alert {
+      padding: 1rem 1.15rem; border-radius: 10px;
+      border: 1px solid; margin-top: 1rem; font-size: 0.875rem;
+    }
+    .alert strong { display: block; margin-bottom: 0.25rem; }
+    .alert p { margin: 0.35rem 0 0; }
+    .alert-info { background: var(--info-bg); border-color: var(--info-border); color: #1e40af; }
+    .alert-warning { background: var(--warn-bg); border-color: var(--warn-border); color: #92400e; }
+    .alert-danger { background: var(--danger-bg); border-color: var(--danger-border); color: #991b1b; }
+
+    .btn-whatsapp {
+      display: inline-flex; align-items: center;
+      background: #25D366; color: #fff; padding: 0.75rem 1.25rem;
+      border-radius: 10px; font-weight: 700; font-size: 0.95rem;
+      text-decoration: none; margin-top: 0.75rem;
+    }
+    .btn-whatsapp:hover { background: #1DAE54; text-decoration: none; color: #fff; }
+
+    .footer {
+      background: var(--primary-dark); color: rgba(255,255,255,0.75);
+      padding: 2.5rem 0 1.5rem; font-size: 0.875rem;
+    }
+    .footer-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 2rem; margin-bottom: 2rem;
+    }
+    .footer h3 { color: #fff; font-size: 0.9rem; margin-bottom: 0.75rem; }
+    .footer-links { list-style: none; }
+    .footer-links li { margin-bottom: 0.4rem; }
+    .footer-links a { color: rgba(255,255,255,0.7); text-decoration: none; }
+    .footer-links a:hover { color: #fff; }
+    .footer-bottom {
+      border-top: 1px solid rgba(255,255,255,0.1);
+      padding-top: 1.25rem; display: flex; flex-wrap: wrap;
+      justify-content: space-between; gap: 0.5rem; font-size: 0.78rem;
+    }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; max-height: none; }
+      .header-links .hide-mobile { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="container header-inner">
+      <a href="https://br.permutapolicial.com.br" class="brand">
+        <img src="https://br.permutapolicial.com.br/assets/logo_tatico.png" alt="Permuta Policial" width="40" height="40">
+        <div class="brand-text">
+          <strong>Permuta Policial</strong>
+          <span>Termos de Uso</span>
+        </div>
+      </a>
+      <div class="header-links">
+        <a href="https://br.permutapolicial.com.br/help.html" class="hide-mobile">Central de Ajuda</a>
+        <a href="https://br.permutapolicial.com.br/auth" class="btn">Entrar</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="page-hero">
+    <div class="container">
+      <h1>Termos de Uso</h1>
+      <p>Regras que regem o acesso e uso da plataforma Permuta Policial. Ao criar uma conta ou utilizar os serviços, você concorda com estes termos.</p>
+      <p class="meta-line">Última atualização: 16 de setembro de 2025</p>
+    </div>
+  </div>
+
+  <div class="container layout">
+    <aside class="sidebar">
+      <h2>Índice</h2>
+      <nav aria-label="Seções dos termos">
+        <ul>
+          <li><a href="#resumo">Resumo</a></li>
+          <li><a href="#elegibilidade">1. Elegibilidade</a></li>
+          <li><a href="#conduta">2. Conduta</a></li>
+          <li><a href="#servico">3. Serviços</a></li>
+          <li><a href="#privacidade">4. Privacidade</a></li>
+          <li><a href="#propriedade">5. Propriedade intelectual</a></li>
+          <li><a href="#rescisao">6. Rescisão</a></li>
+          <li><a href="#lei">7. Lei aplicável</a></li>
+          <li><a href="#contato">8. Contato</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <main class="content">
+
+      <section id="resumo">
+        <h2>Resumo</h2>
+        <div class="summary-box">
+          <ul>
+            <li><strong>Público:</strong> agentes de segurança pública em serviço ativo, verificados por e-mail institucional.</li>
+            <li><strong>Papel da plataforma:</strong> facilitador de conexões — não garante permutas nem é parte em negociações.</li>
+            <li><strong>Seus dados:</strong> você controla a visibilidade com "Proteção de Dados". Não vendemos dados pessoais.</li>
+            <li><strong>Conteúdo gerado por usuários:</strong> fórum, marketplace e mapa tático são de responsabilidade de quem publica.</li>
+            <li><strong>Premium:</strong> assinatura opcional (R$ 11,90/mês) apenas para questões e simulados. Demais módulos são gratuitos.</li>
+            <li><strong>Violações:</strong> perfis falsos, assédio ou uso abusivo podem resultar em suspensão ou banimento.</li>
+          </ul>
+        </div>
+        <p style="margin-top:1rem;">Se você não concordar com qualquer parte destes Termos, não deve acessar ou usar a plataforma. Para instruções de uso, consulte a <a href="/help.html">Central de Ajuda</a>.</p>
+      </section>
+
+      <section id="elegibilidade">
+        <h2>1. Elegibilidade e acesso à conta</h2>
+        <p>O Permuta Policial é uma rede profissional voltada a agentes de segurança pública.</p>
+        <ul>
+          <li><strong>Elegibilidade:</strong> uso destinado a agentes em serviço ativo. Não é permitido o uso por civis, aposentados ou exonerados.</li>
+          <li><strong>Cadastro:</strong> você concorda em fornecer informações verdadeiras, precisas e completas (nome, e-mail, ID funcional, força policial, posto/graduação e QSO).</li>
+          <li><strong>Verificação:</strong> empregamos esforços para restringir o acesso via e-mails funcionais ou validação de domínios institucionais. Reservamo-nos o direito de verificar a autenticidade; contas não verificadas ou com dados falsos poderão ser suspensas ou excluídas.</li>
+          <li><strong>Segurança:</strong> você é responsável por manter a confidencialidade de sua senha e por todas as atividades em sua conta.</li>
+        </ul>
+      </section>
+
+      <section id="conduta">
+        <h2>2. Conduta do usuário</h2>
+        <p>Você concorda em <strong>não</strong> utilizar o serviço para:</p>
+        <ul>
+          <li>Fornecer informações falsas em perfil, intenções de permuta ou pontos no Mapa Tático.</li>
+          <li>Criar conta em nome de terceiros.</li>
+          <li>Assediar, ameaçar ou intimidar outros usuários.</li>
+          <li>Publicar conteúdo ilegal, odioso, difamatório, pornográfico ou que incite violência.</li>
+          <li>Divulgar o QSO de outros usuários fora da plataforma sem consentimento explícito.</li>
+          <li>Contornar o sistema de "Solicitação de Contato" ou usar o chat para assediar usuários protegidos.</li>
+          <li>Publicar no Mapa Tático dados sigilosos de operações ou informações pessoais de terceiros.</li>
+          <li>Tentar acesso não autorizado a sistemas ou dados de outros usuários.</li>
+          <li>Usar Fórum ou Marketplace para spam, links maliciosos ou fins comerciais não autorizados.</li>
+          <li>Manipular simuladores de editais ou inserir dados falsos que prejudiquem participantes.</li>
+        </ul>
+        <div class="alert alert-danger">
+          <strong>Informação crítica</strong>
+          ID funcional e lotação atual são dados centrais do sistema. Informações deliberadamente falsas prejudicam todos os usuários e resultarão em banimento permanente.
+        </div>
+      </section>
+
+      <section id="servico">
+        <h2>3. Descrição dos serviços e isenção de responsabilidade</h2>
+
+        <h3>3.1. Plataforma de conexão (permutas)</h3>
+        <p>O Permuta Policial atua como <strong>facilitador de conexões</strong>. Não somos parte em negociações, não garantimos a realização de permutas e não temos afiliação ou poder administrativo sobre instituições de segurança pública.</p>
+        <p>Toda negociação e trâmite administrativo, legal ou burocrático para efetivar uma permuta é de inteira e exclusiva responsabilidade dos agentes envolvidos.</p>
+
+        <h3>3.2. Permutas inteligentes (Beta)</h3>
+        <div class="alert alert-warning">
+          <strong>Recurso experimental</strong>
+          Resultados (ciclos N-way, scores heurísticos e visualizações) são indicativos e não constituem garantia de viabilidade administrativa ou legal.
+        </div>
+
+        <h3>3.3. Hub de editais e simulador</h3>
+        <p>O Hub reúne editais de formação e transferência interna. O simulador é uma ferramenta de <strong>simulação estatística</strong>:</p>
+        <ul>
+          <li>Análises dependem dos dados inseridos pelos participantes.</li>
+          <li>A plataforma não garante precisão nem o resultado real de editais.</li>
+          <li>O resultado oficial é determinado pela corporação responsável.</li>
+          <li>Acesso ao simulador exige conta verificada e inclusão na lista de participantes.</li>
+        </ul>
+
+        <h3>3.4. Mapa tático (Beta)</h3>
+        <p>Serviço colaborativo de georreferenciamento para equipes operacionais:</p>
+        <ul>
+          <li>Pontos, comentários, fotos e localizações são conteúdo gerado pelos usuários.</li>
+          <li>A plataforma não verifica veracidade, legalidade ou atualidade das informações.</li>
+          <li>Moderadores de grupo e da plataforma podem remover conteúdo inadequado.</li>
+          <li>Compartilhamento de localização em tempo real é opcional e de responsabilidade do usuário.</li>
+        </ul>
+
+        <h3>3.5. Fórum</h3>
+        <p>Todo o conteúdo (opiniões, conselhos, informações) é gerado exclusivamente pelos usuários e não representa a opinião ou endosso do Permuta Policial. Você é o único responsável por suas postagens.</p>
+
+        <h3>3.6. Marketplace (classificados)</h3>
+        <ul>
+          <li>O Permuta Policial <strong>não é parte</strong> em transações.</li>
+          <li>Atuamos apenas como plataforma que exibe anúncios, sujeitos a aprovação.</li>
+          <li>Não verificamos condição, qualidade, veracidade ou legalidade dos itens.</li>
+          <li>Negociações são <strong>P2P</strong>, por conta e risco dos usuários.</li>
+        </ul>
+        <div class="alert alert-danger">
+          <strong>Itens controlados</strong>
+          <p>Negociações de armamentos, munições, coletes balísticos, veículos ou itens sujeitos a controle legal são de <strong>inteira responsabilidade dos usuários</strong>, que devem cumprir toda legislação aplicável (Estatuto do Desarmamento, SINARM, SIGMA etc.) e regulamentos internos.</p>
+        </div>
+
+        <h3>3.7. Chat e privacidade</h3>
+        <ul>
+          <li><strong>Proteção de Dados ativa:</strong> usuário deixa de ser visível no Mapa de Exploração e QSO não é compartilhado automaticamente.</li>
+          <li><strong>Solicitação de Contato:</strong> colegas devem iniciar chat; o destinatário decide se responde.</li>
+          <li><strong>Agente Protegido:</strong> usuários protegidos aparecem assim até aceitarem o contato.</li>
+          <li>A plataforma não monitora ativamente conversas privadas.</li>
+        </ul>
+
+        <h3>3.8. Questões e simulados</h3>
+        <ul>
+          <li>Questões e explicações podem conter erros ou estar desatualizados.</li>
+          <li>Resultados de simulados não garantem aprovação em concursos reais.</li>
+          <li>Plano grátis tem limites diários; detalhes na <a href="/help.html">Central de Ajuda</a>.</li>
+        </ul>
+
+        <h3>3.9. Gestor de horas e soldo</h3>
+        <ul>
+          <li>Valores exibidos são <strong>estimativas</strong> baseadas nas configurações informadas.</li>
+          <li>Não substituem a folha de pagamento oficial.</li>
+        </ul>
+
+        <h3>3.10. Plano Premium e pagamentos</h3>
+        <p>Assinatura Premium (R$ 11,90/mês) processada pelo Mercado Pago:</p>
+        <ul>
+          <li>Cobrança recorrente mensal conforme condições do Mercado Pago.</li>
+          <li>Ativação automática após confirmação do pagamento.</li>
+          <li>Cancelamentos e reembolsos seguem políticas do Mercado Pago.</li>
+          <li>Reservamo-nos o direito de alterar preços e benefícios, com aviso prévio em mudanças materiais.</li>
+        </ul>
+      </section>
+
+      <section id="privacidade">
+        <h2>4. Privacidade e proteção de dados</h2>
+        <p>A plataforma coleta e processa dados necessários ao funcionamento (perfil, intenções, mensagens, localização quando compartilhada no Mapa Tático etc.), em conformidade com a Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018).</p>
+        <ul>
+          <li><strong>Controle do usuário:</strong> você gerencia a visibilidade por meio da "Proteção de Dados".</li>
+          <li><strong>Localização:</strong> compartilhada no Mapa Tático apenas quando você ativa o compartilhamento com seu grupo.</li>
+          <li><strong>Finalidade:</strong> dados são usados para operar o serviço, gerar matches e permitir comunicação entre usuários verificados.</li>
+          <li><strong>Compartilhamento:</strong> não vendemos dados pessoais a terceiros. Pagamentos Premium são processados pelo Mercado Pago conforme suas políticas.</li>
+          <li><strong>Retenção:</strong> dados são mantidos enquanto sua conta estiver ativa ou conforme exigido por lei.</li>
+          <li><strong>Seus direitos:</strong> você pode solicitar correção ou exclusão de dados entrando em contato pelo canal indicado abaixo.</li>
+        </ul>
+      </section>
+
+      <section id="propriedade">
+        <h2>5. Propriedade intelectual</h2>
+        <p>O software, design, logotipos, textos institucionais e demais elementos da plataforma Permuta Policial são protegidos por direitos autorais e pertencem ao desenvolvedor da plataforma.</p>
+        <ul>
+          <li>É proibida a reprodução, engenharia reversa ou redistribuição do software sem autorização.</li>
+          <li>Conteúdo publicado por usuários (postagens, anúncios, pontos no mapa) permanece de propriedade de quem publicou, concedendo à plataforma licença não exclusiva para exibir e operar o serviço.</li>
+        </ul>
+      </section>
+
+      <section id="rescisao">
+        <h2>6. Modificação e rescisão</h2>
+        <p>Reservamo-nos o direito de modificar estes Termos a qualquer momento. Se uma revisão for material, avisaremos com antecedência razoável.</p>
+        <p>Podemos suspender ou encerrar seu acesso, sem aviso prévio, por violação destes Termos — incluindo perfil falso, atividade fraudulenta, publicação de conteúdo ilegal ou uso abusivo de módulos colaborativos (Fórum, Mapa Tático, Marketplace).</p>
+        <p>Você pode encerrar sua conta a qualquer momento entrando em contato pelo canal de suporte.</p>
+      </section>
+
+      <section id="lei">
+        <h2>7. Lei aplicável e foro</h2>
+        <p>Estes Termos são regidos pelas leis da República Federativa do Brasil. Fica eleito o foro da comarca de domicílio do usuário, conforme o Código de Defesa do Consumidor, para dirimir controvérsias decorrentes destes Termos.</p>
+        <div class="alert alert-info">
+          <strong>Nota</strong>
+          O Permuta Policial é um site independente, sem vínculo governamental com corporações de segurança pública.
+        </div>
+      </section>
+
+      <section id="contato">
+        <h2>8. Contato</h2>
+        <p>Para dúvidas sobre estes Termos, solicitações relacionadas à LGPD ou para relatar violações:</p>
+
+        <div class="alert alert-info">
+          <strong>Nota do desenvolvedor</strong>
+          Esta plataforma é um projeto de um colega policial, para colegas, em constante melhoria. Sua colaboração é fundamental.
+        </div>
+
+        <a href="https://wa.me/555186200626" target="_blank" rel="noopener" class="btn-whatsapp">
+          Falar no WhatsApp
+        </a>
+        <p style="margin-top:1rem;font-size:0.85rem;color:var(--muted);">
+          Guia de uso: <a href="/help.html">Central de Ajuda</a>
+        </p>
+      </section>
+
+    </main>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <h3>Permuta Policial</h3>
+          <p>Plataforma brasileira para conectar agentes de segurança pública e viabilizar permutas.</p>
+        </div>
+        <div>
+          <h3>Links</h3>
+          <ul class="footer-links">
+            <li><a href="https://br.permutapolicial.com.br/help.html">Central de ajuda</a></li>
+            <li><a href="https://br.permutapolicial.com.br/auth">Criar conta</a></li>
+            <li><a href="https://br.permutapolicial.com.br/mapa/visitante">Mapa visitante</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© <span id="year"></span> Permuta Policial. Todos os direitos reservados.</span>
+        <span>Site independente, sem vínculo governamental.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+
+</body>
+</html>

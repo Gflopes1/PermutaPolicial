@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <!-- Página principal (Flutter Web) -->
+  <url>
+    <loc>https://br.permutapolicial.com.br/</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Autenticação -->
+  <url>
+    <loc>https://br.permutapolicial.com.br/auth</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Landing in-app -->
+  <url>
+    <loc>https://br.permutapolicial.com.br/landing</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Mapa público -->
+  <url>
+    <loc>https://br.permutapolicial.com.br/mapa/visitante</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Central de Ajuda (HTML) -->
+  <url>
+    <loc>https://br.permutapolicial.com.br/help.html</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Central de Ajuda (Markdown) -->
+  <url>
+    <loc>https://br.permutapolicial.com.br/help.md</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Termos de Uso (HTML) -->
+  <url>
+    <loc>https://br.permutapolicial.com.br/termos.html</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Termos de Uso (Markdown) -->
+  <url>
+    <loc>https://br.permutapolicial.com.br/termos.md</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- Política de Privacidade (HTML) -->
+  <url>
+    <loc>https://br.permutapolicial.com.br/privacidade.html</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Política de Privacidade (Markdown) -->
+  <url>
+    <loc>https://br.permutapolicial.com.br/privacidade.md</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.5</priority>
+  </url>
+</urlset>
