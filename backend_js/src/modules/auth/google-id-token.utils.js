@@ -1,9 +1,16 @@
-// Validação de ID Token do Google Sign-In nativo (APK)
+// Validação de ID Token do Google Sign-In nativo (APK) com JWKS
 
-const axios = require('axios');
+const { OAuth2Client } = require('google-auth-library');
 const ApiError = require('../../core/utils/ApiError');
 
-const TOKEN_INFO_URL = 'https://oauth2.googleapis.com/tokeninfo';
+let oauth2Client;
+
+function getOAuth2Client() {
+  if (!oauth2Client) {
+    oauth2Client = new OAuth2Client();
+  }
+  return oauth2Client;
+}
 
 function getAllowedAudiences() {
   return [
@@ -14,6 +21,7 @@ function getAllowedAudiences() {
 }
 
 /**
+ * Verifica ID Token do Google usando google-auth-library (JWKS)
  * @param {string} idToken
  * @returns {Promise<{ sub: string, email: string, name: string, emailVerified: boolean }>}
  */
@@ -22,34 +30,41 @@ async function verifyGoogleIdToken(idToken) {
     throw new ApiError(400, 'Token do Google é obrigatório.');
   }
 
-  let data;
+  const audiences = getAllowedAudiences();
+  if (audiences.length === 0) {
+    throw new ApiError(500, 'Configuração de autenticação do Google ausente.');
+  }
+
+  const client = getOAuth2Client();
+  let ticket;
+  
   try {
-    const response = await axios.get(TOKEN_INFO_URL, {
-      params: { id_token: idToken },
-      timeout: 10000,
+    ticket = await client.verifyIdToken({
+      idToken,
+      audience: audiences,
     });
-    data = response.data;
   } catch (err) {
     throw new ApiError(401, 'Token do Google inválido ou expirado.');
   }
 
-  const audiences = getAllowedAudiences();
-  if (audiences.length > 0 && !audiences.includes(data.aud)) {
-    throw new ApiError(401, 'Token do Google não autorizado para este aplicativo.');
+  const payload = ticket.getPayload();
+  
+  if (!payload) {
+    throw new ApiError(401, 'Payload do token inválido.');
   }
 
-  if (data.email_verified !== 'true' && data.email_verified !== true) {
+  if (!payload.email_verified) {
     throw new ApiError(401, 'E-mail do Google não verificado.');
   }
 
-  if (!data.email) {
+  if (!payload.email) {
     throw new ApiError(401, 'Não foi possível obter o e-mail da conta Google.');
   }
 
   return {
-    sub: data.sub,
-    email: data.email,
-    name: data.name || data.email.split('@')[0],
+    sub: payload.sub,
+    email: payload.email,
+    name: payload.name || payload.email.split('@')[0],
     emailVerified: true,
   };
 }

@@ -140,7 +140,17 @@ function initializeSocket(server) {
 
     socket.on('nova_mensagem', async (data) => {
       try {
+        if (!data || typeof data !== 'object') {
+          socket.emit('error', { message: 'Dados inválidos.' });
+          return;
+        }
+
         const { conversaId, mensagem } = data;
+
+        if (!conversaId || typeof conversaId !== 'number' || conversaId <= 0) {
+          socket.emit('error', { message: 'ID da conversa inválido.' });
+          return;
+        }
 
         if (!mensagem || typeof mensagem !== 'string' || mensagem.trim().length === 0) {
           socket.emit('error', { message: 'A mensagem não pode estar vazia.' });
@@ -200,6 +210,15 @@ function initializeSocket(server) {
 
     socket.on('marcar_lidas', async (conversaId) => {
       try {
+        if (!conversaId || typeof conversaId !== 'number' || conversaId <= 0) {
+          return;
+        }
+
+        const isParticipante = await chatRepository.verificarParticipante(conversaId, socket.userId);
+        if (!isParticipante) {
+          return;
+        }
+
         await chatRepository.marcarMensagensComoLidas(conversaId, socket.userId);
         
         socket.to(`conversa_${conversaId}`).emit('mensagens_lidas', {
@@ -213,7 +232,21 @@ function initializeSocket(server) {
 
     socket.on('typing', async (data) => {
       try {
+        if (!data || typeof data !== 'object') {
+          return;
+        }
+
         const { conversaId } = data;
+        
+        if (!conversaId || typeof conversaId !== 'number' || conversaId <= 0) {
+          return;
+        }
+
+        const isParticipante = await chatRepository.verificarParticipante(conversaId, socket.userId);
+        if (!isParticipante) {
+          return;
+        }
+
         const conversa = await chatRepository.findConversaById(conversaId);
         if (!conversa) return;
 
@@ -240,7 +273,16 @@ function initializeSocket(server) {
     });
 
     socket.on('stop_typing', (data) => {
+      if (!data || typeof data !== 'object') {
+        return;
+      }
+
       const { conversaId } = data;
+
+      if (!conversaId || typeof conversaId !== 'number' || conversaId <= 0) {
+        return;
+      }
+
       socket.to(`conversa_${conversaId}`).emit('user_stop_typing', {
         conversaId,
         usuarioId: socket.userId,

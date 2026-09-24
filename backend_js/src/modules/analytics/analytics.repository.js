@@ -507,13 +507,17 @@ class AnalyticsRepository {
       solicitacoesContato = notifs?.solicitacoes || 0;
       contatosAceitos = notifs?.aceitos || 0;
       alertasMatch = notifs?.alertas_match || 0;
-    } catch (_) {}
+    } catch (err) {
+      console.error('Erro ao buscar notificações para analytics:', err.message);
+    }
 
     let permutasConcluidas = 0;
     try {
       const [[pc]] = await db.execute('SELECT COUNT(*) as c FROM permutas_concluidas_feedback');
       permutasConcluidas = pc?.c || 0;
-    } catch (_) {}
+    } catch (err) {
+      console.error('Erro ao buscar permutas concluídas para analytics:', err.message);
+    }
 
     return {
       ...totais,

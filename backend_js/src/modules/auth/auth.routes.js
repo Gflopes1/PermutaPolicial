@@ -78,12 +78,36 @@ const loginLimiter = rateLimit({
     skipSuccessfulRequests: true,
 });
 
-router.post('/registrar', celebrate(authValidation.registrar), authController.registrar);
-router.post('/confirmar-email', celebrate(authValidation.confirmarEmail), authController.confirmarEmail);
+const registerLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 3,
+    message: 'Muitas tentativas de registro. Tente novamente em 1 hora.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+const passwordResetLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 3,
+    message: 'Muitas solicitações de recuperação de senha. Tente novamente em 1 hora.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+const emailVerificationLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    message: 'Muitas tentativas de confirmação. Tente novamente em 15 minutos.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+router.post('/registrar', registerLimiter, celebrate(authValidation.registrar), authController.registrar);
+router.post('/confirmar-email', emailVerificationLimiter, celebrate(authValidation.confirmarEmail), authController.confirmarEmail);
 router.post('/login', loginLimiter, celebrate(authValidation.login), authController.login);
-router.post('/solicitar-recuperacao', celebrate(authValidation.solicitarRecuperacao), authController.solicitarRecuperacao);
-router.post('/validar-codigo', celebrate(authValidation.validarCodigo), authController.validarCodigo);
-router.post('/redefinir-senha', celebrate(authValidation.redefinirSenha), authController.redefinirSenha);
+router.post('/solicitar-recuperacao', passwordResetLimiter, celebrate(authValidation.solicitarRecuperacao), authController.solicitarRecuperacao);
+router.post('/validar-codigo', passwordResetLimiter, celebrate(authValidation.validarCodigo), authController.validarCodigo);
+router.post('/redefinir-senha', passwordResetLimiter, celebrate(authValidation.redefinirSenha), authController.redefinirSenha);
 
 router.get('/google', (req, res, next) => {
     saveOAuthSessionAndAuthenticate(req, res, next, 'google', {

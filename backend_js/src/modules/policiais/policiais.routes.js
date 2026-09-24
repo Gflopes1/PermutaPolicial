@@ -3,6 +3,7 @@
 const express = require('express');
 const path = require('path');
 const multer = require('multer');
+const rateLimit = require('express-rate-limit');
 const { celebrate } = require('celebrate');
 const policiaisValidation = require('./policiais.validation');
 const policiaisController = require('./policiais.controller');
@@ -11,6 +12,14 @@ const { validateImageMagicBytes } = require('../mapa-tatico/mapa-tatico-security
 const ApiError = require('../../core/utils/ApiError');
 
 const router = express.Router();
+
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Muitos uploads de foto. Tente novamente mais tarde.',
+});
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -50,6 +59,7 @@ router.route('/me')
 
 router.post(
   '/me/photo',
+  uploadLimiter,
   upload.single('photo'),
   validateUploadedImage,
   policiaisController.uploadMyProfilePhoto
