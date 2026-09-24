@@ -2,6 +2,12 @@
  * Detecção de nova versão (Flutter web + landings estáticas).
  * Compara buildId local vs /version.json no servidor.
  * Dispara `permuta-update-available`; use __permutaApplyUpdate() para recarregar limpo.
+ *
+ * NOTA: Esta solução funciona mesmo com nginx cache-control: max-age=43200 (12h) em
+ * main.dart.js e *.part.js. O update-version.js patch garante que flutter_bootstrap.js
+ * carrega main.dart.js?v=<buildId>, contornando o cache HTTP do nginx. Idealmente,
+ * index.html e version.json deveriam ter Cache-Control: no-cache no servidor, mas
+ * este código funciona corretamente independente da configuração do nginx.
  */
 (function () {
   'use strict';
@@ -389,6 +395,17 @@
     if (!remote || !remote.buildId) {
       remote = window.__permutaPendingUpdate || null;
     }
+
+    // Persiste buildId remoto para garantir que o reload carregue a versão correta
+    var remoteBuildId = remote && remote.buildId ? remote.buildId : null;
+    if (remoteBuildId) {
+      try {
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.setItem('permuta_pending_build_id', remoteBuildId);
+        }
+      } catch (e) {}
+    }
+
     var overlay = document.getElementById('loading');
     if (overlay) {
       overlay.classList.remove('is-hidden');
@@ -405,6 +422,36 @@
       } catch (e) {
         location.reload();
       }
+    }
+
+    function prefetchCriticalAssets(remoteBuildId) {
+      if (!remoteBuildId) return Promise.resolve();
+
+      var assetsToFetch = [
+        '/version.json?_prefetch=' + Date.now(),
+        '/index.html?_prefetch=' + Date.now(),
+        '/main.dart.js?v=' + encodeURIComponent(remoteBuildId) + '&_prefetch=' + Date.now(),
+        '/flutter_bootstrap.js?v=' + encodeURIComponent(remoteBuildId) + '&_prefetch=' + Date.now(),
+      ];
+
+      var fetchPromises = assetsToFetch.map(function (url) {
+        return fetch(url, { 
+          cache: 'no-store',
+          mode: 'cors',
+          credentials: 'same-origin'
+        })
+          .then(function (response) {
+            if (response.ok) {
+              return response.blob(); // Force download
+            }
+            throw new Error('Prefetch failed: ' + url);
+          })
+          .catch(function (err) {
+            console.warn('[Permuta] Prefetch falhou:', url, err);
+          });
+      });
+
+      return Promise.all(fetchPromises);
     }
 
     function clearCachesThenReload() {
@@ -426,8 +473,15 @@
         );
       }
 
+      // Adiciona prefetch à pipeline de limpeza
+      if (remoteBuildId) {
+        tasks.push(prefetchCriticalAssets(remoteBuildId));
+      }
+
       Promise.all(tasks)
-        .catch(function () {})
+        .catch(function (err) {
+          console.warn('[Permuta] Erro durante limpeza/prefetch:', err);
+        })
         .finally(function () {
           setTimeout(hardReload, 150);
         });

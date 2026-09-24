@@ -89,6 +89,55 @@ function patchFlutterBootstrapTag(indexHtml, buildId) {
   );
 }
 
+function patchVersionCheckTag(indexHtml, buildId) {
+  const bust = encodeURIComponent(buildId);
+  const versionCheckRegex = /<script\s+src="version-check\.js(?:\?[^"]*)?"><\/script>/;
+
+  if (versionCheckRegex.test(indexHtml)) {
+    return indexHtml.replace(
+      versionCheckRegex,
+      `<script src="version-check.js?v=${bust}"></script>`
+    );
+  }
+
+  return indexHtml.replace(
+    /<script\s+src="version-check\.js"><\/script>/,
+    `<script src="version-check.js?v=${bust}"></script>`
+  );
+}
+
+function patchFlutterBootstrapMainJs(buildId) {
+  const bootstrapPath = path.join(webDir, 'flutter_bootstrap.js');
+  if (!fs.existsSync(bootstrapPath)) {
+    console.warn('⚠️ flutter_bootstrap.js não encontrado para patch de mainJsPath');
+    return;
+  }
+
+  let js = fs.readFileSync(bootstrapPath, 'utf8');
+  const bust = buildId.replace(/['"\\]/g, '\\$&'); // Escape quotes
+
+  // Patch 1: buildConfig.mainJsPath com ?v=buildId
+  const buildConfigRegex = /("mainJsPath"\s*:\s*"main\.dart\.js")/;
+  if (buildConfigRegex.test(js)) {
+    js = js.replace(
+      buildConfigRegex,
+      `"mainJsPath":"main.dart.js?v=${bust}"`
+    );
+  }
+
+  // Patch 2: Se houver _flutter.loader.load() direto, adiciona config
+  const loaderLoadRegex = /(_flutter\.loader\.load\(\s*)\)/;
+  if (loaderLoadRegex.test(js) && !js.includes('entrypointUrl')) {
+    js = js.replace(
+      loaderLoadRegex,
+      `$1{config:{entrypointUrl:"main.dart.js?v=${bust}"}})`
+    );
+  }
+
+  fs.writeFileSync(bootstrapPath, js, 'utf8');
+  console.log(`   ✓ flutter_bootstrap.js patched: main.dart.js?v=${buildId}`);
+}
+
 function loadExistingVersionPayload() {
   if (!fs.existsSync(versionJsonPath)) {
     return null;
@@ -209,12 +258,14 @@ try {
   }
 
   indexHtml = patchFlutterBootstrapTag(indexHtml, buildId);
+  indexHtml = patchVersionCheckTag(indexHtml, buildId);
   fs.writeFileSync(indexHtmlPath, indexHtml, 'utf8');
 
   // Patch em main.dart.js ANTES do fingerprint — senão mainJsSize fica errado e
   // version-check.js entra em loop de "nova versão" + reload automático.
   if (isPostBuild) {
     patchMainJsPartCacheBust(mainJsPath, buildId);
+    patchFlutterBootstrapMainJs(buildId);
   }
 
   const versionPayload = {
