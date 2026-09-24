@@ -33,7 +33,25 @@ class _PracticeHistoryScreenState extends State<PracticeHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    _loadHistory();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        _loadHistory();
+      } catch (e, stackTrace) {
+        debugPrint('❌ Erro ao carregar histórico no initState: $e');
+        debugPrint('   Stack trace: $stackTrace');
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erro ao inicializar histórico: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    });
   }
 
   Future<void> _loadHistory({bool refresh = false}) async {
@@ -199,10 +217,20 @@ class _PracticeHistoryScreenState extends State<PracticeHistoryScreen> {
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) {
-              setState(() {
-                _selectedAssunto = value == 'all' ? null : value;
-              });
-              _loadHistory(refresh: true);
+              try {
+                setState(() {
+                  _selectedAssunto = value == 'all' ? null : value;
+                });
+                _loadHistory(refresh: true);
+              } catch (e) {
+                debugPrint('❌ Erro ao filtrar histórico: $e');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Erro ao filtrar: ${e.toString()}'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
             itemBuilder: (context) => [
               const PopupMenuItem(value: 'all', child: Text('Todas')),

@@ -25,29 +25,41 @@ class _DayModalState extends State<DayModal> {
   @override
   void initState() {
     super.initState();
-    _syncFromProvider();
+    try {
+      _syncFromProvider();
+    } catch (e) {
+      debugPrint('❌ Erro ao inicializar DayModal: $e');
+      _workDay = WorkDay(data: WorkDay.toDateOnly(widget.day), tipo: 'normal');
+    }
   }
 
   void _syncFromProvider() {
-    final provider = Provider.of<CalendarProvider>(context, listen: false);
-    final dayOnly = WorkDay.toDateOnly(widget.day);
-    final existing = provider.getWorkDay(dayOnly);
-    _workDay = existing != null
-        ? WorkDay(
-            id: existing.id,
-            data: dayOnly,
-            presetId: existing.presetId,
-            presetNome: existing.presetNome,
-            presetCor: existing.presetCor,
-            presetTipo: existing.presetTipo,
-            totalHours: existing.totalHours,
-            etapas: existing.etapas,
-            tipo: existing.tipo,
-            flagAbatimento: existing.flagAbatimento,
-            observacoes: existing.observacoes,
-            intervals: existing.intervals,
-          )
-        : WorkDay(data: dayOnly, tipo: 'normal');
+    try {
+      final provider = Provider.of<CalendarProvider>(context, listen: false);
+      final dayOnly = WorkDay.toDateOnly(widget.day);
+      final existing = provider.getWorkDay(dayOnly);
+      _workDay = existing != null
+          ? WorkDay(
+              id: existing.id,
+              data: dayOnly,
+              presetId: existing.presetId,
+              presetNome: existing.presetNome,
+              presetCor: existing.presetCor,
+              presetTipo: existing.presetTipo,
+              totalHours: existing.totalHours,
+              etapas: existing.etapas,
+              tipo: existing.tipo,
+              flagAbatimento: existing.flagAbatimento,
+              observacoes: existing.observacoes,
+              intervals: existing.intervals,
+            )
+          : WorkDay(data: dayOnly, tipo: 'normal');
+    } catch (e) {
+      debugPrint('❌ Erro ao sincronizar WorkDay do provider: $e');
+      final dayOnly = WorkDay.toDateOnly(widget.day);
+      _workDay = WorkDay(data: dayOnly, tipo: 'normal');
+      rethrow;
+    }
   }
 
   @override
