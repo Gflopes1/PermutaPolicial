@@ -36,9 +36,7 @@ class _DashboardPixFooterState extends State<DashboardPixFooter> {
 
   @override
   Widget build(BuildContext context) {
-    if (_chavePix == null || _chavePix!.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    final bool hasPixKey = _chavePix != null && _chavePix!.isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -67,7 +65,7 @@ class _DashboardPixFooterState extends State<DashboardPixFooter> {
                         ),
                   ),
                   Text(
-                    _mensagem,
+                    hasPixKey ? _mensagem : 'Configure a chave PIX no painel',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.white54,
                         ),
@@ -75,24 +73,40 @@ class _DashboardPixFooterState extends State<DashboardPixFooter> {
                 ],
               ),
             ),
-            Semantics(
-              button: true,
-              label: 'Copiar chave PIX',
-              child: TextButton(
-                style: TextButton.styleFrom(
-                  backgroundColor: const Color(0xFF2E7D32),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            if (hasPixKey)
+              Semantics(
+                button: true,
+                label: 'Copiar chave PIX',
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    backgroundColor: const Color(0xFF2E7D32),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  ),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: _chavePix!));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Chave PIX copiada! Obrigado pelo apoio.')),
+                    );
+                  },
+                  child: const Text('Copiar'),
                 ),
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: _chavePix!));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Chave PIX copiada! Obrigado pelo apoio.')),
-                  );
-                },
-                child: const Text('Copiar'),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white12,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  'Em breve',
+                  style: TextStyle(
+                    color: Colors.white54,
+                    fontSize: 12,
+                  ),
+                ),
               ),
-            ),
           ],
         ),
       ),

@@ -26,7 +26,6 @@ import '../../../core/services/socket_service.dart';
 import '../../../core/utils/profile_completion.dart';
 import '../widgets/parceiros_card.dart';
 import '../widgets/dashboard_onboarding.dart';
-import '../widgets/minesweeper_game.dart';
 import '../widgets/dashboard_pix_footer.dart';
 import '../widgets/dashboard_desktop_layout.dart';
 import '../../../shared/widgets/network_error_panel.dart';
@@ -295,6 +294,8 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
                                     children: [
                                       _buildHero(context, provider),
                                       const SizedBox(height: 12),
+                                      _buildMatchesSection(context, provider),
+                                      const SizedBox(height: 12),
                                       const ReferralDashboardCard(),
                                       const SizedBox(height: 12),
                                       _buildSectionTitle('Acesso rápido'),
@@ -303,8 +304,6 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
                                         const SizedBox(height: 16),
                                         _buildConsultoriaEntry(context, provider),
                                       ],
-                                      const SizedBox(height: 16),
-                                      _buildMatchesSection(context, provider),
                                     ],
                                   ),
                                   rightColumn: Column(
@@ -331,14 +330,18 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
                                       _buildCommunityLinks(context, provider),
                                       const SizedBox(height: 12),
                                       _buildPermutasInteligentesCard(context),
-                                      const SizedBox(height: 12),
-                                      _buildExtrasSection(context),
+                                      const SizedBox(height: 16),
+                                      _buildDivider(),
+                                      _buildSectionTitle('Apoio'),
+                                      const DashboardPixFooter(),
                                     ],
                                   ),
                                   mobileColumn: Column(
                                     crossAxisAlignment: CrossAxisAlignment.stretch,
                                     children: [
                                       _buildHero(context, provider),
+                                      const SizedBox(height: 12),
+                                      _buildMatchesSection(context, provider),
                                       const SizedBox(height: 12),
                                       const ReferralDashboardCard(),
                                       const SizedBox(height: 12),
@@ -348,8 +351,6 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
                                         const SizedBox(height: 16),
                                         _buildConsultoriaEntry(context, provider),
                                       ],
-                                      const SizedBox(height: 16),
-                                      _buildMatchesSection(context, provider),
                                       if (provider.parceiros.isNotEmpty) ...[
                                         const SizedBox(height: 16),
                                         Padding(
@@ -373,8 +374,11 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
                                       _buildCommunityLinks(context, provider),
                                       const SizedBox(height: 12),
                                       _buildPermutasInteligentesCard(context),
-                                      const SizedBox(height: 12),
-                                      _buildExtrasSection(context),
+                                      const SizedBox(height: 16),
+                                      _buildDivider(),
+                                      _buildSectionTitle('Apoio'),
+                                      const DashboardPixFooter(),
+                                      const SizedBox(height: 16),
                                     ],
                                   ),
                                 ),
@@ -1058,69 +1062,6 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildCampoMinadoCard(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: InkWell(
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const MinesweeperGame()),
-        ),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: _card,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
-          ),
-          child: const Row(
-            children: [
-              Icon(Icons.grid_on, color: Colors.orange, size: 20),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text('Campo Minado', style: TextStyle(color: Colors.white, fontSize: 12)),
-              ),
-              Icon(Icons.chevron_right, color: Color(0x40FFFFFF), size: 16),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildExtrasSection(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: _card,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: _border),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.volunteer_activism, color: _muted, size: 16),
-                const SizedBox(width: 8),
-                Text(
-                  'Apoiar o Projeto',
-                  style: TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          _buildCampoMinadoCard(context),
-          const SizedBox(height: 8),
-          const DashboardPixFooter(),
-        ],
       ),
     );
   }
