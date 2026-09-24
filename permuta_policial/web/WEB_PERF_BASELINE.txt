@@ -1,0 +1,19 @@
+Permuta Policial — baseline de performance web (set/2026)
+=========================================================
+
+Produção ANTES das otimizações (br.permutapolicial.com.br):
+  main.dart.js (raw):     5.920.685 bytes (~5,65 MB)
+  Compressão:             gzip via Cloudflare (Content-Encoding: gzip)
+  Cache JS:               max-age=43200 (12h) no origin
+
+Build local DEPOIS das otimizações (deferred routes + splash):
+  main.dart.js (raw):     3.994.512 bytes (~3,81 MB)  — redução ~32%
+  Chunks deferred:        198 arquivos .part.js (carregados sob demanda)
+
+Métricas a monitorar no DevTools (Console):
+  [Permuta Boot] first frame em Xms   — log automático após deploy
+
+Como medir após deploy:
+  1. Network → main.dart.js → tamanho transferido vs descomprimido
+  2. Console → linha [Permuta Boot]
+  3. Performance → tempo até first contentful paint

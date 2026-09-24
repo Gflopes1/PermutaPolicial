@@ -1,0 +1,1 @@
+void setAdminGraphToken(String token) {}

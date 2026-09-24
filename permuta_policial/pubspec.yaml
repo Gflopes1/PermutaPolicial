@@ -1,0 +1,110 @@
+# pubspec.yaml
+
+name: permuta_policial
+description: Feito por Gabriel Felipe Lopes.
+publish_to: 'none' 
+version: 1.0.3+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0' # Use a versão do SDK compatível com seu ambiente
+
+# SEÇÃO DE DEPENDÊNCIAS
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Para gerenciamento de estado
+  provider: ^6.0.5
+  
+  # Para navegação declarativa
+  go_router: ^14.0.0
+
+  # Para fazer requisições HTTP
+  http: ^1.5.0 # Ou a versão  mais recente
+  crypto: ^3.0.6
+
+  # Para variáveis de ambiente
+
+  # Para armazenamento seguro de dados (token)
+  flutter_secure_storage: ^8.0.0
+
+  # Componente de Dropdown com busca
+  dropdown_search: ^5.0.6
+
+  # Para abrir links externos (ex: Termos de Uso)
+  url_launcher: ^6.3.2
+
+  flutter_map: ^6.0.0
+  latlong2: ^0.9.0
+  flutter_map_marker_cluster: ^1.2.1
+  cupertino_icons: ^1.0.6
+  google_sign_in: ^7.2.0
+  firebase_core: ^3.8.1
+  firebase_messaging: ^15.1.6
+  flutter_local_notifications: ^18.0.1
+  flutter_web_plugins: 
+    sdk: flutter
+  web: ^1.1.1
+  app_links: ^6.3.1
+  socket_io_client: ^2.0.3+1
+  image_picker: ^1.0.7
+  image_picker_for_web: ^3.0.0  # plugin web oficial
+  google_mlkit_text_recognition: ^0.14.0
+  image: ^4.1.3
+  http_parser: ^4.0.2
+  image_cropper: ^11.0.0
+  shimmer: ^2.0.0
+  readmore: ^2.1.0
+  intl: ^0.20.2
+  fl_chart: ^0.66.0
+  connectivity_plus: ^5.0.2
+  cached_network_image: ^3.3.0
+  package_info_plus: ^8.0.0
+  google_fonts: ^6.3.2
+  path: ^1.9.1
+  stack_trace: ^1.12.1
+  geolocator: ^13.0.2
+  shared_preferences: ^2.3.3
+  
+  # Banco de dados local (Drift)
+  drift: ^2.14.0
+  sqlite3_flutter_libs: ^0.5.18
+  path_provider: ^2.1.1
+  share_plus: ^12.0.2
+  pdf: ^3.11.3
+  webview_flutter: 4.7.0
+  webview_flutter_web: ^0.2.3+4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  drift_dev: ^2.14.0
+  build_runner: ^2.4.7
+  flutter_native_splash: ^2.4.4
+
+# Splash nativo (Android/iOS/Web) — evita frame branco antes do Flutter pintar
+flutter_native_splash:
+  color: "#00152C"
+  color_dark: "#00152C"
+  image: assets/images/logo_tatico.png
+  image_dark: assets/images/logo_tatico.png
+  android_12:
+    color: "#00152C"
+    color_dark: "#00152C"
+    image: assets/images/logo_tatico.png
+    image_dark: assets/images/logo_tatico.png
+  web: true
+  web_image_mode: center
+  fullscreen: true
+
+# SEÇÃO DE CONFIGURAÇÕES DO FLUTTER
+flutter:
+  uses-material-design: true
+
+  # SEÇÃO DE ASSETS (RECURSOS)
+  assets:
+    # Arquivo de variáveis de ambiente 
+
+    # Pasta de imagens
+    - assets/images/

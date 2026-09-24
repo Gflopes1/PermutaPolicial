@@ -1,0 +1,83 @@
+// /lib/core/models/detalhe_municipio.dart
+
+class DetalheMunicipio {
+  final int policialId;
+  final String policialNome;
+  final String? qso;
+  final String forcaSigla;
+  final String? unidadeNome;
+  final String? municipioAtual;
+  final String? estadoAtual;
+  final String? municipioDesejado;
+  final String? estadoDesejado;
+  final String? destinosDesejados;
+  final bool ocultarNoMapa;
+
+  DetalheMunicipio({
+    required this.policialId,
+    required this.policialNome,
+    this.qso,
+    required this.forcaSigla,
+    this.unidadeNome,
+    this.municipioAtual,
+    this.estadoAtual,
+    this.municipioDesejado,
+    this.estadoDesejado,
+    this.destinosDesejados,
+    this.ocultarNoMapa = false,
+  });
+
+  factory DetalheMunicipio.fromJson(Map<String, dynamic> json) {
+    return DetalheMunicipio(
+      policialId: json['policial_id'] ?? 0,
+      policialNome: json['policial_nome'] ?? 'Nome não informado',
+      qso: json['qso'],
+      forcaSigla: json['forca_sigla'] ?? 'N/A',
+      unidadeNome: json['unidade_nome'],
+      municipioAtual: json['municipio_atual'],
+      estadoAtual: json['estado_atual'],
+      municipioDesejado: json['municipio_desejado'],
+      estadoDesejado: json['estado_desejado'],
+      destinosDesejados: json['destinos_desejados'],
+      ocultarNoMapa: json['ocultar_no_mapa'] == 1 || json['ocultar_no_mapa'] == true,
+    );
+  }
+
+  /// Texto da intenção para exibição no mapa (saindo ou vindo).
+  String textoIntencao({required String tipo, String? pontoNome}) {
+    if (tipo == 'saindo') {
+      final dest = destinosDesejados?.trim();
+      if (dest != null && dest.isNotEmpty) return dest;
+      return 'Não especificado';
+    }
+    // vindo: mostra origem e destino
+    final origem = _formatOrigem();
+    final destino = pontoNome?.trim().isNotEmpty == true
+        ? pontoNome!
+        : _formatDestinoVindo();
+    if (origem != null && destino != null) {
+      return 'De $origem para $destino';
+    }
+    final dest = destinosDesejados?.trim();
+    if (dest != null && dest.isNotEmpty) return dest;
+    if (municipioDesejado != null) {
+      return '$municipioDesejado${estadoDesejado != null ? ', $estadoDesejado' : ''}';
+    }
+    return 'Não especificado';
+  }
+
+  String? _formatOrigem() {
+    if (municipioAtual != null && estadoAtual != null) {
+      return '$municipioAtual-$estadoAtual${unidadeNome != null ? ' ($unidadeNome)' : ''}';
+    }
+    if (unidadeNome != null) return unidadeNome;
+    return null;
+  }
+
+  String? _formatDestinoVindo() {
+    if (municipioDesejado == null) return null;
+    return estadoDesejado != null
+        ? '$municipioDesejado-$estadoDesejado'
+        : municipioDesejado;
+  }
+}

@@ -1,0 +1,527 @@
+// /lib/features/mapa_tatico/screens/detalhe_ponto_screen.dart
+
+import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
+
+import '../../../core/config/app_styles.dart';
+import '../../../core/utils/error_handler.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../models/map_point.dart';
+import '../models/map_point_comment.dart';
+import '../models/map_point_visit.dart';
+import '../providers/mapa_tatico_provider.dart';
+import '../utils/mapa_tatico_map_styles.dart';
+import '../utils/mapa_tatico_marker_utils.dart';
+import '../utils/mapa_tatico_navigation_utils.dart';
+import '../widgets/mapa_tatico_photo_carousel.dart';
+import '../widgets/mapa_tatico_occurrence_log_section.dart';
+import '../widgets/mapa_tatico_suspect_profile_section.dart';
+
+class DetalhePontoScreen extends StatefulWidget {
+  final int pointId;
+
+  const DetalhePontoScreen({super.key, required this.pointId});
+
+  @override
+  State<DetalhePontoScreen> createState() => _DetalhePontoScreenState();
+}
+
+class _DetalhePontoScreenState extends State<DetalhePontoScreen> {
+  MapPoint? _point;
+  List<MapPointComment> _comments = [];
+  List<MapPointVisit> _visits = [];
+  List<dynamic> _auditLogs = [];
+  bool _isLoading = true;
+  bool _loadingMoreComments = false;
+  bool _hasMoreComments = false;
+  int _commentsOffset = 0;
+  static const _commentsPageSize = 20;
+  String? _errorMessage;
+  final _commentController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    final provider = context.read<MapaTaticoProvider>();
+    setState(() => _isLoading = true);
+    try {
+      _point = await provider.getPoint(widget.pointId);
+      if (_point != null) {
+        _comments = await provider.getComments(widget.pointId, limit: _commentsPageSize, offset: 0);
+        _commentsOffset = _comments.length;
+        _hasMoreComments = _comments.length >= _commentsPageSize;
+        if (_point!.mapType == 'LOGISTICS') {
+          _visits = await provider.getVisits(widget.pointId, lastDays: 7);
+        }
+        final auth = context.read<AuthProvider>().user;
+        if (auth?.isModerator == true || auth?.isEmbaixador == true) {
+          _auditLogs = await provider.getAudit(widget.pointId);
+        }
+      } else {
+        _errorMessage = provider.errorMessage ?? 'Ponto não encontrado';
+      }
+    } catch (e) {
+      _errorMessage = ErrorHandler.getErrorMessage(e);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  String _formatExpires(DateTime? expiresAt) {
+    if (expiresAt == null) return '';
+    final now = DateTime.now();
+    if (expiresAt.isBefore(now)) return 'Expirado';
+    final diff = expiresAt.difference(now);
+    if (diff.inDays > 0) return 'Expira em ${diff.inDays} dia(s)';
+    if (diff.inHours > 0) return 'Expira em ${diff.inHours} hora(s)';
+    return 'Expira em ${diff.inMinutes} min';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_point == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Ponto')),
+        body: Center(child: Text(_errorMessage ?? 'Ponto não encontrado')),
+      );
+    }
+
+    final point = _point!;
+    final provider = context.read<MapaTaticoProvider>();
+    final authUser = context.read<AuthProvider>().user;
+    final currentUserId = authUser?.id;
+    final isSiteAdmin = authUser?.isModerator == true || authUser?.isEmbaixador == true;
+    final activeGroup = provider.activeGroup;
+    final canEdit = isSiteAdmin ||
+        (activeGroup != null &&
+            (activeGroup.isModerator || point.creatorId == currentUserId));
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(point.title),
+        actions: [
+          if (canEdit)
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: () => _confirmDelete(provider),
+            ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            MapaTaticoPhotoCarousel(
+              photos: point.photos,
+              legacyPhotoUrl: point.photoUrl,
+              canDelete: canEdit,
+              onDeletePhoto: (photo) async {
+                if (photo.id <= 0) return;
+                await provider.deletePointPhoto(point.id, photo.id);
+                await _load();
+              },
+            ),
+            const SizedBox(height: 16),
+            Text(
+              point.title,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.person, size: 18, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text(
+                  point.creatorDisplay,
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+              ],
+            ),
+            if (point.address != null && point.address!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.location_on, size: 18, color: Colors.grey[600]),
+                  const SizedBox(width: 4),
+                  Expanded(child: Text(point.address!)),
+                ],
+              ),
+            ],
+            if (point.description != null && point.description!.trim().isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Descrição',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text(point.description!),
+            ],
+            if (point.type == 'suspeito') ...[
+              const SizedBox(height: 24),
+              MapaTaticoSuspectProfileSection(
+                pointId: point.id,
+                initialProfile: point.suspectProfile,
+                canEdit: canEdit,
+              ),
+            ],
+            if (point.mapType == 'OPERATIONAL') ...[
+              const SizedBox(height: 24),
+              MapaTaticoOccurrenceLogSection(
+                pointId: point.id,
+                canAdd: !provider.isMuted,
+              ),
+            ],
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                height: 180,
+                child: FlutterMap(
+                  options: MapOptions(
+                    initialCenter: LatLng(point.lat, point.lng),
+                    initialZoom: 15,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
+                    ),
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: MapaTaticoTileStyle.standard.urlTemplate,
+                      subdomains: MapaTaticoTileStyle.standard.subdomains,
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: LatLng(point.lat, point.lng),
+                          width: 40,
+                          height: 40,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: markerColorForPointType(point),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(markerEmojiForPointType(point)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: () {
+                final pos = provider.currentPosition;
+                showNavigationChooser(
+                  context,
+                  lat: point.lat,
+                  lng: point.lng,
+                  label: point.title,
+                  fromLat: pos?.latitude,
+                  fromLng: pos?.longitude,
+                  onRouteLoaded: provider.setNavigationRoute,
+                );
+              },
+              icon: const Icon(Icons.navigation),
+              label: const Text('Navegar até este ponto'),
+            ),
+            if (point.expiresAt != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _formatExpires(point.expiresAt),
+                  style: TextStyle(color: Colors.orange.shade900),
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                if (!provider.isMuted)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _addComment(provider),
+                      icon: const Icon(Icons.comment),
+                      label: const Text('Comentar'),
+                    ),
+                  ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _report(provider),
+                    icon: const Icon(Icons.flag),
+                    label: const Text('Denunciar'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                    ),
+                  ),
+                ),
+                if (point.mapType == 'LOGISTICS') ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _registerVisit(provider),
+                      icon: const Icon(Icons.check_circle),
+                      label: const Text('Fui Hoje'),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 24),
+            const Text('Comentários', style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            )),
+            if (!provider.isMuted) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _commentController,
+                      decoration: const InputDecoration(
+                        hintText: 'Escreva um comentário...',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: () => _addComment(provider),
+                    icon: const Icon(Icons.send),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 8),
+            if (_hasMoreComments)
+              Center(
+                child: TextButton.icon(
+                  onPressed: _loadingMoreComments ? null : _loadMoreComments,
+                  icon: _loadingMoreComments
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.expand_more),
+                  label: const Text('Carregar mais comentários'),
+                ),
+              ),
+            ..._comments.map(
+              (c) => Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        c.authorDisplayName ?? 'Anônimo',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(c.text),
+                      Text(
+                        DateFormat('dd/MM/yyyy HH:mm')
+                            .format(c.createdAt),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (_auditLogs.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              const Text('Auditoria (admin)',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              ..._auditLogs.map(
+                (log) => ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.history, size: 18),
+                  title: Text(log['action']?.toString() ?? ''),
+                  subtitle: Text(
+                    '${log['user_nome'] ?? 'Sistema'} • '
+                    '${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.parse(log['created_at'] as String))}',
+                  ),
+                ),
+              ),
+            ],
+            if (point.mapType == 'LOGISTICS' && _visits.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              const Text('Visitas (últimos 7 dias)',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  )),
+              const SizedBox(height: 8),
+              ..._visits.map(
+                (v) => ListTile(
+                  leading: const Icon(Icons.person),
+                  title: Text(v.userDisplayName ?? 'Usuário'),
+                  subtitle: Text(
+                    DateFormat('dd/MM/yyyy HH:mm').format(v.visitedAt),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _loadMoreComments() async {
+    setState(() => _loadingMoreComments = true);
+    final provider = context.read<MapaTaticoProvider>();
+    final more = await provider.getComments(
+      widget.pointId,
+      limit: _commentsPageSize,
+      offset: _commentsOffset,
+    );
+    if (mounted) {
+      setState(() {
+        _comments.addAll(more);
+        _commentsOffset += more.length;
+        _hasMoreComments = more.length >= _commentsPageSize;
+        _loadingMoreComments = false;
+      });
+    }
+  }
+
+  Future<void> _addComment(MapaTaticoProvider provider) async {
+    final text = _commentController.text.trim();
+    if (text.isEmpty) return;
+    final comment = await provider.addComment(widget.pointId, text);
+    if (comment != null && mounted) {
+      _commentController.clear();
+      setState(() => _comments.insert(0, comment));
+      ScaffoldMessenger.of(context).showSnackBar(
+        AppStyles.successSnackBar('Comentário adicionado.'),
+      );
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        AppStyles.errorSnackBar(provider.errorMessage ?? 'Não foi possível adicionar o comentário.'),
+      );
+    }
+  }
+
+  Future<void> _report(MapaTaticoProvider provider) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Denunciar ponto'),
+        content: const Text(
+          'Deseja denunciar este ponto? Os moderadores serão notificados.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Denunciar'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      final success = await provider.reportPoint(widget.pointId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          success
+              ? AppStyles.successSnackBar('Denúncia registrada.')
+              : AppStyles.errorSnackBar(
+                  provider.errorMessage ?? 'Erro ao denunciar.'),
+        );
+      }
+    }
+  }
+
+  Future<void> _registerVisit(MapaTaticoProvider provider) async {
+    final success = await provider.registerVisit(widget.pointId);
+    if (mounted) {
+      if (success) {
+        _visits = await provider.getVisits(widget.pointId, lastDays: 7);
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          AppStyles.successSnackBar('Visita registrada!'),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmDelete(MapaTaticoProvider provider) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Excluir ponto'),
+        content: const Text(
+          'Tem certeza que deseja excluir este ponto?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      final success = await provider.deletePoint(widget.pointId);
+      if (mounted) {
+        if (success) {
+          context.pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            AppStyles.successSnackBar('Ponto excluído.'),
+          );
+        }
+      }
+    }
+  }
+}

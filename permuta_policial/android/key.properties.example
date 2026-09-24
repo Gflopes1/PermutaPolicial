@@ -1,0 +1,5 @@
+# Copie para android/key.properties e preencha (NÃO commite key.properties).
+storePassword=SUA_SENHA_KEYSTORE
+keyPassword=SUA_SENHA_KEY
+keyAlias=permuta
+storeFile=../keystore/permuta-release.jks

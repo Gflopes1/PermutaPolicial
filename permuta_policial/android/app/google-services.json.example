@@ -1,0 +1,30 @@
+{
+  "_comment": "Baixe o arquivo real no Firebase Console e salve como google-services.json nesta pasta.",
+  "project_info": {
+    "project_number": "000000000000",
+    "project_id": "permuta-policial",
+    "storage_bucket": "permuta-policial.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "android_client_info": {
+          "package_name": "br.com.permutapolicial.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "SUBSTITUA_PELA_CHAVE_DO_FIREBASE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

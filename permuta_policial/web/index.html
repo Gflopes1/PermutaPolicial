@@ -1,0 +1,316 @@
+<!DOCTYPE html><html lang="pt-BR"><head>
+  <base href="/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+  
+  <!-- Cache Control: Força atualização após deploy -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  
+  <!-- Versionamento: atualizado por update-version.js no build -->
+  <meta name="app-version" content="1.0.3+1">
+  <meta name="app-build" content="1">
+  <meta name="app-build-id" content="1.0.3+1-cbe414a-1789759260954">
+  <script>window.__permutaAppBuild={"version":"1.0.3+1","build":"1","buildId":"1.0.3+1-cbe414a-1789759260954","builtAt":"2026-09-18T19:21:00.954Z"};</script>
+  
+  <!-- SEO -->
+  <title>Permuta Policial - Conexão Inteligente para Agentes</title>
+  <meta name="description" content="Plataforma de permuta para Agentes de Segurança. Encontre sua próxima lotação, anuncie no marketplace e conecte-se com colegas.">
+  <meta name="keywords" content="permuta policial, troca de lotação, segurança pública, polícia militar, bombeiros, polícia civil, permuta, polícia, segurança, militar, bombeiro, civil, federal, interestadual, lon, lei organica nacional, lei organica">
+  <meta name="author" content="Permuta Policial">
+  <meta name="robots" content="index, follow">
+  
+  <!-- Open Graph (Facebook, LinkedIn) -->
+  <meta property="og:title" content="Permuta Policial">
+  <meta property="og:description" content="A plataforma inteligente para permuta de Agentes de Segurança Pública. Encontre sua vaga, anuncie equipamentos e conecte-se.">
+  <meta property="og:image" content="https://br.permutapolicial.com.br/icons/ic_launcher.png">
+  <meta property="og:image:alt" content="Permuta Policial">
+  <meta property="og:url" content="https://br.permutapolicial.com.br">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:site_name" content="Permuta Policial">
+  
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Permuta Policial">
+  <meta name="twitter:description" content="A plataforma inteligente para permuta de Agentes de Segurança Pública.">
+  <meta name="twitter:image" content="https://br.permutapolicial.com.br/icons/ic_launcher.png">
+
+  <!-- PWA -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Permuta Policial">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png">
+
+  <!-- Manifest -->
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Firebase Web Push (antes do Flutter — lido em runtime pelo app) -->
+  <script src="firebase-config.js"></script>
+
+  <!-- Preconnect para melhor performance -->
+  <link rel="preconnect" href="https://br.permutapolicial.com.br">
+  <link rel="dns-prefetch" href="https://br.permutapolicial.com.br">
+  
+  <!-- Schema.org para SEO -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Permuta Policial",
+    "description": "Plataforma de permuta para Agentes de Segurança Pública",
+    "url": "https://br.permutapolicial.com.br",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "BRL"
+    }
+  }
+  </script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --app-bg: #181A20;
+      --app-primary: #014379;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      background-color: var(--app-bg);
+    }
+
+    /* Evita flash branco enquanto o canvas do Flutter ainda não pintou */
+    flutter-view,
+    flt-glass-pane,
+    flt-scene-host,
+    flt-scene {
+      background-color: var(--app-bg) !important;
+    }
+
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, #00152C 0%, #014379 100%);
+      z-index: 9999;
+      transition: opacity 0.35s ease, visibility 0.35s ease;
+    }
+
+    #loading.is-hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    #loading .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(255, 255, 255, 0.2);
+      border-top: 4px solid #ffffff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+
+    #loading p {
+      margin-top: 20px;
+      color: rgba(255, 255, 255, 0.85);
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+  <style id="splash-screen-style">
+    html {
+      height: 100%
+    }
+
+    body {
+      margin: 0;
+      min-height: 100%;
+      background-color: #00152C;
+          background-size: 100% 100%;
+    }
+
+    .center {
+      margin: 0;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      -ms-transform: translate(-50%, -50%);
+      transform: translate(-50%, -50%);
+    }
+
+    .contain {
+      display:block;
+      width:100%; height:100%;
+      object-fit: contain;
+    }
+
+    .stretch {
+      display:block;
+      width:100%; height:100%;
+    }
+
+    .cover {
+      display:block;
+      width:100%; height:100%;
+      object-fit: cover;
+    }
+
+    .bottom {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      -ms-transform: translate(-50%, 0);
+      transform: translate(-50%, 0);
+    }
+
+    .bottomLeft {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+    }
+
+    .bottomRight {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: #00152C;
+          }
+    }
+  </style>
+  <script id="splash-screen-script">
+    function removeSplashFromWeb() {
+      document.getElementById("splash")?.remove();
+      document.getElementById("splash-branding")?.remove();
+      document.body.style.background = "transparent";
+    }
+  </script>
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+</head>
+<body>
+  <picture id="splash">
+      <source srcset="splash/img/light-1x.png 1x, splash/img/light-2x.png 2x, splash/img/light-3x.png 3x, splash/img/light-4x.png 4x" media="(prefers-color-scheme: light)">
+      <source srcset="splash/img/dark-1x.png 1x, splash/img/dark-2x.png 2x, splash/img/dark-3x.png 3x, splash/img/dark-4x.png 4x" media="(prefers-color-scheme: dark)">
+      <img class="center" aria-hidden="true" src="splash/img/light-1x.png" alt="">
+  </picture>
+  <div id="loading" aria-live="polite" aria-busy="true">
+    <div style="text-align: center;">
+      <div class="spinner"></div>
+      <p>Carregando Permuta Policial...</p>
+    </div>
+  </div>
+  
+  <script>
+    window.__permutaBootStart = (typeof performance !== 'undefined' && performance.now)
+      ? performance.now()
+      : Date.now();
+    window.__permutaFlutterReady = false;
+
+    function hideLoadingOverlay() {
+      var loading = document.getElementById('loading');
+      if (!loading || loading.classList.contains('is-hidden')) return;
+      loading.classList.add('is-hidden');
+      loading.setAttribute('aria-busy', 'false');
+    }
+
+    function showRecoveryOverlay(message) {
+      var loading = document.getElementById('loading');
+      if (!loading) return;
+      var text = loading.querySelector('p');
+      if (text && message) text.textContent = message;
+      loading.classList.remove('is-hidden');
+      loading.setAttribute('aria-busy', 'true');
+    }
+
+    function notifyFlutterResume() {
+      try {
+        window.dispatchEvent(new Event('permuta-app-resume'));
+      } catch (e) {}
+    }
+
+    /** Operações que escondem a aba (file picker, câmera) não devem disparar reload. */
+    function shouldSuppressResumeHandling() {
+      if (window.__permutaSuppressResumeUntil && Date.now() < window.__permutaSuppressResumeUntil) {
+        return true;
+      }
+      if (window.__permutaOcrInProgress) return true;
+      return false;
+    }
+
+    function softRecoverFromBackground() {
+      if (document.visibilityState !== 'visible') return;
+      if (shouldSuppressResumeHandling()) return;
+      // Apenas avisa o Flutter para repintar/reconectar — sem reload automático.
+      notifyFlutterResume();
+    }
+
+    if (typeof window !== 'undefined') {
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+          softRecoverFromBackground();
+        }
+      });
+
+      window.addEventListener('pageshow', function(event) {
+        if (event.persisted && !shouldSuppressResumeHandling()) {
+          softRecoverFromBackground();
+        }
+      });
+    }
+
+    function registerFcmServiceWorker() {
+      if (!('serviceWorker' in navigator)) return;
+      window.__permutaFcmSwReady = navigator.serviceWorker
+        .register('/firebase-messaging-sw.js')
+        .then(function () { return navigator.serviceWorker.ready; })
+        .catch(function (err) {
+          console.warn('[FCM] Falha ao registrar firebase-messaging-sw.js:', err);
+        });
+    }
+
+    function logBootMetrics() {
+      try {
+        var start = window.__permutaBootStart || 0;
+        var elapsed = Math.round(
+          (typeof performance !== 'undefined' ? performance.now() : Date.now()) - start
+        );
+        console.info('[Permuta Boot] first frame em ' + elapsed + 'ms');
+      } catch (e) {}
+    }
+
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('flutter-first-frame', function () {
+        hideLoadingOverlay();
+        logBootMetrics();
+        registerFcmServiceWorker();
+      }, { once: true });
+    }
+  </script>
+
+  <script src="version-check.js"></script>
+  <script src="flutter_bootstrap.js?v=1.0.3%2B1-cbe414a-1789759260954" async=""></script>
+
+
+</body></html>
