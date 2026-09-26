@@ -77,6 +77,19 @@ const FORCES = {
     metaDescription: 'Plataforma de permutas para Guarda Municipal. Matches diretos, triangulares, mapa nacional e simulador de compatibilidade.',
     whyBenefit: 'A Guarda Municipal opera em unidades espalhadas pelos municípios. O Permuta Policial conecta quem quer sair de uma lotação com quem quer entrar, incluindo permutas triangulares e ciclos maiores que viabilizam trocas impossíveis de encontrar sozinho.',
   },
+  pp: {
+    name: 'Polícia Penal',
+    tipoPermuta: 'PP',
+    primary: '#44337a',
+    primaryDark: '#322659',
+    primaryLight: '#5a4a91',
+    secondary: '#9f7aea',
+    background: '#faf5ff',
+    headline: 'Encontre sua permuta na Polícia Penal de forma inteligente.',
+    description: 'Conecte-se com colegas da Polícia Penal de todo o Brasil. Matches diretos, triangulares e por proximidade — com mapa nacional e motor inteligente.',
+    metaDescription: 'Plataforma de permutas para Polícia Penal. Matches diretos, triangulares, mapa nacional e simulador de compatibilidade.',
+    whyBenefit: 'A Polícia Penal opera em unidades prisionais espalhadas por todo o estado. O Permuta Policial conecta quem quer sair de uma unidade com quem quer entrar, incluindo permutas triangulares e ciclos maiores que viabilizam trocas impossíveis de encontrar sozinho.',
+  },
 };
 
 module.exports = { FORCES };

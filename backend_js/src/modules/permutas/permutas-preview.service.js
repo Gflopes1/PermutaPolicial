@@ -197,6 +197,7 @@ class PermutasPreviewService {
     municipio_atual_id,
     municipio_destino_id,
     estado,
+    estado_destino,
     raio_km = DEFAULT_RAIO_KM,
   }) {
     const raioKm = Math.min(Math.max(Number(raio_km) || DEFAULT_RAIO_KM, 10), 500);
@@ -207,8 +208,10 @@ class PermutasPreviewService {
       estado,
     });
 
-    const estadoDestino =
-      String(estado || '').trim().toUpperCase() || municipioAtual.estado_sigla;
+    // Para forças federais (PF/PRF), permite estado_destino diferente
+    const estadoDestino = estado_destino
+      ? String(estado_destino).trim().toUpperCase()
+      : String(estado || '').trim().toUpperCase() || municipioAtual.estado_sigla;
 
     const municipioDestino = await resolveMunicipio({
       municipio_id: municipio_destino_id,
