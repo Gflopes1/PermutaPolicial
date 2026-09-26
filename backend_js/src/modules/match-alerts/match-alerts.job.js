@@ -7,7 +7,7 @@ function startMatchAlertsJob() {
     return;
   }
 
-  // 08:00 e 20:00 todos os dias
+  // 08:00 e 20:00 horário de Brasília (America/Sao_Paulo)
   cron.schedule('0 8,20 * * *', async () => {
     try {
       const result = await matchAlertsService.runScheduledScan();
@@ -15,9 +15,11 @@ function startMatchAlertsJob() {
     } catch (error) {
       console.error('[match-alerts] Erro na varredura agendada:', error.message);
     }
+  }, {
+    timezone: 'America/Sao_Paulo'
   });
 
-  logger.log('[match-alerts] Job agendado (08:00 e 20:00)');
+  logger.log('[match-alerts] Job agendado (08:00 e 20:00 horário de Brasília)');
 }
 
 module.exports = { startMatchAlertsJob };
