@@ -524,8 +524,12 @@
               <input type="text" id="cidadeDestino" name="cidadeDestino" placeholder="Ex: Santos" required>
             </div>
             <div class="form-group">
-              <label for="estado">Estado (UF) *</label>
+              <label for="estado">UF atual *</label>
               <input type="text" id="estado" name="estado" placeholder="Ex: SP" maxlength="2" pattern="[A-Za-z]{2}" autocomplete="address-level1" required style="text-transform:uppercase;">
+            </div>
+            <div class="form-group" style="grid-column:1/-1;">
+              <label for="estadoDestino">UF do destino (se for outro estado)</label>
+              <input type="text" id="estadoDestino" name="estadoDestino" placeholder="Ex: RO" maxlength="2" pattern="[A-Za-z]{2}" style="text-transform:uppercase;">
             </div>
           </div>
           <button type="submit" class="btn btn-dark btn-lg" style="width:100%; margin-top:0.5rem;">Simular compatibilidade</button>

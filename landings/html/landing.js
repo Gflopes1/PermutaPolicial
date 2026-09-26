@@ -209,10 +209,19 @@ if (searchForm) {
     const cidadeAtual = document.getElementById('cidadeAtual').value.trim();
     const cidadeDestino = document.getElementById('cidadeDestino').value.trim();
     const estado = document.getElementById('estado').value.trim().toUpperCase();
+    // Só existe nas landings PF/PRF (permuta interestadual)
+    const estadoDestinoEl = document.getElementById('estadoDestino');
+    const estadoDestinoRaw = estadoDestinoEl ? estadoDestinoEl.value.trim().toUpperCase() : '';
+    const estadoDestino = /^[A-Z]{2}$/.test(estadoDestinoRaw) ? estadoDestinoRaw : '';
 
     if (!estado || estado.length !== 2) {
       searchFeedback.className = 'sim-results';
       searchFeedback.innerHTML = '<p style="color:#b91c1c;text-align:center;">Informe a UF do estado (ex.: SP).</p>';
+      return;
+    }
+    if (estadoDestinoRaw && !estadoDestino) {
+      searchFeedback.className = 'sim-results';
+      searchFeedback.innerHTML = '<p style="color:#b91c1c;text-align:center;">UF do destino inválida (ex.: RO).</p>';
       return;
     }
 
@@ -223,13 +232,13 @@ if (searchForm) {
       const res = await fetch(API_BASE + '/permutas/preview-simulacao', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: JSON.stringify(Object.assign({
           tipo_permuta: TIPO_PERMUTA,
           cidade_atual: cidadeAtual,
           cidade_destino: cidadeDestino,
           estado,
           raio_km: 50,
-        }),
+        }, estadoDestino ? { estado_destino: estadoDestino } : {})),
       });
 
       let json = {};
@@ -254,7 +263,8 @@ if (searchForm) {
 
       searchFeedback.innerHTML =
         '<h3 style="font-size:1rem;font-weight:700;color:var(--primary-dark);margin-bottom:1rem;">' +
-        escapeHtml(cidadeAtual) + ' (' + escapeHtml(estado) + ') → ' + escapeHtml(cidadeDestino) + '</h3>' +
+        escapeHtml(cidadeAtual) + ' (' + escapeHtml(estado) + ') → ' + escapeHtml(cidadeDestino) +
+        (estadoDestino && estadoDestino !== estado ? ' (' + escapeHtml(estadoDestino) + ')' : '') + '</h3>' +
         '<div class="sim-stats">' +
           '<div class="sim-stat"><strong>' + escapeHtml(data.possiveis_permutas) + '</strong><span>possíveis permutas encontradas</span></div>' +
           '<div class="sim-stat"><strong>' + escapeHtml(data.interessados_regiao) + '</strong><span>usuários interessados na sua região (50 km)</span></div>' +

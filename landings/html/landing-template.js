@@ -76,6 +76,15 @@ function escapeHtmlAttr(str) {
 function generateHTML(forceId, data) {
   const authUrl = `${SITE}/auth`;
   const mapaUrl = `${SITE}/mapa/visitante`;
+  // Forças federais: permuta pode ser interestadual (ex.: PRF Manaus-AM -> Porto Velho-RO)
+  const isFederal = ['PF', 'PRF'].includes(data.tipoPermuta);
+  const estadoDestinoField = isFederal
+    ? `
+            <div class="form-group" style="grid-column:1/-1;">
+              <label for="estadoDestino">UF do destino (se for outro estado)</label>
+              <input type="text" id="estadoDestino" name="estadoDestino" placeholder="Ex: RO" maxlength="2" pattern="[A-Za-z]{2}" style="text-transform:uppercase;">
+            </div>`
+    : '';
   const featuresHTML = PLATFORM_FEATURES.map(
     (f) => `
       <article class="feature-card">
@@ -530,9 +539,9 @@ function generateHTML(forceId, data) {
               <input type="text" id="cidadeDestino" name="cidadeDestino" placeholder="Ex: Santos" required>
             </div>
             <div class="form-group">
-              <label for="estado">Estado (UF) *</label>
+              <label for="estado">${isFederal ? 'UF atual *' : 'Estado (UF) *'}</label>
               <input type="text" id="estado" name="estado" placeholder="Ex: SP" maxlength="2" pattern="[A-Za-z]{2}" autocomplete="address-level1" required style="text-transform:uppercase;">
-            </div>
+            </div>${estadoDestinoField}
           </div>
           <button type="submit" class="btn btn-dark btn-lg" style="width:100%; margin-top:0.5rem;">Simular compatibilidade</button>
         </form>
