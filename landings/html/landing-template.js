@@ -6,7 +6,7 @@ const CSP = [
   "default-src 'self'",
   "script-src 'self' https://unpkg.com https://static.cloudflareinsights.com",
   "style-src 'self' 'unsafe-inline' https://unpkg.com",
-  "img-src 'self' data: https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://a.tile.openstreetmap.org https://b.tile.openstreetmap.org https://c.tile.openstreetmap.org https://unpkg.com",
+  `img-src 'self' data: ${SITE} https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://a.tile.openstreetmap.org https://b.tile.openstreetmap.org https://c.tile.openstreetmap.org https://unpkg.com`,
   "font-src 'self'",
   `connect-src 'self' ${SITE} https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://cloudflareinsights.com`,
   "object-src 'none'",
