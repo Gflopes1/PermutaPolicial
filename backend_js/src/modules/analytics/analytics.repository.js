@@ -2,6 +2,25 @@
 
 const db = require('../../config/db');
 
+// mysql2 devolve DECIMAL (resultado de AVG/SUM/ROUND) como STRING ("236.6556") e o Flutter
+// fazia `as num` -> crash no Admin > Analytics. Converte explicitamente os agregados.
+function toNum(value, fallback = 0) {
+  if (value === null || value === undefined || value === '') return fallback;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+/** Converte `keys` para número (null/inválido -> 0); `nullable` mantém null quando vazio (ex.: AVG sem linhas). */
+function castRow(row, keys = [], nullable = []) {
+  if (!row || typeof row !== 'object') return row;
+  const out = { ...row };
+  for (const k of keys) if (k in out) out[k] = toNum(out[k], 0);
+  for (const k of nullable) if (k in out) out[k] = toNum(out[k], null);
+  return out;
+}
+
+const castRows = (rows, keys, nullable) => (rows || []).map((r) => castRow(r, keys, nullable));
+
 class AnalyticsRepository {
   // Cria um evento de usuário
   async createUserEvent(eventData) {
@@ -151,10 +170,10 @@ class AnalyticsRepository {
     const [sessionRows] = await db.execute(`SELECT COUNT(*) as total FROM user_sessions ${whereSessions}`, paramsSessions);
 
     return {
-      total_eventos: eventRows[0]?.total || 0,
-      total_page_views: pageViewRows[0]?.total || 0,
-      usuarios_unicos: uniqueUsersRows[0]?.total || 0,
-      total_sessoes: sessionRows[0]?.total || 0,
+      total_eventos: toNum(eventRows[0]?.total),
+      total_page_views: toNum(pageViewRows[0]?.total),
+      usuarios_unicos: toNum(uniqueUsersRows[0]?.total),
+      total_sessoes: toNum(sessionRows[0]?.total),
     };
   }
 
@@ -186,7 +205,7 @@ class AnalyticsRepository {
       ORDER BY total_views DESC
     `, params);
 
-    return rows;
+    return castRows(rows, ['total_views', 'usuarios_unicos'], ['tempo_medio_segundos']);
   }
 
   // Obtém eventos por tipo
@@ -216,7 +235,7 @@ class AnalyticsRepository {
       ORDER BY total DESC
     `, params);
 
-    return rows;
+    return castRows(rows, ['total', 'usuarios_unicos']);
   }
 
   // Obtém estatísticas de sessões
@@ -265,7 +284,11 @@ class AnalyticsRepository {
       ${whereClause}
     `, [...paramsPv, ...params]);
 
-    return rows[0] || {};
+    return castRow(
+      rows[0] || {},
+      ['total_sessoes', 'usuarios_unicos', 'sessoes_mobile', 'sessoes_desktop'],
+      ['duracao_media_segundos', 'page_views_medio']
+    );
   }
 
   // Obtém atividade por hora do dia
@@ -294,7 +317,7 @@ class AnalyticsRepository {
       ORDER BY hora
     `, params);
 
-    return rows;
+    return castRows(rows, ['hora', 'total_eventos']);
   }
 
   _buildDateFilter(column, dataInicio, dataFim) {
@@ -365,7 +388,9 @@ class AnalyticsRepository {
       ORDER BY periodo ASC
     `, [...params, ...extraParams]);
 
-    return cumulativo ? this._applyCumulativo(rows) : rows.map((r) => ({ ...r, novos: Number(r.total) || 0 }));
+    return cumulativo
+      ? this._applyCumulativo(rows)
+      : rows.map((r) => ({ ...r, total: toNum(r.total), novos: toNum(r.total) }));
   }
 
   async getUsuariosPorEstado() {
@@ -389,7 +414,7 @@ class AnalyticsRepository {
       GROUP BY e.id, e.sigla, e.nome
       ORDER BY total DESC
     `);
-    return rows;
+    return castRows(rows, ['estado_id', 'total', 'verificados', 'pendentes', 'com_intencoes', 'em_destaque']);
   }
 
   async getUsuariosPorForcaDetalhado() {
@@ -409,7 +434,7 @@ class AnalyticsRepository {
       GROUP BY f.id, f.sigla, f.nome
       ORDER BY total DESC
     `);
-    return rows;
+    return castRows(rows, ['forca_id', 'total', 'verificados', 'pendentes', 'com_intencoes', 'em_destaque']);
   }
 
   async getContasAtivas(dataInicio, dataFim, { granularidade = 'dia' } = {}) {
@@ -431,7 +456,7 @@ class AnalyticsRepository {
       ORDER BY periodo ASC
     `, params);
 
-    return rows;
+    return castRows(rows, ['usuarios_ativos', 'page_views']);
   }
 
   async getMediaKitExport(dataInicio, dataFim) {
@@ -540,9 +565,9 @@ class AnalyticsRepository {
           SUM(tipo = 'NOVO_MATCH') as alertas_match
         FROM notificacoes
       `);
-      solicitacoesContato = notifs?.solicitacoes || 0;
-      contatosAceitos = notifs?.aceitos || 0;
-      alertasMatch = notifs?.alertas_match || 0;
+      solicitacoesContato = toNum(notifs?.solicitacoes);
+      contatosAceitos = toNum(notifs?.aceitos);
+      alertasMatch = toNum(notifs?.alertas_match);
     } catch (err) {
       console.error('Erro ao buscar notificações para analytics:', err.message);
     }
@@ -550,13 +575,16 @@ class AnalyticsRepository {
     let permutasConcluidas = 0;
     try {
       const [[pc]] = await db.execute('SELECT COUNT(*) as c FROM permutas_concluidas_feedback');
-      permutasConcluidas = pc?.c || 0;
+      permutasConcluidas = toNum(pc?.c);
     } catch (err) {
       console.error('Erro ao buscar permutas concluídas para analytics:', err.message);
     }
 
     return {
-      ...totais,
+      ...castRow(totais, [
+        'total_contas', 'verificados', 'com_intencoes', 'com_lotacao',
+        'em_destaque', 'alertas_ativos', 'premium_ativos',
+      ]),
       solicitacoes_contato: solicitacoesContato,
       contatos_aceitos: contatosAceitos,
       alertas_match_notificacoes: alertasMatch,
@@ -617,20 +645,20 @@ class AnalyticsRepository {
         municipio_id: row.municipio_id,
         municipio_nome: row.municipio_nome,
         estado_sigla: row.estado_sigla,
-        saindo: row.saindo,
+        saindo: toNum(row.saindo),
         vindo: 0,
       });
     }
     for (const row of vindo) {
       if (mapa.has(row.municipio_id)) {
-        mapa.get(row.municipio_id).vindo = row.vindo;
+        mapa.get(row.municipio_id).vindo = toNum(row.vindo);
       } else {
         mapa.set(row.municipio_id, {
           municipio_id: row.municipio_id,
           municipio_nome: row.municipio_nome,
           estado_sigla: row.estado_sigla,
           saindo: 0,
-          vindo: row.vindo,
+          vindo: toNum(row.vindo),
         });
       }
     }
@@ -657,7 +685,7 @@ class AnalyticsRepository {
       GROUP BY f.id, f.sigla, f.nome
       ORDER BY com_intencoes DESC
     `);
-    return rows;
+    return castRows(rows, ['total_policiais', 'com_intencoes', 'em_destaque']);
   }
 
   async getEngajamentoPermuta(dataInicio, dataFim) {
@@ -684,16 +712,18 @@ class AnalyticsRepository {
     const alertasPorTipo = await matchAlertsRepository.countAlertasPorTipo(dataInicio, dataFim);
 
     return {
-      page_views_permuta: pageViews?.views_permuta || 0,
-      page_views_permutas_tela: pageViews?.views_permutas_tela || 0,
-      page_views_mapa: pageViews?.views_mapa || 0,
-      alertas_match_enviados: alertasLog,
-      alertas_por_tipo: alertasPorTipo,
+      page_views_permuta: toNum(pageViews?.views_permuta),
+      page_views_permutas_tela: toNum(pageViews?.views_permutas_tela),
+      page_views_mapa: toNum(pageViews?.views_mapa),
+      alertas_match_enviados: toNum(alertasLog),
+      alertas_por_tipo: castRows(alertasPorTipo, ['total']),
     };
   }
 
   async getHistoricoIntencoes({ limit = 20 } = {}) {
-    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    // LIMIT inline com inteiro saneado: `LIMIT ?` via execute() falha em alguns MySQL 8
+    // (ER_WRONG_ARGUMENTS "Incorrect arguments to mysqld_stmt_execute").
+    const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
 
     try {
       const [[resumo]] = await db.execute(`
@@ -730,8 +760,8 @@ class AnalyticsRepository {
         GROUP BY h.municipio_origem_id, h.municipio_id,
                  mo.nome, md.nome, eo.sigla, ed.sigla
         ORDER BY volume DESC
-        LIMIT ?
-      `, [safeLimit]);
+        LIMIT ${safeLimit}
+      `);
 
       const [conversao] = await db.execute(`
         SELECT
@@ -749,13 +779,20 @@ class AnalyticsRepository {
         GROUP BY h.municipio_id, md.nome, ed.sigla
         HAVING total_arquivadas >= 2
         ORDER BY total_arquivadas DESC, taxa_conversao_pct DESC
-        LIMIT ?
-      `, [safeLimit]);
+        LIMIT ${safeLimit}
+      `);
 
       return {
-        resumo: resumo || {},
-        rotas_demandadas: rotas,
-        conversao_por_destino: conversao,
+        resumo: castRow(resumo || {}, [
+          'total_arquivadas', 'atualizacao', 'exclusao', 'permuta_concluida',
+          'expiracao', 'conta_removida', 'com_raio_km', 'policiais_unicos',
+        ]),
+        rotas_demandadas: castRows(rotas, ['volume', 'concluidas'], ['raio_medio_km']),
+        conversao_por_destino: castRows(
+          conversao,
+          ['total_arquivadas', 'concluidas', 'expiradas', 'atualizadas'],
+          ['taxa_conversao_pct']
+        ),
       };
     } catch (error) {
       if (error.code === 'ER_NO_SUCH_TABLE') {

@@ -12,6 +12,25 @@ import '../../../core/config/app_theme.dart';
 import '../../../core/utils/file_export.dart';
 import '../providers/admin_provider.dart';
 
+/// MySQL devolve AVG/SUM/DECIMAL como String ("236.6556"); o backend já converte, mas o
+/// front não pode quebrar com `as num` se vier String (build antigo da API, cache etc.).
+num? _asNum(dynamic v) {
+  if (v == null) return null;
+  if (v is num) return v;
+  return num.tryParse(v.toString().trim());
+}
+
+double _asDouble(dynamic v, [double fallback = 0]) => _asNum(v)?.toDouble() ?? fallback;
+
+/// Número para exibição: inteiro sem ".0"; decimal com até 1 casa. Não-numérico -> texto original.
+String _n(dynamic v, {String fallback = '0'}) {
+  if (v == null) return fallback;
+  final n = _asNum(v);
+  if (n == null) return v.toString();
+  if (n == n.roundToDouble()) return n.toInt().toString();
+  return n.toStringAsFixed(1);
+}
+
 class AdminAnalyticsTab extends StatefulWidget {
   const AdminAnalyticsTab({super.key});
 
@@ -135,25 +154,25 @@ class _AdminAnalyticsTabState extends State<AdminAnalyticsTab> {
           pw.Text('Gerado em: ${data['gerado_em'] ?? DateTime.now().toIso8601String()}'),
           pw.SizedBox(height: 16),
           pw.Text('Resumo Geral', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-          pw.Bullet(text: 'Total de contas: ${funil['total_contas'] ?? 0}'),
-          pw.Bullet(text: 'Verificados: ${funil['verificados'] ?? 0}'),
-          pw.Bullet(text: 'Com intenções: ${funil['com_intencoes'] ?? 0}'),
-          pw.Bullet(text: 'Premium ativos: ${funil['premium_ativos'] ?? 0}'),
-          pw.Bullet(text: 'Permutas concluídas: ${funil['permutas_concluidas'] ?? 0}'),
-          pw.Bullet(text: 'Page views (período): ${resumo['total_page_views'] ?? 0}'),
-          pw.Bullet(text: 'Usuários únicos (período): ${resumo['usuarios_unicos'] ?? 0}'),
-          pw.Bullet(text: 'Views permuta/mapa: ${engajamento['page_views_permuta'] ?? 0}'),
+          pw.Bullet(text: 'Total de contas: ${_n(funil['total_contas'])}'),
+          pw.Bullet(text: 'Verificados: ${_n(funil['verificados'])}'),
+          pw.Bullet(text: 'Com intenções: ${_n(funil['com_intencoes'])}'),
+          pw.Bullet(text: 'Premium ativos: ${_n(funil['premium_ativos'])}'),
+          pw.Bullet(text: 'Permutas concluídas: ${_n(funil['permutas_concluidas'])}'),
+          pw.Bullet(text: 'Page views (período): ${_n(resumo['total_page_views'])}'),
+          pw.Bullet(text: 'Usuários únicos (período): ${_n(resumo['usuarios_unicos'])}'),
+          pw.Bullet(text: 'Views permuta/mapa: ${_n(engajamento['page_views_permuta'])}'),
           pw.SizedBox(height: 16),
           pw.Text('Crescimento (cumulativo mensal)', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
           ...cumulativo.take(12).map((item) {
             final m = Map<String, dynamic>.from(item as Map);
-            return pw.Text('${m['data']}: ${m['total']} usuários');
+            return pw.Text('${m['data']}: ${_n(m['total'])} usuários');
           }),
           pw.SizedBox(height: 16),
           pw.Text('Contas ativas (mensal)', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
           ...contasAtivas.take(12).map((item) {
             final m = Map<String, dynamic>.from(item as Map);
-            return pw.Text('${m['data']}: ${m['usuarios_ativos']} ativos');
+            return pw.Text('${m['data']}: ${_n(m['usuarios_ativos'])} ativos');
           }),
           pw.SizedBox(height: 16),
           pw.Text('Usuários por Estado (UF)', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
@@ -163,9 +182,9 @@ class _AdminAnalyticsTabState extends State<AdminAnalyticsTab> {
               final m = Map<String, dynamic>.from(e as Map);
               return [
                 m['sigla']?.toString() ?? '',
-                '${m['total'] ?? 0}',
-                '${m['verificados'] ?? 0}',
-                '${m['com_intencoes'] ?? 0}',
+                _n(m['total']),
+                _n(m['verificados']),
+                _n(m['com_intencoes']),
               ];
             }).toList(),
           ),
@@ -177,9 +196,9 @@ class _AdminAnalyticsTabState extends State<AdminAnalyticsTab> {
               final m = Map<String, dynamic>.from(e as Map);
               return [
                 m['sigla']?.toString() ?? '',
-                '${m['total'] ?? 0}',
-                '${m['verificados'] ?? 0}',
-                '${m['com_intencoes'] ?? 0}',
+                _n(m['total']),
+                _n(m['verificados']),
+                _n(m['com_intencoes']),
               ];
             }).toList(),
           ),
@@ -331,17 +350,17 @@ class _AdminAnalyticsTabState extends State<AdminAnalyticsTab> {
     final sessoes = provider.sessoesStats ?? {};
 
     final cards = [
-      _statCard('Contas totais', '${funil['total_contas'] ?? 0}', Icons.people),
-      _statCard('Verificados', '${funil['verificados'] ?? 0}', Icons.verified),
-      _statCard('Com intenções', '${funil['com_intencoes'] ?? 0}', Icons.swap_horiz),
-      _statCard('Premium', '${funil['premium_ativos'] ?? 0}', Icons.star),
-      _statCard('Page views', '${stats['total_page_views'] ?? 0}', Icons.visibility),
-      _statCard('Usuários únicos', '${stats['usuarios_unicos'] ?? 0}', Icons.person),
-      _statCard('Sessões', '${stats['total_sessoes'] ?? 0}', Icons.access_time),
+      _statCard('Contas totais', _n(funil['total_contas']), Icons.people),
+      _statCard('Verificados', _n(funil['verificados']), Icons.verified),
+      _statCard('Com intenções', _n(funil['com_intencoes']), Icons.swap_horiz),
+      _statCard('Premium', _n(funil['premium_ativos']), Icons.star),
+      _statCard('Page views', _n(stats['total_page_views']), Icons.visibility),
+      _statCard('Usuários únicos', _n(stats['usuarios_unicos']), Icons.person),
+      _statCard('Sessões', _n(stats['total_sessoes']), Icons.access_time),
       _statCard(
         'Duração média',
-        sessoes['duracao_media_segundos'] != null
-            ? '${(sessoes['duracao_media_segundos'] as num).toStringAsFixed(0)}s'
+        _asNum(sessoes['duracao_media_segundos']) != null
+            ? '${_asDouble(sessoes['duracao_media_segundos']).toStringAsFixed(0)}s'
             : 'N/A',
         Icons.timer,
       ),
@@ -475,8 +494,8 @@ class _AdminAnalyticsTabState extends State<AdminAnalyticsTab> {
                         title: Text('${m['data']}'),
                         trailing: Text(
                           provider.crescimentoCumulativo
-                              ? '${m['total']} (cum.)'
-                              : '${m['novos'] ?? m['total']}',
+                              ? '${_n(m['total'])} (cum.)'
+                              : _n(m['novos'] ?? m['total']),
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       );
@@ -496,7 +515,7 @@ class _AdminAnalyticsTabState extends State<AdminAnalyticsTab> {
                         final m = Map<String, dynamic>.from(item as Map);
                         return DataRow(cells: [
                           DataCell(Text('${m['data']}')),
-                          DataCell(Text('${m['total']}')),
+                          DataCell(Text(_n(m['total']))),
                         ]);
                       }).toList(),
                     ),
@@ -547,9 +566,9 @@ class _AdminAnalyticsTabState extends State<AdminAnalyticsTab> {
             const SizedBox(height: 8),
             ...estados.map((item) => _SegmentoExpansivel(
               key: ValueKey('estado_${item['estado_id']}_${provider.crescimentoGranularidade}_${provider.crescimentoCumulativo}'),
-              titulo: '${item['sigla']} — ${item['total']} usuários',
-              subtitulo: 'Verificados: ${item['verificados']} · Intenções: ${item['com_intencoes']}',
-              segmentoId: item['estado_id'] as int,
+              titulo: '${item['sigla']} — ${_n(item['total'])} usuários',
+              subtitulo: 'Verificados: ${_n(item['verificados'])} · Intenções: ${_n(item['com_intencoes'])}',
+              segmentoId: _asNum(item['estado_id'])?.toInt() ?? 0,
               tipo: _SegmentoTipo.estado,
               provider: provider,
               isMobile: isMobile,
@@ -574,9 +593,9 @@ class _AdminAnalyticsTabState extends State<AdminAnalyticsTab> {
             const SizedBox(height: 8),
             ...forcas.map((item) => _SegmentoExpansivel(
               key: ValueKey('forca_${item['forca_id']}_${provider.crescimentoGranularidade}_${provider.crescimentoCumulativo}'),
-              titulo: '${item['sigla']} — ${item['total']} usuários',
-              subtitulo: 'Verificados: ${item['verificados']} · Intenções: ${item['com_intencoes']}',
-              segmentoId: item['forca_id'] as int,
+              titulo: '${item['sigla']} — ${_n(item['total'])} usuários',
+              subtitulo: 'Verificados: ${_n(item['verificados'])} · Intenções: ${_n(item['com_intencoes'])}',
+              segmentoId: _asNum(item['forca_id'])?.toInt() ?? 0,
               tipo: _SegmentoTipo.forca,
               provider: provider,
               isMobile: isMobile,
@@ -603,14 +622,14 @@ class _AdminAnalyticsTabState extends State<AdminAnalyticsTab> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _miniStat('Em destaque', '${funil['em_destaque'] ?? 0}'),
-                _miniStat('Alertas ativos', '${funil['alertas_ativos'] ?? 0}'),
-                _miniStat('Solic. contato', '${funil['solicitacoes_contato'] ?? 0}'),
-                _miniStat('Contatos OK', '${funil['contatos_aceitos'] ?? 0}'),
-                _miniStat('Alertas match', '${funil['alertas_match_notificacoes'] ?? 0}'),
-                _miniStat('Permutas OK', '${funil['permutas_concluidas'] ?? 0}'),
-                _miniStat('Views permuta', '${engajamento['page_views_permuta'] ?? 0}'),
-                _miniStat('Views mapa', '${engajamento['page_views_mapa'] ?? 0}'),
+                _miniStat('Em destaque', _n(funil['em_destaque'])),
+                _miniStat('Alertas ativos', _n(funil['alertas_ativos'])),
+                _miniStat('Solic. contato', _n(funil['solicitacoes_contato'])),
+                _miniStat('Contatos OK', _n(funil['contatos_aceitos'])),
+                _miniStat('Alertas match', _n(funil['alertas_match_notificacoes'])),
+                _miniStat('Permutas OK', _n(funil['permutas_concluidas'])),
+                _miniStat('Views permuta', _n(engajamento['page_views_permuta'])),
+                _miniStat('Views mapa', _n(engajamento['page_views_mapa'])),
               ],
             ),
           ],
@@ -643,7 +662,7 @@ class _AdminAnalyticsTabState extends State<AdminAnalyticsTab> {
 
     final spots = data.asMap().entries.map((entry) {
       final m = Map<String, dynamic>.from(entry.value as Map);
-      return FlSpot(entry.key.toDouble(), (m[valueKey] ?? 0).toDouble());
+      return FlSpot(entry.key.toDouble(), _asDouble(m[valueKey]));
     }).toList();
 
     final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
@@ -787,7 +806,7 @@ class _SegmentoChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final spots = data.asMap().entries.map((entry) {
       final m = Map<String, dynamic>.from(entry.value as Map);
-      return FlSpot(entry.key.toDouble(), (m['total'] ?? 0).toDouble());
+      return FlSpot(entry.key.toDouble(), _asDouble(m['total']));
     }).toList();
     final maxY = spots.isEmpty ? 10.0 : spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
 
