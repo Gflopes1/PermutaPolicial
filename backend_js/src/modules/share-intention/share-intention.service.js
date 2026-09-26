@@ -12,6 +12,7 @@ const path = require('path');
 require('../../core/utils/fontconfig-env');
 const sharp = require('sharp');
 const db = require('../../config/db');
+const referralRepository = require('../referral/referral.repository');
 const { isAllowedFrontendOrigin, normalizeOrigin } = require('../../core/utils/frontend-url.utils');
 
 const DEFAULT_BASE_URL = 'https://br.permutapolicial.com.br';
@@ -90,14 +91,42 @@ function lugar(nome, uf, mostrarUf) {
 }
 
 class ShareIntentionService {
+  /**
+   * Dono do código. Usa EXATAMENTE a mesma consulta de /api/referral/validate
+   * (referralRepository.findCodeByCode: mesmo pool src/config/db, UPPER/TRIM do parâmetro,
+   * JOIN policiais). Assim /r/:code e a landing Flutter nunca divergem.
+   */
   async findCodeOwner(code) {
-    // Mesma consulta de referral.repository.findCodeByCode (usada por /api/referral/validate):
-    // códigos são gravados em maiúsculas; collation _ci + PAD SPACE cobre caixa/espaço à direita.
-    const [rows] = await db.execute(
-      'SELECT rc.user_id FROM referral_codes rc WHERE rc.code = ? LIMIT 1',
-      [code]
-    );
-    return rows[0]?.user_id ?? null;
+    const row = await referralRepository.findCodeByCode(code);
+    return row?.user_id ?? null;
+  }
+
+  /**
+   * Só roda quando o código NÃO foi encontrado: registra em qual banco/conexão o processo
+   * consultou e se a linha existe por outras vias. Sem dados pessoais nem segredos.
+   */
+  async diagnoseCodeMiss(code) {
+    const info = {
+      env_db_name: process.env.DB_NAME || null,
+      env_db_host: process.env.DB_HOST || null,
+      pid: process.pid,
+    };
+    try {
+      const [rows] = await db.execute(
+        `SELECT DATABASE() AS db, @@hostname AS host, @@port AS port, CURRENT_USER() AS db_user,
+                CONNECTION_ID() AS conn_id,
+                (SELECT COUNT(*) FROM referral_codes) AS total_codes,
+                (SELECT MAX(id) FROM referral_codes) AS max_id,
+                (SELECT user_id FROM referral_codes WHERE code = ? LIMIT 1) AS raw_owner,
+                (SELECT COUNT(*) FROM referral_codes WHERE UPPER(TRIM(code)) = ?) AS trim_matches,
+                (SELECT COUNT(*) FROM referral_codes rc JOIN policiais p ON p.id = rc.user_id WHERE rc.code = ?) AS join_matches`,
+        [code, code, code]
+      );
+      Object.assign(info, rows[0] || {});
+    } catch (err) {
+      info.diag_error = `${err.code || ''} ${err.message}`;
+    }
+    return info;
   }
 
   /**
@@ -197,7 +226,14 @@ class ShareIntentionService {
       return fallback(`erro_db_referral_codes: ${err.code || ''} ${err.message}`);
     }
     if (!ownerId) {
-      return fallback(`codigo_nao_encontrado_em_referral_codes (code='${code}')`);
+      const diag = await this.diagnoseCodeMiss(code);
+      // Linha existe sem o JOIN (policial removido?) -> ainda assim usa o dono bruto
+      if (diag.raw_owner) {
+        console.warn(`[share-intention] findCodeByCode vazio mas referral_codes tem o código; usando user_id bruto ${JSON.stringify(diag)}`);
+        ownerId = diag.raw_owner;
+      } else {
+        return fallback(`codigo_nao_encontrado_em_referral_codes (code='${code}') diag=${JSON.stringify(diag)}`);
+      }
     }
     ctx.codeValid = true;
 
