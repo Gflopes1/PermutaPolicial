@@ -29,6 +29,7 @@ import '../widgets/parceiros_card.dart';
 import '../widgets/dashboard_onboarding.dart';
 import '../widgets/dashboard_pix_footer.dart';
 import '../widgets/dashboard_desktop_layout.dart';
+import '../widgets/zero_intencoes_reminder_card.dart';
 import '../../../shared/widgets/network_error_panel.dart';
 import '../../notificacoes/providers/notificacoes_provider.dart';
 import '../../chat/providers/chat_provider.dart';
@@ -297,6 +298,10 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
                                       const SizedBox(height: 12),
                                       _buildMatchesSection(context, provider),
                                       const SizedBox(height: 12),
+                                      if (provider.intencoes.isEmpty) ...[
+                                        const ZeroIntencoesReminderCard(),
+                                        const SizedBox(height: 12),
+                                      ],
                                       const ReferralDashboardCard(),
                                       const SizedBox(height: 12),
                                       _buildSectionTitle('Acesso rápido'),
@@ -345,6 +350,10 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
                                       const SizedBox(height: 12),
                                       _buildMatchesSection(context, provider),
                                       const SizedBox(height: 12),
+                                      if (provider.intencoes.isEmpty) ...[
+                                        const ZeroIntencoesReminderCard(),
+                                        const SizedBox(height: 12),
+                                      ],
                                       const ReferralDashboardCard(),
                                       const SizedBox(height: 12),
                                       _buildSectionTitle('Acesso rápido'),
