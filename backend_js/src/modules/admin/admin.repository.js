@@ -631,7 +631,7 @@ class AdminRepository {
     );
 
     if (unions.length === 0) {
-      return { logs: [], total: 0, limit: safeOffset, limit: safeLimit };
+      return { logs: [], total: 0, offset: safeOffset, limit: safeLimit };
     }
 
     const unionSql = unions.join(' UNION ALL ');

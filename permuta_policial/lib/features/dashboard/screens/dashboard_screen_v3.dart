@@ -493,7 +493,22 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
         final helpUrl = AppConfig.isDevelopment
             ? 'https://dev.br.permutapolicial.com.br/help.html'
             : 'https://br.permutapolicial.com.br/help.html';
-        launchUrl(Uri.parse(helpUrl), mode: LaunchMode.externalApplication);
+        try {
+          final uri = Uri.parse(helpUrl);
+          if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+            // Fallback: tenta sem mode especificado
+            if (!await launchUrl(uri)) {
+              throw Exception('Não foi possível abrir o link de ajuda');
+            }
+          }
+        } catch (e) {
+          debugPrint('⚠️ Erro ao abrir página de ajuda: $e');
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Erro ao abrir ajuda: $helpUrl')),
+            );
+          }
+        }
         break;
       case 'share':
         await _shareApp();
