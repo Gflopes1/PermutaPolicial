@@ -30,7 +30,15 @@ class AnalyticsRepository {
       VALUES (?, ?, ?, ?, ?)
     `;
     const metadataJson = metadata ? JSON.stringify(metadata) : null;
-    await db.execute(query, [usuario_id, evento_tipo, metadataJson, ip_address, user_agent]);
+    // mysql2 rejeita undefined ("Bind parameters must not contain undefined"): vários chamadores
+    // (ex.: referral trackShare/trackSignupStarted) não informam ip/user_agent.
+    await db.execute(query, [
+      usuario_id ?? null,
+      evento_tipo ?? null,
+      metadataJson,
+      ip_address ?? null,
+      user_agent ?? null,
+    ]);
   }
 
   // Cria uma visualização de página
@@ -40,7 +48,13 @@ class AnalyticsRepository {
       INSERT INTO page_views (usuario_id, pagina, sessao_id, ip_address, user_agent)
       VALUES (?, ?, ?, ?, ?)
     `;
-    const [result] = await db.execute(query, [usuario_id, pagina, sessao_id, ip_address, user_agent]);
+    const [result] = await db.execute(query, [
+      usuario_id ?? null,
+      pagina ?? null,
+      sessao_id ?? null,
+      ip_address ?? null,
+      user_agent ?? null,
+    ]);
     return result.insertId;
   }
 
@@ -51,7 +65,7 @@ class AnalyticsRepository {
       SET tempo_permanencia = ?
       WHERE id = ?
     `;
-    await db.execute(query, [tempoSegundos, pageViewId]);
+    await db.execute(query, [tempoSegundos ?? null, pageViewId ?? null]);
   }
 
   // Cria ou atualiza uma sessão de usuário
@@ -61,7 +75,7 @@ class AnalyticsRepository {
     // Verifica se a sessão já existe
     const [existing] = await db.execute(
       'SELECT id FROM user_sessions WHERE sessao_id = ?',
-      [sessao_id]
+      [sessao_id ?? null]
     );
 
     if (existing.length > 0) {
@@ -71,7 +85,7 @@ class AnalyticsRepository {
         SET total_page_views = total_page_views + 1
         WHERE sessao_id = ?
       `;
-      await db.execute(query, [sessao_id]);
+      await db.execute(query, [sessao_id ?? null]);
       return existing[0].id;
     } else {
       // Cria nova sessão
@@ -85,6 +99,7 @@ class AnalyticsRepository {
       const [result] = await db.execute(
         query,
         [sessao_id, usuario_id, ip_address, user_agent, dispositivo_tipo, navegador, sistema_operacional]
+          .map((v) => (v === undefined ? null : v))
       );
       return result.insertId;
     }
@@ -97,7 +112,7 @@ class AnalyticsRepository {
       SET fim_sessao = CURRENT_TIMESTAMP, duracao_segundos = ?
       WHERE sessao_id = ?
     `;
-    await db.execute(query, [duracaoSegundos, sessaoId]);
+    await db.execute(query, [duracaoSegundos ?? null, sessaoId ?? null]);
   }
 
   // Obtém estatísticas gerais

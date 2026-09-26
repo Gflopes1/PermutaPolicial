@@ -8,6 +8,21 @@ const {
   buildReferralLink,
 } = require('./referral.utils');
 
+/** Metadata livre vinda do client: só objeto simples, sem undefined, até ~2 KB. */
+function sanitizeMetadata(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const clean = {};
+  for (const [k, v] of Object.entries(raw).slice(0, 20)) {
+    if (v === undefined || typeof v === 'function') continue;
+    if (v === null || ['string', 'number', 'boolean'].includes(typeof v)) {
+      clean[String(k).slice(0, 64)] = typeof v === 'string' ? v.slice(0, 300) : v;
+    }
+  }
+  if (!Object.keys(clean).length) return null;
+  const json = JSON.stringify(clean);
+  return json.length <= 2048 ? clean : null;
+}
+
 class ReferralService {
   async ensureReferralCode(userId) {
     const existing = await referralRepository.findCodeByUserId(userId);
@@ -238,11 +253,18 @@ class ReferralService {
     return campaign;
   }
 
-  async trackShare(userId, metadata = {}) {
+  /**
+   * @param {number} userId
+   * @param {object|undefined} metadata corpo do POST (Flutter manda {} ou um mapa simples)
+   * @param {{ ip_address?: string|null, user_agent?: string|null }} ctx
+   */
+  async trackShare(userId, metadata, ctx = {}) {
     await analyticsService.registrarEvento({
-      usuario_id: userId,
+      usuario_id: userId ?? null,
       evento_tipo: 'referral_share_clicked',
-      metadata,
+      metadata: sanitizeMetadata(metadata),
+      ip_address: ctx.ip_address ?? null,
+      user_agent: ctx.user_agent ? String(ctx.user_agent).slice(0, 500) : null,
     });
     return { success: true };
   }
@@ -252,6 +274,8 @@ class ReferralService {
       usuario_id: metadata.usuario_id || null,
       evento_tipo: 'referral_signup_started',
       metadata,
+      ip_address: null,
+      user_agent: null,
     });
     return { success: true };
   }

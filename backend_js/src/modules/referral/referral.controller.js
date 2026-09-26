@@ -44,8 +44,12 @@ module.exports = {
     referralService.getActiveCampaign(req.user?.id || null)
   ),
 
+  // Flutter envia {} (ReferralRepository.trackShare) ou um mapa de metadata opcional.
   trackShare: handle((req) =>
-    referralService.trackShare(req.user.id, req.body || {})
+    referralService.trackShare(req.user.id, req.body, {
+      ip_address: req.ip || null,
+      user_agent: req.get('user-agent') || null,
+    })
   ),
 
   attachReferral: handle((req) =>
