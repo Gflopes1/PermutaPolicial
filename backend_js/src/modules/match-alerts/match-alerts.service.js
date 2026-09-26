@@ -93,11 +93,15 @@ class MatchAlertsService {
         const matches = await permutasService.findMatchesForPolicial(userId);
         const { notificados } = await this.processMatchesForUser(userId, matches);
         totalNotificados += notificados;
-        
-        // Marca que este usuário foi varredido agora
-        await matchAlertsRepository.markUsuarioVarredura(userId);
       } catch (error) {
         console.error(`[match-alerts] Erro ao varrer usuário ${userId}:`, error.message);
+      }
+      // Marca mesmo em caso de erro: usuário com falha recorrente não pode ficar sempre
+      // no topo da fila e travar a rotação dos demais.
+      try {
+        await matchAlertsRepository.markUsuarioVarredura(userId);
+      } catch (error) {
+        console.error(`[match-alerts] Erro ao marcar varredura ${userId}:`, error.message);
       }
     }
 

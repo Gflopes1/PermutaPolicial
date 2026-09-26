@@ -62,17 +62,23 @@ class MatchAlertsRepository {
   }
 
   async findUsuariosParaVarredura(limit = 100) {
+    // Sem DISTINCT: no MySQL 8, DISTINCT + ORDER BY em coluna fora do SELECT gera
+    // ER_FIELD_IN_ORDER_NOT_SELECT (3065). EXISTS mantém 1 linha por policial.
+    // LIMIT inline (inteiro saneado): LIMIT ? em prepared statement falha em alguns MySQL 8.
+    const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 100, 1), 1000);
     const [rows] = await db.execute(
-      `SELECT DISTINCT p.id
+      `SELECT p.id
        FROM policiais p
-       INNER JOIN intencoes i ON i.policial_id = p.id
        WHERE p.status_verificacao = 'VERIFICADO'
          AND COALESCE(p.alertas_match_ativo, 1) = 1
-         AND (i.unidade_atual_id IS NOT NULL OR i.municipio_atual_id IS NOT NULL
-              OR p.unidade_atual_id IS NOT NULL OR p.municipio_atual_id IS NOT NULL)
-       ORDER BY ISNULL(p.ultima_varredura_alertas) DESC, p.ultima_varredura_alertas ASC, p.id ASC
-       LIMIT ?`,
-      [limit]
+         AND EXISTS (
+           SELECT 1 FROM intencoes i
+           WHERE i.policial_id = p.id
+             AND (i.unidade_atual_id IS NOT NULL OR i.municipio_atual_id IS NOT NULL
+                  OR p.unidade_atual_id IS NOT NULL OR p.municipio_atual_id IS NOT NULL)
+         )
+       ORDER BY (p.ultima_varredura_alertas IS NULL) DESC, p.ultima_varredura_alertas ASC, p.id ASC
+       LIMIT ${safeLimit}`
     );
     return rows.map((r) => r.id);
   }
