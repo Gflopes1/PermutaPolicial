@@ -6,6 +6,7 @@ import 'package:permuta_policial/core/services/referral_storage_service.dart';
 import 'package:permuta_policial/core/config/app_router.dart';
 import 'package:permuta_policial/core/config/app_styles.dart';
 import 'package:permuta_policial/core/config/app_theme.dart';
+import 'package:permuta_policial/core/utils/platform_utils.dart';
 import 'package:permuta_policial/core/services/analytics_service.dart';
 import 'package:permuta_policial/features/auth/providers/auth_provider.dart';
 import 'package:permuta_policial/features/auth/providers/auth_status.dart';
@@ -48,10 +49,19 @@ class _RegisterWizardScreenState extends State<RegisterWizardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadReferralCode());
   }
 
+  /// ?ref= da rota do GoRouter; fallback para a URL do navegador (web), caso algum redirect
+  /// intermediário tenha reconstruído a location sem a query.
+  String? _refFromUrl(ReferralStorageService storage) {
+    final fromRoute = storage.parseRefFromUri(GoRouterState.of(context).uri);
+    if (fromRoute != null) return fromRoute;
+    final search = getSearch();
+    if (search.isEmpty) return null;
+    return storage.parseRefFromUri(Uri.tryParse('/$search'));
+  }
+
   Future<void> _loadReferralCode() async {
     final storage = Provider.of<ReferralStorageService>(context, listen: false);
-    final uri = GoRouterState.of(context).uri;
-    final fromQuery = storage.parseRefFromUri(uri);
+    final fromQuery = _refFromUrl(storage);
     if (fromQuery != null) {
       await storage.saveReferralCode(fromQuery);
     }
@@ -66,8 +76,7 @@ class _RegisterWizardScreenState extends State<RegisterWizardScreen> {
       return _referralCode;
     }
     final storage = Provider.of<ReferralStorageService>(context, listen: false);
-    final uri = GoRouterState.of(context).uri;
-    return storage.parseRefFromUri(uri) ?? await storage.getReferralCode();
+    return _refFromUrl(storage) ?? await storage.getReferralCode();
   }
 
   @override
