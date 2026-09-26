@@ -46,20 +46,11 @@ configurePassport();
 const app = express();
 app.set('trust proxy', 1);
 
-// Middleware para preferir CF-Connecting-IP quando disponível
-// Restaura IP real do cliente por trás do Cloudflare para rate limits e logs
-app.use((req, res, next) => {
-  const cfIp = req.headers['cf-connecting-ip'];
-  if (cfIp && typeof cfIp === 'string') {
-    // Sobrescreve req.ip com o IP real do Cloudflare
-    Object.defineProperty(req, 'ip', {
-      value: cfIp,
-      writable: false,
-      configurable: true
-    });
-  }
-  next();
-});
+// IP real do cliente: NÃO ler CF-Connecting-IP aqui (qualquer um que acesse a origem
+// diretamente poderia forjá-lo). O nginx restaura o IP via real_ip (set_real_ip_from <faixas
+// Cloudflare> + real_ip_header CF-Connecting-IP) e repassa X-Forwarded-For
+// ($proxy_add_x_forwarded_for) / X-Real-IP ($remote_addr). Com 'trust proxy' = 1 o Express
+// usa a entrada mais à direita do X-Forwarded-For (a adicionada pelo nginx) como req.ip.
 
 // ✅ SEGURANÇA: Headers de segurança HTTP (Helmet)
 app.use(helmet({
