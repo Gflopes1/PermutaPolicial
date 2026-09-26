@@ -257,6 +257,10 @@ app.use('/static/admin', (req, res, next) => {
 const editalShareRoutes = require('./modules/editais/editalShare.routes');
 app.use(editalShareRoutes);
 
+// 9e. Landing pública de compartilhamento de intenção com OG dinâmico (proxy nginx em /r/:code)
+const shareIntentionRoutes = require('./modules/share-intention/share-intention.routes');
+app.use('/r', shareIntentionRoutes);
+
 // 10. Rotas da API
 logger.debug('Carregando rotas da API...');
 app.use('/api', apiRoutes);
