@@ -68,6 +68,7 @@ import 'package:permuta_policial/core/api/repositories/marketplace_repository.da
 import 'package:permuta_policial/features/notificacoes/providers/notificacoes_provider.dart';
 import 'package:permuta_policial/features/questions/providers/questions_provider.dart';
 import 'package:permuta_policial/features/referral/providers/referral_provider.dart';
+import 'package:permuta_policial/features/calendar/providers/calendar_provider.dart';
 import 'package:permuta_policial/shared/widgets/web_push_permission_banner.dart';
 import 'package:permuta_policial/shared/widgets/web_update_banner.dart';
 import 'package:permuta_policial/core/lifecycle/app_lifecycle_handler.dart';
@@ -375,6 +376,13 @@ class MyApp extends StatelessWidget {
             ctx.read<ReferralStorageService>(),
           ),
         ),
+        ChangeNotifierProvider<CalendarProvider>(
+          create: (ctx) => CalendarProvider(
+            ctx.read<WorkRepository>(),
+            ctx.read<PresetsRepository>(),
+            ctx.read<SalaryRepository>(),
+          ),
+        ),
       ],
       child: const AppLifecycleHandler(
         child: _AppWithRouter(),
@@ -398,8 +406,13 @@ class _AppWithRouterState extends State<_AppWithRouter> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (kIsWeb) return;
-      final push = context.read<PushNotificationService>();
-      await push.initialize();
+      try {
+        final push = context.read<PushNotificationService>();
+        await push.initialize();
+      } catch (e, stack) {
+        debugPrint('⚠️ Erro ao inicializar push notifications: $e');
+        debugPrint('Stack: $stack');
+      }
     });
   }
 

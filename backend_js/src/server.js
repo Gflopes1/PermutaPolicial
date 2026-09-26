@@ -46,6 +46,21 @@ configurePassport();
 const app = express();
 app.set('trust proxy', 1);
 
+// Middleware para preferir CF-Connecting-IP quando disponível
+// Restaura IP real do cliente por trás do Cloudflare para rate limits e logs
+app.use((req, res, next) => {
+  const cfIp = req.headers['cf-connecting-ip'];
+  if (cfIp && typeof cfIp === 'string') {
+    // Sobrescreve req.ip com o IP real do Cloudflare
+    Object.defineProperty(req, 'ip', {
+      value: cfIp,
+      writable: false,
+      configurable: true
+    });
+  }
+  next();
+});
+
 // ✅ SEGURANÇA: Headers de segurança HTTP (Helmet)
 app.use(helmet({
     contentSecurityPolicy: {
@@ -241,6 +256,10 @@ app.use('/static/admin', (req, res, next) => {
 // 9d. Landing pública de edital com Open Graph dinâmico (proxy nginx em /edital/:id)
 const editalShareRoutes = require('./modules/editais/editalShare.routes');
 app.use(editalShareRoutes);
+
+// 9e. Landing pública de compartilhamento de intenção com OG dinâmico (proxy nginx em /r/:code)
+const shareIntentionRoutes = require('./modules/share-intention/share-intention.routes');
+app.use('/r', shareIntentionRoutes);
 
 // 10. Rotas da API
 logger.debug('Carregando rotas da API...');

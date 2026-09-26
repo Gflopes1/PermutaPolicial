@@ -36,24 +36,22 @@ class _DashboardPixFooterState extends State<DashboardPixFooter> {
 
   @override
   Widget build(BuildContext context) {
-    if (_chavePix == null || _chavePix!.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    final bool hasPixKey = _chavePix != null && _chavePix!.isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A2F1A),
+          color: const Color(0xFF1C1F28),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF2E7D32), width: 0.5),
+          border: Border.all(color: const Color(0xFF2A2D36), width: 0.5),
         ),
         child: Row(
           children: [
             Semantics(
               label: 'Apoio ao projeto',
-              child: const Icon(Icons.favorite, color: Color(0xFF81C784), size: 20),
+              child: const Icon(Icons.favorite_outline, color: Color(0xFF66BB6A), size: 20),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -62,37 +60,59 @@ class _DashboardPixFooterState extends State<DashboardPixFooter> {
                 children: [
                   Text(
                     _titulo,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: const Color(0xFF81C784),
-                        ),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
+                  const SizedBox(height: 2),
                   Text(
-                    _mensagem,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.white54,
-                        ),
+                    hasPixKey ? _mensagem : 'Configure a chave PIX no painel',
+                    style: const TextStyle(
+                      color: Color(0x8FFFFFFF),
+                      fontSize: 10,
+                    ),
                   ),
                 ],
               ),
             ),
-            Semantics(
-              button: true,
-              label: 'Copiar chave PIX',
-              child: TextButton(
-                style: TextButton.styleFrom(
-                  backgroundColor: const Color(0xFF2E7D32),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            if (hasPixKey)
+              Semantics(
+                button: true,
+                label: 'Copiar chave PIX',
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    backgroundColor: const Color(0xFF2E7D32),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: _chavePix!));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Chave PIX copiada! Obrigado pelo apoio.')),
+                    );
+                  },
+                  child: const Text('Copiar', style: TextStyle(fontSize: 11)),
                 ),
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: _chavePix!));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Chave PIX copiada! Obrigado pelo apoio.')),
-                  );
-                },
-                child: const Text('Copiar'),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0x15FFFFFF),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  'Em breve',
+                  style: TextStyle(
+                    color: Color(0x8FFFFFFF),
+                    fontSize: 11,
+                  ),
+                ),
               ),
-            ),
           ],
         ),
       ),

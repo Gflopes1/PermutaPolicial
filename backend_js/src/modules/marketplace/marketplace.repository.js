@@ -89,7 +89,7 @@ class MarketplaceRepository {
 
   async findByUsuario(policialId) {
     const [rows] = await db.execute(
-      'SELECT * FROM marketplace WHERE policial_id = ? ORDER BY criado_em DESC',
+      'SELECT * FROM marketplace WHERE policial_id = ? ORDER BY criado_em DESC LIMIT 100',
       [policialId]
     );
     

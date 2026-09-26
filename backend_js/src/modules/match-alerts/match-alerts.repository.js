@@ -70,11 +70,18 @@ class MatchAlertsRepository {
          AND COALESCE(p.alertas_match_ativo, 1) = 1
          AND (i.unidade_atual_id IS NOT NULL OR i.municipio_atual_id IS NOT NULL
               OR p.unidade_atual_id IS NOT NULL OR p.municipio_atual_id IS NOT NULL)
-       ORDER BY p.id ASC
+       ORDER BY ISNULL(p.ultima_varredura_alertas) DESC, p.ultima_varredura_alertas ASC, p.id ASC
        LIMIT ?`,
       [limit]
     );
     return rows.map((r) => r.id);
+  }
+
+  async markUsuarioVarredura(policialId) {
+    await db.execute(
+      'UPDATE policiais SET ultima_varredura_alertas = NOW() WHERE id = ?',
+      [policialId]
+    );
   }
 }
 

@@ -136,18 +136,19 @@ class PushNotificationService {
   Future<void> initialize() async {
     if (_initialized) return;
 
-    if (kIsWeb) {
-      await _ensureWebConfigLoaded();
-    }
+    try {
+      if (kIsWeb) {
+        await _ensureWebConfigLoaded();
+      }
 
-    if (!isConfigured) {
-      debugPrint(
-        '⚠️ Push: Firebase não configurado — ${webConfigIssue ?? "veja WEB_PUSH_SETUP.md"}',
-      );
-      return;
-    }
+      if (!isConfigured) {
+        debugPrint(
+          '⚠️ Push: Firebase não configurado — ${webConfigIssue ?? "veja WEB_PUSH_SETUP.md"}',
+        );
+        return;
+      }
 
-    await Firebase.initializeApp(options: _firebaseOptions);
+      await Firebase.initializeApp(options: _firebaseOptions);
 
     // SW FCM: index.html registra cedo; aqui só aguarda estar pronto (sem getToken).
     if (kIsWeb) {
@@ -203,6 +204,11 @@ class PushNotificationService {
     }
 
     _initialized = true;
+    } catch (e, stack) {
+      debugPrint('❌ Erro ao inicializar push notifications: $e');
+      debugPrint('Stack trace: $stack');
+      // Não rethrow - permite que o app continue funcionando sem push
+    }
   }
 
   Future<bool> requestWebPermissionAndRegister() async {

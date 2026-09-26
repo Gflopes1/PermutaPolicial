@@ -113,9 +113,26 @@ class AnalyticsRepository {
     }
     const [pageViewRows] = await db.execute(`SELECT COUNT(*) as total FROM page_views ${wherePageViews}`, paramsPageViews);
     
-    // Query para usuários únicos
-    const whereUniqueUsers = wherePageViews ? `${wherePageViews} AND usuario_id IS NOT NULL` : 'WHERE usuario_id IS NOT NULL';
-    const [uniqueUsersRows] = await db.execute(`SELECT COUNT(DISTINCT usuario_id) as total FROM page_views ${whereUniqueUsers}`, paramsPageViews);
+    // Query para usuários únicos (conta sessões distintas, não apenas usuários logados)
+    // Prioriza usuario_id quando disponível, senão conta sessao_id único
+    let whereUnique = '';
+    const paramsUnique = [];
+    if (dataInicio && dataFim) {
+      whereUnique = 'WHERE criado_em BETWEEN ? AND ?';
+      paramsUnique.push(dataInicio, dataFim);
+    } else if (dataInicio) {
+      whereUnique = 'WHERE criado_em >= ?';
+      paramsUnique.push(dataInicio);
+    } else if (dataFim) {
+      whereUnique = 'WHERE criado_em <= ?';
+      paramsUnique.push(dataFim);
+    }
+    const [uniqueUsersRows] = await db.execute(
+      `SELECT COUNT(DISTINCT COALESCE(usuario_id, sessao_id)) as total 
+       FROM page_views 
+       ${whereUnique}`,
+      paramsUnique
+    );
 
     // Query para sessões
     let whereSessions = '';
@@ -221,7 +238,7 @@ class AnalyticsRepository {
       SELECT 
         COUNT(*) as total_sessoes,
         COUNT(DISTINCT usuario_id) as usuarios_unicos,
-        AVG(duracao_segundos) as duracao_media_segundos,
+        AVG(CASE WHEN duracao_segundos IS NOT NULL AND duracao_segundos > 0 THEN duracao_segundos END) as duracao_media_segundos,
         AVG(total_page_views) as page_views_medio,
         COUNT(CASE WHEN dispositivo_tipo = 'mobile' THEN 1 END) as sessoes_mobile,
         COUNT(CASE WHEN dispositivo_tipo = 'desktop' THEN 1 END) as sessoes_desktop
@@ -507,13 +524,17 @@ class AnalyticsRepository {
       solicitacoesContato = notifs?.solicitacoes || 0;
       contatosAceitos = notifs?.aceitos || 0;
       alertasMatch = notifs?.alertas_match || 0;
-    } catch (_) {}
+    } catch (err) {
+      console.error('Erro ao buscar notificações para analytics:', err.message);
+    }
 
     let permutasConcluidas = 0;
     try {
       const [[pc]] = await db.execute('SELECT COUNT(*) as c FROM permutas_concluidas_feedback');
       permutasConcluidas = pc?.c || 0;
-    } catch (_) {}
+    } catch (err) {
+      console.error('Erro ao buscar permutas concluídas para analytics:', err.message);
+    }
 
     return {
       ...totais,

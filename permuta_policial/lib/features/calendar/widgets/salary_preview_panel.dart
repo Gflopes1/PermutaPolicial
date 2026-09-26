@@ -18,170 +18,236 @@ class SalaryPreviewPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<CalendarProvider>(
       builder: (context, provider, child) {
-        final preview = provider.monthPreview;
-        if (preview == null) {
-          return const Center(child: Text('Carregando preview...'));
+        if (provider.isLoading && provider.monthPreview == null) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Carregando preview...'),
+                ],
+              ),
+            ),
+          );
         }
 
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          shrinkWrap: true,
-          children: [
-            const SizedBox(height: 8),
-            // Resumo de horas
-            _buildSectionTitle(context, 'RESUMO DE HORAS'),
-            _buildInfoCard(
-              context,
-              'Horas Totais',
-              '${_formatNumber(preview['total_horas'])}h',
-            ),
-            _buildInfoCard(
-              context,
-              'Carga Horária do Mês',
-              '${_formatNumber(preview['carga_horaria_mes'])}h',
-            ),
-            if (_toDouble(preview['horas_abatimento'] ?? 0) > 0)
-              _buildInfoCard(
-                context,
-                'Horas de Abatimento',
-                '${_formatNumber(preview['horas_abatimento'])}h',
+        final preview = provider.monthPreview;
+        if (preview == null || preview.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.info_outline, size: 48, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Nenhum dado de preview disponível',
+                    style: TextStyle(color: Colors.grey[600]),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Marque dias no calendário para ver o preview',
+                    style: TextStyle(fontSize: 12),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
-            _buildInfoCard(
-              context,
-              'Horas Extras',
-              '${_formatNumber(preview['horas_extras'])}h',
             ),
-            _buildInfoCard(
-              context,
-              'Etapas',
-              '${preview['total_etapas'] ?? 0}',
-            ),
-            _buildInfoCard(
-              context,
-              'Dias Trabalhados',
-              '${preview['dias_trabalhados'] ?? 0}',
-            ),
-            if ((preview['dias_ferias'] ?? 0) > 0)
+          );
+        }
+
+        try {
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            shrinkWrap: true,
+            children: [
+              const SizedBox(height: 8),
+              _buildSectionTitle(context, 'RESUMO DE HORAS'),
               _buildInfoCard(
                 context,
-                'Dias de Férias',
-                '${preview['dias_ferias'] ?? 0}',
+                'Horas Totais',
+                '${_formatNumber(preview['total_horas'])}h',
               ),
-            const Divider(),
-            _buildSectionTitle(context, 'VANTAGENS'),
-            _buildInfoCard(
-              context,
-              'Salário Base',
-              'R\$ ${_formatCurrency(preview['salario_base'] ?? 0)}',
-            ),
-            _buildInfoCard(
-              context,
-              'Horas Extras',
-              'R\$ ${_formatCurrency(preview['valor_horas_extras'])}',
-            ),
-            _buildInfoCard(
-              context,
-              'Etapas',
-              'R\$ ${_formatCurrency(preview['valor_etapas'])}',
-            ),
-            if (_toDouble(preview['outras_vantagens']) > 0)
               _buildInfoCard(
                 context,
-                'Outras Vantagens (ex: substituição)',
-                'R\$ ${_formatCurrency(preview['outras_vantagens'])}',
+                'Carga Horária do Mês',
+                '${_formatNumber(preview['carga_horaria_mes'])}h',
               ),
-            _buildInfoCard(
-              context,
-              'Salário Bruto (sem VA)',
-              'R\$ ${_formatCurrency(preview['salario_bruto'])}',
-              isHighlight: true,
-              color: Colors.blue.shade700,
-            ),
-            _buildInfoCard(
-              context,
-              'Vale Alimentação',
-              'R\$ ${_formatCurrency(preview['vale_alimentacao'])}',
-            ),
-            _buildInfoCard(
-              context,
-              'Total Recebimentos',
-              'R\$ ${_formatCurrency(preview['total_recebimentos'] ?? _toDouble(preview['salario_bruto']) + _toDouble(preview['vale_alimentacao']))}',
-              isHighlight: true,
-              color: Colors.blue.shade900,
-            ),
-            const Divider(),
-            _buildSectionTitle(context, 'DESCONTOS'),
-            _buildInfoCard(
-              context,
-              'Previdência',
-              'R\$ ${_formatCurrency(preview['desconto_previdencia'])}',
-              color: Colors.red.shade700,
-            ),
-            _buildInfoCard(
-              context,
-              'IRPF',
-              'R\$ ${_formatCurrency(preview['desconto_irpf'] ?? 0)}',
-              color: Colors.red.shade700,
-            ),
-            if (_toDouble(preview['base_irpf'] ?? 0) > 0)
+              if (_toDouble(preview['horas_abatimento'] ?? 0) > 0)
+                _buildInfoCard(
+                  context,
+                  'Horas de Abatimento',
+                  '${_formatNumber(preview['horas_abatimento'])}h',
+                ),
               _buildInfoCard(
                 context,
-                'Base IRPF',
-                'R\$ ${_formatCurrency(preview['base_irpf'])}',
-                color: Colors.red.shade400,
+                'Horas Extras',
+                '${_formatNumber(preview['horas_extras'])}h',
               ),
-            if (_toDouble(preview['desconto_consignados'] ?? 0) > 0)
               _buildInfoCard(
                 context,
-                'Consignados',
-                'R\$ ${_formatCurrency(preview['desconto_consignados'])}',
+                'Etapas',
+                '${preview['total_etapas'] ?? 0}',
+              ),
+              _buildInfoCard(
+                context,
+                'Dias Trabalhados',
+                '${preview['dias_trabalhados'] ?? 0}',
+              ),
+              if ((preview['dias_ferias'] ?? 0) > 0)
+                _buildInfoCard(
+                  context,
+                  'Dias de Férias',
+                  '${preview['dias_ferias'] ?? 0}',
+                ),
+              const Divider(),
+              _buildSectionTitle(context, 'VANTAGENS'),
+              _buildInfoCard(
+                context,
+                'Salário Base',
+                'R\$ ${_formatCurrency(preview['salario_base'] ?? 0)}',
+              ),
+              _buildInfoCard(
+                context,
+                'Horas Extras',
+                'R\$ ${_formatCurrency(preview['valor_horas_extras'])}',
+              ),
+              _buildInfoCard(
+                context,
+                'Etapas',
+                'R\$ ${_formatCurrency(preview['valor_etapas'])}',
+              ),
+              if (_toDouble(preview['outras_vantagens']) > 0)
+                _buildInfoCard(
+                  context,
+                  'Outras Vantagens (ex: substituição)',
+                  'R\$ ${_formatCurrency(preview['outras_vantagens'])}',
+                ),
+              _buildInfoCard(
+                context,
+                'Salário Bruto (sem VA)',
+                'R\$ ${_formatCurrency(preview['salario_bruto'])}',
+                isHighlight: true,
+                color: Colors.blue.shade700,
+              ),
+              _buildInfoCard(
+                context,
+                'Vale Alimentação',
+                'R\$ ${_formatCurrency(preview['vale_alimentacao'])}',
+              ),
+              _buildInfoCard(
+                context,
+                'Total Recebimentos',
+                'R\$ ${_formatCurrency(preview['total_recebimentos'] ?? _toDouble(preview['salario_bruto']) + _toDouble(preview['vale_alimentacao']))}',
+                isHighlight: true,
+                color: Colors.blue.shade900,
+              ),
+              const Divider(),
+              _buildSectionTitle(context, 'DESCONTOS'),
+              _buildInfoCard(
+                context,
+                'Previdência',
+                'R\$ ${_formatCurrency(preview['desconto_previdencia'])}',
                 color: Colors.red.shade700,
               ),
-            if (_toDouble(preview['outros_descontos'] ?? 0) > 0)
               _buildInfoCard(
                 context,
-                'Outros Descontos em Folha',
-                'R\$ ${_formatCurrency(preview['outros_descontos'])}',
+                'IRPF',
+                'R\$ ${_formatCurrency(preview['desconto_irpf'] ?? 0)}',
                 color: Colors.red.shade700,
               ),
-            _buildInfoCard(
-              context,
-              'Total de Descontos',
-              'R\$ ${_formatCurrency(
-                _toDouble(preview['desconto_previdencia']) +
-                _toDouble(preview['desconto_irpf']) +
-                _toDouble(preview['desconto_consignados'] ?? 0) +
-                _toDouble(preview['outros_descontos'] ?? 0)
-              )}',
-              isHighlight: true,
-              color: Colors.red.shade900,
+              if (_toDouble(preview['base_irpf'] ?? 0) > 0)
+                _buildInfoCard(
+                  context,
+                  'Base IRPF',
+                  'R\$ ${_formatCurrency(preview['base_irpf'])}',
+                  color: Colors.red.shade400,
+                ),
+              if (_toDouble(preview['desconto_consignados'] ?? 0) > 0)
+                _buildInfoCard(
+                  context,
+                  'Consignados',
+                  'R\$ ${_formatCurrency(preview['desconto_consignados'])}',
+                  color: Colors.red.shade700,
+                ),
+              if (_toDouble(preview['outros_descontos'] ?? 0) > 0)
+                _buildInfoCard(
+                  context,
+                  'Outros Descontos em Folha',
+                  'R\$ ${_formatCurrency(preview['outros_descontos'])}',
+                  color: Colors.red.shade700,
+                ),
+              _buildInfoCard(
+                context,
+                'Total de Descontos',
+                'R\$ ${_formatCurrency(
+                  _toDouble(preview['desconto_previdencia']) +
+                  _toDouble(preview['desconto_irpf']) +
+                  _toDouble(preview['desconto_consignados'] ?? 0) +
+                  _toDouble(preview['outros_descontos'] ?? 0)
+                )}',
+                isHighlight: true,
+                color: Colors.red.shade900,
+              ),
+              const Divider(),
+              _buildSectionTitle(context, 'LÍQUIDO'),
+              _buildInfoCard(
+                context,
+                'Salário Líquido (folha)',
+                'R\$ ${_formatCurrency(preview['salario_liquido_folha'] ?? preview['salario_liquido'])}',
+                isHighlight: true,
+                color: Colors.green.shade700,
+              ),
+              _buildInfoCard(
+                context,
+                'VA + Etapas',
+                'R\$ ${_formatCurrency(preview['va_mais_etapas'] ?? (_toDouble(preview['vale_alimentacao']) + _toDouble(preview['valor_etapas'])))}',
+                isHighlight: true,
+                color: Colors.teal.shade700,
+              ),
+              _buildInfoCard(
+                context,
+                'Total Líquido',
+                'R\$ ${_formatCurrency(preview['salario_liquido'])}',
+                isHighlight: true,
+                color: Colors.green.shade900,
+              ),
+              const SizedBox(height: 8),
+            ],
+          );
+        } catch (e, stackTrace) {
+          debugPrint('❌ Erro ao renderizar SalaryPreviewPanel: $e');
+          debugPrint('   Stack trace: $stackTrace');
+          debugPrint('   Preview data: $preview');
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 48, color: Colors.red[400]),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Erro ao carregar preview',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    e.toString(),
+                    style: const TextStyle(fontSize: 12),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
-            const Divider(),
-            _buildSectionTitle(context, 'LÍQUIDO'),
-            _buildInfoCard(
-              context,
-              'Salário Líquido (folha)',
-              'R\$ ${_formatCurrency(preview['salario_liquido_folha'] ?? preview['salario_liquido'])}',
-              isHighlight: true,
-              color: Colors.green.shade700,
-            ),
-            _buildInfoCard(
-              context,
-              'VA + Etapas',
-              'R\$ ${_formatCurrency(preview['va_mais_etapas'] ?? (_toDouble(preview['vale_alimentacao']) + _toDouble(preview['valor_etapas'])))}',
-              isHighlight: true,
-              color: Colors.teal.shade700,
-            ),
-            _buildInfoCard(
-              context,
-              'Total Líquido',
-              'R\$ ${_formatCurrency(preview['salario_liquido'])}',
-              isHighlight: true,
-              color: Colors.green.shade900,
-            ),
-            const SizedBox(height: 8),
-          ],
-        );
+          );
+        }
       },
     );
   }

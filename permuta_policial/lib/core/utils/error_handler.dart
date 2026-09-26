@@ -8,34 +8,42 @@ import '../services/analytics_service.dart';
 class ErrorHandler {
   /// Extrai uma mensagem amigável de qualquer erro
   static String getErrorMessage(dynamic error) {
-    if (error is ApiException) {
-      return error.userMessage;
+    try {
+      if (error is ApiException) {
+        return error.userMessage;
+      }
+      
+      if (error is Exception) {
+        final errorString = error.toString().toLowerCase();
+        
+        // Detecta erros específicos na mensagem
+        if (errorString.contains('id') && (errorString.contains('cadastrado') || errorString.contains('duplicate') || errorString.contains('already exists'))) {
+          return 'Este ID Funcional/Matrícula já está cadastrado nesta Força Policial. Verifique os dados e tente novamente.';
+        }
+        
+        // Detecta erros comuns mesmo sem ApiException
+        if (errorString.contains('timeout') || errorString.contains('timed out')) {
+          return 'A requisição demorou muito. Verifique sua conexão e tente novamente.';
+        }
+        
+        if (errorString.contains('socket') || errorString.contains('connection')) {
+          return 'Erro de conexão. Verifique sua internet e tente novamente.';
+        }
+        
+        if (errorString.contains('format') || errorString.contains('json')) {
+          return 'Erro ao processar resposta do servidor. Tente novamente.';
+        }
+      }
+      
+      // Se não é Exception nem ApiException, loga o tipo para debug
+      debugPrint('⚠️ Erro não-Exception capturado: ${error.runtimeType} - $error');
+      
+      // Mensagem genérica como fallback
+      return 'Ocorreu um erro inesperado. Tente novamente ou entre em contato com o suporte.';
+    } catch (e) {
+      debugPrint('❌ Erro crítico em getErrorMessage: $e');
+      return 'Erro inesperado ao processar erro. Entre em contato com o suporte.';
     }
-    
-    if (error is Exception) {
-      final errorString = error.toString().toLowerCase();
-      
-      // Detecta erros específicos na mensagem
-      if (errorString.contains('id') && (errorString.contains('cadastrado') || errorString.contains('duplicate') || errorString.contains('already exists'))) {
-        return 'Este ID Funcional/Matrícula já está cadastrado nesta Força Policial. Verifique os dados e tente novamente.';
-      }
-      
-      // Detecta erros comuns mesmo sem ApiException
-      if (errorString.contains('timeout') || errorString.contains('timed out')) {
-        return 'A requisição demorou muito. Verifique sua conexão e tente novamente.';
-      }
-      
-      if (errorString.contains('socket') || errorString.contains('connection')) {
-        return 'Erro de conexão. Verifique sua internet e tente novamente.';
-      }
-      
-      if (errorString.contains('format') || errorString.contains('json')) {
-        return 'Erro ao processar resposta do servidor. Tente novamente.';
-      }
-    }
-    
-    // Mensagem genérica como fallback
-    return 'Ocorreu um erro inesperado. Tente novamente ou entre em contato com o suporte.';
   }
 
   /// Verifica se o erro é relacionado a conexão (permite retry)

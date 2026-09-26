@@ -32,6 +32,7 @@ class Preset {
         try {
           final parsed = jsonDecode('[${json['intervals_json']}]');
           intervalsList = (parsed as List)
+              .where((i) => i['start_time'] != null && i['end_time'] != null)
               .map((i) => PresetInterval.fromJson(i))
               .toList();
         } catch (e) {
@@ -40,7 +41,8 @@ class Preset {
       }
     } else if (json['intervals'] != null && json['intervals'] is List) {
       intervalsList = (json['intervals'] as List)
-          .map((i) => PresetInterval.fromJson(i))
+          .where((i) => i is Map && i['start_time'] != null && i['end_time'] != null)
+          .map((i) => PresetInterval.fromJson(i as Map<String, dynamic>))
           .toList();
     }
 

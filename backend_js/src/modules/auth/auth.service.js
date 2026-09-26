@@ -273,7 +273,7 @@ class AuthService {
 
         const payload = buildJwtPayload(policial);
         const token = jwt.sign(payload, process.env.JWT_SECRET, {
-            expiresIn: process.env.JWT_EXPIRES_IN || '30d',
+            expiresIn: process.env.JWT_EXPIRES_IN || '7d',
         });
 
         // Registra evento de login (sem await para não bloquear)
@@ -388,7 +388,7 @@ class AuthService {
 
         const payload = buildJwtPayload(user);
         const token = jwt.sign(payload, process.env.JWT_SECRET, {
-            expiresIn: process.env.JWT_EXPIRES_IN || '30d',
+            expiresIn: process.env.JWT_EXPIRES_IN || '7d',
         });
 
         analyticsService.registrarEvento({

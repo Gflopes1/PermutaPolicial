@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/config/app_theme.dart';
 import '../../../../core/models/intencao.dart';
 import '../../../../core/models/user_profile.dart';
 import '../../../dashboard/providers/dashboard_provider.dart';
+import '../../../referral/providers/referral_provider.dart';
 import '../gerir_intencoes_modal.dart';
 import '../section_card.dart';
 
@@ -158,6 +161,58 @@ class _IntencoesActions extends StatelessWidget {
     );
   }
 
+  Future<void> _shareIntencao(BuildContext context) async {
+    try {
+      final referralProvider = Provider.of<ReferralProvider>(context, listen: false);
+      final referralCode = referralProvider.myReferral?.referralCode;
+      
+      if (referralCode == null) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Código de referral não disponível')),
+          );
+        }
+        return;
+      }
+
+      // Pega primeira intenção para incluir no link (opcional)
+      final intencao = intencoes.isNotEmpty ? intencoes.first : null;
+      final intencaoIdParam = intencao != null ? '?i=${intencao.id}' : '';
+      
+      // Monta texto de compartilhamento
+      String shareText = 'Sou ';
+      if (intencao != null) {
+        // Origem
+        String origem = 'origem';
+        if (intencao.municipioAtualNome != null && intencao.estadoAtualSigla != null) {
+          origem = '${intencao.municipioAtualNome}-${intencao.estadoAtualSigla}';
+        } else if (intencao.unidadeAtualNome != null) {
+          origem = intencao.unidadeAtualNome!;
+        }
+        
+        // Destino
+        String destino = 'destino';
+        if (intencao.municipioNome != null && intencao.estadoSigla != null) {
+          destino = '${intencao.municipioNome}-${intencao.estadoSigla}';
+        } else if (intencao.unidadeNome != null) {
+          destino = intencao.unidadeNome!;
+        }
+        
+        shareText += 'de $origem e procuro permuta para $destino. ';
+      }
+      
+      shareText += 'Se você quer vir para cá, se cadastra no Permuta Policial: https://br.permutapolicial.com.br/r/$referralCode$intencaoIdParam';
+      
+      await Share.share(shareText);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao compartilhar: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<DashboardProvider>(context, listen: false);
@@ -167,6 +222,11 @@ class _IntencoesActions extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: [
+        FilledButton.icon(
+          onPressed: () => _shareIntencao(context),
+          icon: const Icon(Icons.share, size: 16),
+          label: const Text('Compartilhar minha intenção'),
+        ),
         OutlinedButton.icon(
           onPressed: () => _confirmPermutaConcluida(context),
           icon: const Icon(Icons.verified_outlined, size: 16),

@@ -379,12 +379,9 @@ GoRouter createAppRouter(AuthProvider authProvider) => GoRouter(
     GoRoute(
       path: '/calendar',
       name: 'calendar',
-      builder: (context, state) => RouteScopedProviders.calendar(
-        context,
-        _defer(
-          calendar.loadLibrary,
-          () => calendar.CalendarScreen(),
-        ),
+      builder: (context, state) => _defer(
+        calendar.loadLibrary,
+        () => calendar.CalendarScreen(),
       ),
     ),
     GoRoute(

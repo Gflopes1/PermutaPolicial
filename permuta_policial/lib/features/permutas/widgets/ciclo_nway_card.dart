@@ -19,13 +19,12 @@ class CicloNWayCard extends StatelessWidget {
 
   List<String> get _timelineLabels {
     final participantes = ciclo.participantes.where((p) => p.id > 0).toList();
-    if (participantes.isEmpty) return ['Você', 'Você'];
+    if (participantes.isEmpty) return ['Você'];
 
     final labels = <String>['Você'];
     for (final p in participantes) {
       labels.add(displayName(p));
     }
-    labels.add('Você');
     return labels;
   }
 

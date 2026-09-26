@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/services/announcement_service.dart';
 import '../../../core/utils/app_share.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -26,9 +27,9 @@ import '../../../core/services/socket_service.dart';
 import '../../../core/utils/profile_completion.dart';
 import '../widgets/parceiros_card.dart';
 import '../widgets/dashboard_onboarding.dart';
-import '../widgets/minesweeper_game.dart';
 import '../widgets/dashboard_pix_footer.dart';
 import '../widgets/dashboard_desktop_layout.dart';
+import '../widgets/zero_intencoes_reminder_card.dart';
 import '../../../shared/widgets/network_error_panel.dart';
 import '../../notificacoes/providers/notificacoes_provider.dart';
 import '../../chat/providers/chat_provider.dart';
@@ -295,6 +296,12 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
                                     children: [
                                       _buildHero(context, provider),
                                       const SizedBox(height: 12),
+                                      _buildMatchesSection(context, provider),
+                                      const SizedBox(height: 12),
+                                      if (provider.intencoes.isEmpty) ...[
+                                        const ZeroIntencoesReminderCard(),
+                                        const SizedBox(height: 12),
+                                      ],
                                       const ReferralDashboardCard(),
                                       const SizedBox(height: 12),
                                       _buildSectionTitle('Acesso rápido'),
@@ -303,8 +310,6 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
                                         const SizedBox(height: 16),
                                         _buildConsultoriaEntry(context, provider),
                                       ],
-                                      const SizedBox(height: 16),
-                                      _buildMatchesSection(context, provider),
                                     ],
                                   ),
                                   rightColumn: Column(
@@ -321,20 +326,21 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
                                                 .toList(),
                                           ),
                                         ),
-                                        const SizedBox(height: 16),
+                                        const SizedBox(height: 14),
                                       ],
                                       _buildSectionTitle('Ferramentas'),
                                       _buildToolsGrid(context, provider),
-                                      const SizedBox(height: 16),
+                                      const SizedBox(height: 14),
                                       _buildDivider(),
                                       _buildSectionTitle('Comunidade'),
                                       _buildCommunityLinks(context, provider),
-                                      const SizedBox(height: 12),
+                                      const SizedBox(height: 10),
                                       _buildPermutasInteligentesCard(context),
-                                      const SizedBox(height: 12),
-                                      _buildCampoMinadoCard(context),
-                                      const SizedBox(height: 12),
+                                      const SizedBox(height: 14),
+                                      _buildDivider(),
+                                      _buildSectionTitle('Apoio'),
                                       const DashboardPixFooter(),
+                                      const SizedBox(height: 8),
                                     ],
                                   ),
                                   mobileColumn: Column(
@@ -342,18 +348,22 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
                                     children: [
                                       _buildHero(context, provider),
                                       const SizedBox(height: 12),
+                                      _buildMatchesSection(context, provider),
+                                      const SizedBox(height: 12),
+                                      if (provider.intencoes.isEmpty) ...[
+                                        const ZeroIntencoesReminderCard(),
+                                        const SizedBox(height: 12),
+                                      ],
                                       const ReferralDashboardCard(),
                                       const SizedBox(height: 12),
                                       _buildSectionTitle('Acesso rápido'),
                                       _buildQuickAccess(context),
                                       if (provider.consultoriaAdvogados.isNotEmpty) ...[
-                                        const SizedBox(height: 16),
+                                        const SizedBox(height: 14),
                                         _buildConsultoriaEntry(context, provider),
                                       ],
-                                      const SizedBox(height: 16),
-                                      _buildMatchesSection(context, provider),
                                       if (provider.parceiros.isNotEmpty) ...[
-                                        const SizedBox(height: 16),
+                                        const SizedBox(height: 14),
                                         Padding(
                                           padding: const EdgeInsets.symmetric(horizontal: 12),
                                           child: ParceirosCard(
@@ -365,20 +375,21 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
                                           ),
                                         ),
                                       ],
-                                      const SizedBox(height: 16),
+                                      const SizedBox(height: 14),
                                       _buildDivider(),
                                       _buildSectionTitle('Ferramentas'),
                                       _buildToolsGrid(context, provider),
-                                      const SizedBox(height: 16),
+                                      const SizedBox(height: 14),
                                       _buildDivider(),
                                       _buildSectionTitle('Comunidade'),
                                       _buildCommunityLinks(context, provider),
-                                      const SizedBox(height: 12),
+                                      const SizedBox(height: 10),
                                       _buildPermutasInteligentesCard(context),
-                                      const SizedBox(height: 12),
-                                      _buildCampoMinadoCard(context),
-                                      const SizedBox(height: 12),
+                                      const SizedBox(height: 14),
+                                      _buildDivider(),
+                                      _buildSectionTitle('Apoio'),
                                       const DashboardPixFooter(),
+                                      const SizedBox(height: 8),
                                     ],
                                   ),
                                 ),
@@ -430,7 +441,7 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: Image.asset(
-              'images/ic_launcher.png',
+              'assets/images/ic_launcher.png',
               width: 28,
               height: 28,
               fit: BoxFit.cover,
@@ -488,8 +499,25 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
         context.push(AppRoutes.meusDados);
         break;
       case 'help':
-        launchUrl(Uri.parse('https://br.permutapolicial.com.br/help.html'),
-            mode: LaunchMode.externalApplication);
+        final helpUrl = AppConfig.isDevelopment
+            ? 'https://dev.br.permutapolicial.com.br/help.html'
+            : 'https://br.permutapolicial.com.br/help.html';
+        try {
+          final uri = Uri.parse(helpUrl);
+          if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+            // Fallback: tenta sem mode especificado
+            if (!await launchUrl(uri)) {
+              throw Exception('Não foi possível abrir o link de ajuda');
+            }
+          }
+        } catch (e) {
+          debugPrint('⚠️ Erro ao abrir página de ajuda: $e');
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Erro ao abrir ajuda: $helpUrl')),
+            );
+          }
+        }
         break;
       case 'share':
         await _shareApp();
@@ -585,23 +613,31 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
                       pi.results,
                       piIds,
                     );
-                return Row(
+                return Column(
                   children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: () => context.push('${AppRoutes.permutas}?tab=interessados'),
-                        borderRadius: BorderRadius.circular(10),
-                        child: _heroStat('$interessados', 'Interessados na sua vaga'),
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => context.push('${AppRoutes.permutas}?tab=interessados'),
+                            borderRadius: BorderRadius.circular(10),
+                            child: _heroStat('$interessados', 'Interessados na sua vaga'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => context.push(AppRoutes.permutas),
+                            borderRadius: BorderRadius.circular(10),
+                            child: _heroStat('$matches', 'Matches compatíveis'),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: InkWell(
-                        onTap: () => context.push(AppRoutes.permutas),
-                        borderRadius: BorderRadius.circular(10),
-                        child: _heroStat('$matches', 'Matches compatíveis'),
-                      ),
-                    ),
+                    if (matches > 0 || incompleto || !vagaAtiva) ...[
+                      const SizedBox(height: 10),
+                      _buildHeroCTA(context, matches, incompleto, vagaAtiva),
+                    ],
                   ],
                 );
               },
@@ -625,6 +661,39 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
           const SizedBox(height: 2),
           Text(label, textAlign: TextAlign.center, style: const TextStyle(color: _muted, fontSize: 10)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildHeroCTA(BuildContext context, int matches, bool incompleto, bool vagaAtiva) {
+    String label;
+    VoidCallback action;
+    
+    if (incompleto) {
+      label = 'Completar perfil';
+      action = () => context.push(AppRoutes.completarPerfil);
+    } else if (!vagaAtiva) {
+      label = 'Gerenciar vaga';
+      action = () => context.push(AppRoutes.permutas);
+    } else if (matches > 0) {
+      label = 'Ver matches';
+      action = () => context.push(AppRoutes.permutas);
+    } else {
+      label = 'Ajustar intenções';
+      action = () => context.push(AppRoutes.permutas);
+    }
+
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.white,
+          side: const BorderSide(color: Colors.white24, width: 1),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+        onPressed: action,
+        child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
       ),
     );
   }
@@ -655,12 +724,12 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
         crossAxisCount: 4,
         mainAxisSpacing: 8,
         crossAxisSpacing: 8,
-        childAspectRatio: 0.85,
+        childAspectRatio: 1.15,
         children: [
-          _qaItem(Icons.psychology_outlined, 'Permutas\nInteligentes', () => context.push(AppRoutes.permutas)),
           _qaItem(Icons.map_outlined, 'Mapa de\nPermutas', () => context.push(AppRoutes.mapa)),
           _qaItem(Icons.map, 'Mapa\nTático', () => context.push(AppRoutes.mapaTatico)),
           _qaItem(Icons.description_outlined, 'Editais', () => context.push(AppRoutes.editaisHub)),
+          _qaItem(Icons.calendar_month_outlined, 'Calendário', () => context.push(AppRoutes.calendar)),
         ],
       ),
     );
@@ -929,19 +998,24 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
   Widget _buildToolsGrid(BuildContext context, DashboardProvider provider) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: GridView.count(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 2,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-        childAspectRatio: 1.6,
-        children: [
-          _toolCard(Icons.schedule, 'Gestor de Horas e Soldo', 'Escalas e etapas', () => context.push(AppRoutes.calendar)),
-          _toolCard(Icons.school_outlined, 'Questões & Simulados', 'Prepare-se para provas', () => context.push(AppRoutes.questions)),
-          _toolCard(Icons.shopping_bag_outlined, 'Marketplace', 'Anúncios e vendas', () => context.push(AppRoutes.marketplace)),
-          _toolCard(Icons.swap_horiz, 'Ambiente de Permutas', 'Gerenciar sua vaga', () => context.push(AppRoutes.permutas)),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= kDashboardDesktopBreakpoint;
+          return GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: isWide ? 2.2 : 1.6,
+            children: [
+              _toolCard(Icons.school_outlined, 'Questões & Simulados', 'Prepare-se para provas', () => context.push(AppRoutes.questions)),
+              _toolCard(Icons.shopping_bag_outlined, 'Marketplace', 'Anúncios e vendas', () => context.push(AppRoutes.marketplace)),
+              _toolCard(Icons.swap_horiz, 'Ambiente de Permutas', 'Gerenciar sua vaga', () => context.push(AppRoutes.permutas)),
+              _toolCard(Icons.schedule, 'Gestor de Horas', 'Escalas e etapas', () => context.push(AppRoutes.calendar)),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1062,36 +1136,6 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildCampoMinadoCard(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: InkWell(
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const MinesweeperGame()),
-        ),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: _card,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
-          ),
-          child: const Row(
-            children: [
-              Icon(Icons.grid_on, color: Colors.orange, size: 20),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text('Campo Minado', style: TextStyle(color: Colors.white, fontSize: 12)),
-              ),
-              Icon(Icons.chevron_right, color: Color(0x40FFFFFF), size: 16),
-            ],
-          ),
-        ),
       ),
     );
   }
