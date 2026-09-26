@@ -60,13 +60,14 @@ class _PracticeHistoryScreenState extends State<PracticeHistoryScreen> {
       _history = [];
     }
 
+    if (_isLoading) return;
     setState(() => _isLoading = true);
 
     try {
       final provider = context.read<QuestionsProvider>();
       final result = await provider.getPracticeHistory(
         page: _currentPage,
-        perPage: 5, // Carrega 5 por vez
+        perPage: 20,
         assunto: _selectedAssunto,
       );
 
@@ -75,15 +76,12 @@ class _PracticeHistoryScreenState extends State<PracticeHistoryScreen> {
       if (result != null) {
         try {
           setState(() {
-            // Verifica se result tem estrutura de paginação
             final resultMap = result as dynamic;
             
             if (resultMap is Map<String, dynamic>) {
-              // Verifica se tem 'data' e estrutura de paginação
               if (resultMap.containsKey('data')) {
                 final dataValue = resultMap['data'];
                 
-                // Verifica se data é uma lista
                 if (dataValue is List) {
                   final data = List<dynamic>.from(dataValue);
                   final totalValue = resultMap['total'];
@@ -100,7 +98,6 @@ class _PracticeHistoryScreenState extends State<PracticeHistoryScreen> {
                   }
                   _total = total;
                   
-                  // Incrementa página se houver mais itens
                   if (_history.length < _total) {
                     _currentPage++;
                   }
@@ -115,7 +112,6 @@ class _PracticeHistoryScreenState extends State<PracticeHistoryScreen> {
                 _total = 0;
               }
             } else if (resultMap is List) {
-              // Se result é um array direto (compatibilidade)
               final resultList = List<dynamic>.from(resultMap);
               if (refresh) {
                 _history = resultList;
@@ -124,7 +120,6 @@ class _PracticeHistoryScreenState extends State<PracticeHistoryScreen> {
               }
               _total = _history.length;
             } else {
-              // Estrutura inesperada
               debugPrint('⚠️ Estrutura de resposta inesperada: ${resultMap.runtimeType}');
               debugPrint('   Valor: $resultMap');
               _history = [];
@@ -152,18 +147,38 @@ class _PracticeHistoryScreenState extends State<PracticeHistoryScreen> {
           }
         }
       } else {
-        // Se result é null, houve erro mas foi tratado no provider
         if (mounted) {
           setState(() {
             _isLoading = false;
+            _history = [];
+            _total = 0;
           });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Nenhum dado recebido do servidor'),
+              backgroundColor: Colors.orange,
+            ),
+          );
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ Erro na chamada da API getPracticeHistory: $e');
+      debugPrint('   Stack trace: $stackTrace');
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          _history = [];
+          _total = 0;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e')),
+          SnackBar(
+            content: Text('Erro ao carregar histórico: $e'),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'Tentar novamente',
+              onPressed: () => _loadHistory(refresh: true),
+            ),
+          ),
         );
       }
     }

@@ -127,7 +127,21 @@ class _PermutasUnificadasScreenState extends State<PermutasUnificadasScreen> {
   bool _isAnonimo(Match match) => match.ocultarNoMapa && !match.aceitouCompartilhar;
 
   String _displayName(Match match) {
-    if (_isAnonimo(match)) return 'Usuário não identificado';
+    if (_isAnonimo(match)) {
+      // Tenta mostrar informação útil mesmo para usuários ocultos
+      final partes = <String>[];
+      if (match.forcaSigla != null && match.forcaSigla.isNotEmpty) {
+        partes.add(match.forcaSigla);
+      }
+      if (match.municipioAtual != null && match.municipioAtual!.isNotEmpty) {
+        partes.add(match.municipioAtual!);
+      }
+      if (partes.isNotEmpty) {
+        return 'Usuário não identificado (${partes.join(' - ')})';
+      }
+      return 'Usuário não identificado';
+    }
+    
     if (match.ocultarNoMapa &&
         match.aceitouCompartilhar &&
         match.dadosAceitacao != null) {
@@ -135,6 +149,25 @@ class _PermutasUnificadasScreenState extends State<PermutasUnificadasScreen> {
           match.dadosAceitacao!['aceitador_nome']?.toString() ??
           match.nome;
     }
+    
+    // Fallback: se nome está vazio, tenta construir descrição útil
+    if (match.nome.isEmpty) {
+      final partes = <String>[];
+      if (match.forcaSigla != null && match.forcaSigla.isNotEmpty) {
+        partes.add(match.forcaSigla);
+      }
+      if (match.postoGraduacaoNome != null && match.postoGraduacaoNome!.isNotEmpty) {
+        partes.add(match.postoGraduacaoNome!);
+      }
+      if (match.municipioAtual != null && match.municipioAtual!.isNotEmpty) {
+        partes.add(match.municipioAtual!);
+      }
+      if (partes.isNotEmpty) {
+        return partes.join(' - ');
+      }
+      return 'Policial ${match.id}';
+    }
+    
     return match.nome;
   }
 
