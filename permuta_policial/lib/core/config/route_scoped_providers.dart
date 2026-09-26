@@ -6,16 +6,12 @@ import '../api/repositories/analytics_repository.dart';
 import '../api/repositories/parceiros_repository.dart';
 import '../api/repositories/consultoria_juridica_repository.dart';
 import '../api/repositories/mapa_tatico_repository.dart';
-import '../api/repositories/work_repository.dart';
-import '../api/repositories/presets_repository.dart';
-import '../api/repositories/salary_repository.dart';
 import '../api/repositories/questions_repository.dart';
 import '../services/analytics_service.dart';
 import '../services/socket_service.dart';
 import '../../features/admin/providers/admin_provider.dart';
 import '../../features/mapa_tatico/providers/mapa_tatico_provider.dart';
 import '../../features/mapa_tatico/widgets/mapa_tatico_bootstrap.dart';
-import '../../features/calendar/providers/calendar_provider.dart';
 import '../../features/questions/providers/questions_provider.dart';
 
 /// Providers pesados criados só quando a rota correspondente é aberta.
@@ -40,17 +36,6 @@ class RouteScopedProviders {
         ctx.read<SocketService>(),
       ),
       child: MapaTaticoBootstrap(child: child),
-    );
-  }
-
-  static Widget calendar(BuildContext context, Widget child) {
-    return ChangeNotifierProvider(
-      create: (ctx) => CalendarProvider(
-        ctx.read<WorkRepository>(),
-        ctx.read<PresetsRepository>(),
-        ctx.read<SalaryRepository>(),
-      ),
-      child: child,
     );
   }
 

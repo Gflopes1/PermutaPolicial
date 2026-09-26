@@ -346,29 +346,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _openDayModal(DateTime day) {
-    try {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        builder: (context) => DayModal(day: day),
-      ).catchError((error) {
-        debugPrint('❌ Erro ao abrir DayModal: $error');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao abrir detalhes do dia: ${error.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      });
-    } catch (e) {
-      debugPrint('❌ Erro ao criar DayModal: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao abrir detalhes do dia: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => DayModal(day: day),
+    );
   }
 
   void _showPresetPalette(BuildContext context) {
