@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/services/announcement_service.dart';
 import '../../../core/utils/app_share.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -431,7 +432,7 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: Image.asset(
-              'images/ic_launcher.png',
+              'assets/images/ic_launcher.png',
               width: 28,
               height: 28,
               fit: BoxFit.cover,
@@ -489,8 +490,10 @@ class _DashboardScreenV3State extends State<DashboardScreenV3> {
         context.push(AppRoutes.meusDados);
         break;
       case 'help':
-        launchUrl(Uri.parse('https://br.permutapolicial.com.br/help.html'),
-            mode: LaunchMode.externalApplication);
+        final helpUrl = AppConfig.isDevelopment
+            ? 'https://dev.br.permutapolicial.com.br/help.html'
+            : 'https://br.permutapolicial.com.br/help.html';
+        launchUrl(Uri.parse(helpUrl), mode: LaunchMode.externalApplication);
         break;
       case 'share':
         await _shareApp();
