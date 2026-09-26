@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 
+import '../../../../core/config/app_config.dart';
 import '../../../../core/config/app_theme.dart';
 import '../../../../core/models/intencao.dart';
 import '../../../../core/models/user_profile.dart';
+import '../../../../core/utils/app_share.dart';
 import '../../../dashboard/providers/dashboard_provider.dart';
 import '../../../referral/providers/referral_provider.dart';
 import '../gerir_intencoes_modal.dart';
@@ -57,7 +57,7 @@ class IntencoesSection extends StatelessWidget {
         }),
         if (intencoes.isNotEmpty) ...[
           const SizedBox(height: 12),
-          _IntencoesActions(intencoes: intencoes),
+          _IntencoesActions(intencoes: intencoes, userProfile: userProfile),
         ],
       ],
     );
@@ -120,8 +120,9 @@ class _IntencoesExpiryBanner extends StatelessWidget {
 
 class _IntencoesActions extends StatelessWidget {
   final List<Intencao> intencoes;
+  final UserProfile userProfile;
 
-  const _IntencoesActions({required this.intencoes});
+  const _IntencoesActions({required this.intencoes, required this.userProfile});
 
   Future<void> _runAction(
     BuildContext context,
@@ -161,55 +162,80 @@ class _IntencoesActions extends StatelessWidget {
     );
   }
 
+  static String? _destinoIntencao(Intencao i) {
+    switch (i.tipoIntencao) {
+      case 'UNIDADE':
+        return i.unidadeNome ?? i.municipioNome;
+      case 'MUNICIPIO':
+        return i.municipioNome;
+      case 'ESTADO':
+        return i.estadoSigla;
+      default:
+        return i.municipioNome ?? i.unidadeNome ?? i.estadoSigla;
+    }
+  }
+
+  /// Ex.: "Sou PMRS (Soldado) em Pelotas e procuro permuta para Porto Alegre."
+  /// Sem nome, telefone ou e-mail.
+  String _fraseIntencao(Intencao? intencao) {
+    final forca = userProfile.forcaSigla;
+    final posto = userProfile.postoGraduacaoNome;
+    String? quem;
+    if (forca != null && forca.isNotEmpty) {
+      quem = (posto != null && posto.isNotEmpty) ? '$forca ($posto)' : forca;
+    } else if (posto != null && posto.isNotEmpty) {
+      quem = posto;
+    }
+    final origem = userProfile.municipioAtualNome ?? userProfile.unidadeAtualNome;
+    final destino = intencao != null ? _destinoIntencao(intencao) : null;
+
+    var frase = 'Procuro permuta';
+    if (quem != null && origem != null) {
+      frase = 'Sou $quem em $origem e procuro permuta';
+    } else if (quem != null) {
+      frase = 'Sou $quem e procuro permuta';
+    } else if (origem != null) {
+      frase = 'Estou em $origem e procuro permuta';
+    }
+    if (destino != null && destino.isNotEmpty) frase += ' para $destino';
+    return '$frase.';
+  }
+
   Future<void> _shareIntencao(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
     try {
       final referralProvider = Provider.of<ReferralProvider>(context, listen: false);
-      final referralCode = referralProvider.myReferral?.referralCode;
-      
-      if (referralCode == null) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Código de referral não disponível')),
-          );
-        }
+      if (referralProvider.data == null || referralProvider.data!.code.isEmpty) {
+        await referralProvider.loadMyReferral();
+      }
+      final referralCode = referralProvider.data?.code;
+      if (referralCode == null || referralCode.isEmpty) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Não foi possível obter seu link de indicação. Tente novamente.')),
+        );
         return;
       }
 
-      // Pega primeira intenção para incluir no link (opcional)
-      final intencao = intencoes.isNotEmpty ? intencoes.first : null;
-      final intencaoIdParam = intencao != null ? '?i=${intencao.id}' : '';
-      
-      // Monta texto de compartilhamento
-      String shareText = 'Sou ';
-      if (intencao != null) {
-        // Origem
-        String origem = 'origem';
-        if (intencao.municipioAtualNome != null && intencao.estadoAtualSigla != null) {
-          origem = '${intencao.municipioAtualNome}-${intencao.estadoAtualSigla}';
-        } else if (intencao.unidadeAtualNome != null) {
-          origem = intencao.unidadeAtualNome!;
-        }
-        
-        // Destino
-        String destino = 'destino';
-        if (intencao.municipioNome != null && intencao.estadoSigla != null) {
-          destino = '${intencao.municipioNome}-${intencao.estadoSigla}';
-        } else if (intencao.unidadeNome != null) {
-          destino = intencao.unidadeNome!;
-        }
-        
-        shareText += 'de $origem e procuro permuta para $destino. ';
-      }
-      
-      shareText += 'Se você quer vir para cá, se cadastra no Permuta Policial: https://br.permutapolicial.com.br/r/$referralCode$intencaoIdParam';
-      
-      await Share.share(shareText);
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao compartilhar: $e')),
+      // Intenção de maior prioridade (1 = principal)
+      final ordenadas = [...intencoes]..sort((a, b) => a.prioridade.compareTo(b.prioridade));
+      final intencao = ordenadas.isNotEmpty ? ordenadas.first : null;
+      final query = intencao != null ? '?i=${intencao.id}' : '';
+      final link = '${AppConfig.apiBaseUrl}/r/${Uri.encodeComponent(referralCode)}$query';
+
+      final text = '${_fraseIntencao(intencao)} '
+          'Se você quer vir para cá, cadastre-se no Permuta Policial: $link';
+
+      final shared = await shareText(text, subject: 'Permuta Policial');
+      await referralProvider.trackShare();
+      if (!shared) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Texto copiado! Cole no WhatsApp ou onde quiser.')),
         );
       }
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Erro ao compartilhar. Tente novamente.')),
+      );
     }
   }
 

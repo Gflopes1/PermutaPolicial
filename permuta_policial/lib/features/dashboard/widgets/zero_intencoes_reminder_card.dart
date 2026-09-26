@@ -1,8 +1,11 @@
 // /lib/features/dashboard/widgets/zero_intencoes_reminder_card.dart
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../profile/widgets/gerir_intencoes_modal.dart';
+import '../providers/dashboard_provider.dart';
 
 /// Card de aviso para usuários sem intenção cadastrada
 /// Item 5 - Growth batch: ~1200 de 1832 contas verificadas não têm intenção
@@ -30,7 +33,7 @@ class _ZeroIntencoesReminderCardState extends State<ZeroIntencoesReminderCard> {
     if (dismissedAtMs != null) {
       final dismissedAt = DateTime.fromMillisecondsSinceEpoch(dismissedAtMs);
       final now = DateTime.now();
-      if (now.difference(dismissedAt).inDays < _dismissDurationDays) {
+      if (now.difference(dismissedAt).inDays < _dismissDurationDays && mounted) {
         setState(() => _dismissed = true);
       }
     }
@@ -39,7 +42,19 @@ class _ZeroIntencoesReminderCardState extends State<ZeroIntencoesReminderCard> {
   Future<void> _dismiss() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_dismissKey, DateTime.now().millisecondsSinceEpoch);
-    setState(() => _dismissed = true);
+    if (mounted) setState(() => _dismissed = true);
+  }
+
+  /// Abre direto o modal de cadastro de intenções (mesmo usado em Perfil/Permutas).
+  void _abrirCadastroIntencao(BuildContext context) {
+    final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
+    showDialog(
+      context: context,
+      builder: (ctx) => ChangeNotifierProvider.value(
+        value: dashboardProvider,
+        child: const GerirIntencoesModal(),
+      ),
+    );
   }
 
   @override
@@ -57,7 +72,7 @@ class _ZeroIntencoesReminderCardState extends State<ZeroIntencoesReminderCard> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1565C0).withOpacity(0.3),
+            color: const Color(0xFF1565C0).withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -75,7 +90,7 @@ class _ZeroIntencoesReminderCardState extends State<ZeroIntencoesReminderCard> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
@@ -111,9 +126,7 @@ class _ZeroIntencoesReminderCardState extends State<ZeroIntencoesReminderCard> {
                   children: [
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {
-                          context.push('/profile');
-                        },
+                        onPressed: () => _abrirCadastroIntencao(context),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
                           foregroundColor: const Color(0xFF1565C0),
