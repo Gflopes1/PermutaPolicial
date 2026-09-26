@@ -406,8 +406,13 @@ class _AppWithRouterState extends State<_AppWithRouter> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (kIsWeb) return;
-      final push = context.read<PushNotificationService>();
-      await push.initialize();
+      try {
+        final push = context.read<PushNotificationService>();
+        await push.initialize();
+      } catch (e, stack) {
+        debugPrint('⚠️ Erro ao inicializar push notifications: $e');
+        debugPrint('Stack: $stack');
+      }
     });
   }
 
