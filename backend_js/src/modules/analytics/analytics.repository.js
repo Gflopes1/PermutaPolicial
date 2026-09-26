@@ -128,8 +128,9 @@ class AnalyticsRepository {
       paramsUnique.push(dataFim);
     }
     const [uniqueUsersRows] = await db.execute(
-      `SELECT COUNT(DISTINCT COALESCE(usuario_id, sessao_id)) as total 
-       FROM page_views 
+      // Prefixos evitam colisão entre usuario_id numérico e sessao_id string
+      `SELECT COUNT(DISTINCT COALESCE(CONCAT('u:', usuario_id), CONCAT('s:', sessao_id))) as total
+       FROM page_views
        ${whereUnique}`,
       paramsUnique
     );
@@ -222,29 +223,47 @@ class AnalyticsRepository {
   async getSessoesStats(dataInicio, dataFim) {
     let whereClause = '';
     const params = [];
+    let wherePv = '';
+    const paramsPv = [];
 
     if (dataInicio && dataFim) {
-      whereClause = 'WHERE inicio_sessao BETWEEN ? AND ?';
+      whereClause = 'WHERE us.inicio_sessao BETWEEN ? AND ?';
       params.push(dataInicio, dataFim);
+      wherePv = 'AND criado_em >= ?';
+      paramsPv.push(dataInicio);
     } else if (dataInicio) {
-      whereClause = 'WHERE inicio_sessao >= ?';
+      whereClause = 'WHERE us.inicio_sessao >= ?';
       params.push(dataInicio);
+      wherePv = 'AND criado_em >= ?';
+      paramsPv.push(dataInicio);
     } else if (dataFim) {
-      whereClause = 'WHERE inicio_sessao <= ?';
+      whereClause = 'WHERE us.inicio_sessao <= ?';
       params.push(dataFim);
     }
 
+    // duracao_segundos só é preenchido por /sessao/finalizar, que o app quase nunca chama
+    // (aba fechada). Fallback: intervalo entre 1ª e última page view da sessão.
+    // Limite de 4h por sessão para não distorcer a média com abas esquecidas abertas.
     const [rows] = await db.execute(`
-      SELECT 
+      SELECT
         COUNT(*) as total_sessoes,
-        COUNT(DISTINCT usuario_id) as usuarios_unicos,
-        AVG(CASE WHEN duracao_segundos IS NOT NULL AND duracao_segundos > 0 THEN duracao_segundos END) as duracao_media_segundos,
-        AVG(total_page_views) as page_views_medio,
-        COUNT(CASE WHEN dispositivo_tipo = 'mobile' THEN 1 END) as sessoes_mobile,
-        COUNT(CASE WHEN dispositivo_tipo = 'desktop' THEN 1 END) as sessoes_desktop
-      FROM user_sessions
+        COUNT(DISTINCT us.usuario_id) as usuarios_unicos,
+        AVG(CASE
+              WHEN COALESCE(NULLIF(us.duracao_segundos, 0), pv.dur) > 0
+              THEN LEAST(COALESCE(NULLIF(us.duracao_segundos, 0), pv.dur), 14400)
+            END) as duracao_media_segundos,
+        AVG(us.total_page_views) as page_views_medio,
+        COUNT(CASE WHEN us.dispositivo_tipo = 'mobile' THEN 1 END) as sessoes_mobile,
+        COUNT(CASE WHEN us.dispositivo_tipo = 'desktop' THEN 1 END) as sessoes_desktop
+      FROM user_sessions us
+      LEFT JOIN (
+        SELECT sessao_id, TIMESTAMPDIFF(SECOND, MIN(criado_em), MAX(criado_em)) AS dur
+        FROM page_views
+        WHERE sessao_id IS NOT NULL ${wherePv}
+        GROUP BY sessao_id
+      ) pv ON pv.sessao_id = us.sessao_id
       ${whereClause}
-    `, params);
+    `, [...paramsPv, ...params]);
 
     return rows[0] || {};
   }
