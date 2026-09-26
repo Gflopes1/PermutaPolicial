@@ -4,7 +4,7 @@
   <!-- Polícia Militar -->
   <url>
     <loc>https://br.permutapolicial.com.br/app/pm.html</loc>
-    <lastmod>2026-09-16</lastmod>
+    <lastmod>2026-09-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
@@ -12,7 +12,7 @@
   <!-- Bombeiros Militares -->
   <url>
     <loc>https://br.permutapolicial.com.br/app/bm.html</loc>
-    <lastmod>2026-09-16</lastmod>
+    <lastmod>2026-09-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
@@ -20,7 +20,7 @@
   <!-- Polícia Civil -->
   <url>
     <loc>https://br.permutapolicial.com.br/app/pc.html</loc>
-    <lastmod>2026-09-16</lastmod>
+    <lastmod>2026-09-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
@@ -28,7 +28,7 @@
   <!-- PRF -->
   <url>
     <loc>https://br.permutapolicial.com.br/app/prf.html</loc>
-    <lastmod>2026-09-16</lastmod>
+    <lastmod>2026-09-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
@@ -36,7 +36,7 @@
   <!-- Polícia Federal -->
   <url>
     <loc>https://br.permutapolicial.com.br/app/pf.html</loc>
-    <lastmod>2026-09-16</lastmod>
+    <lastmod>2026-09-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
@@ -44,7 +44,15 @@
   <!-- Guarda Municipal -->
   <url>
     <loc>https://br.permutapolicial.com.br/app/gm.html</loc>
-    <lastmod>2026-09-16</lastmod>
+    <lastmod>2026-09-26</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Polícia Penal -->
+  <url>
+    <loc>https://br.permutapolicial.com.br/app/pp.html</loc>
+    <lastmod>2026-09-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>

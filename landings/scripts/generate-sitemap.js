@@ -19,19 +19,16 @@ const LANDINGS = [
   { path: '/app/prf.html', label: 'PRF' },
   { path: '/app/pf.html', label: 'Polícia Federal' },
   { path: '/app/gm.html', label: 'Guarda Municipal' },
+  { path: '/app/pp.html', label: 'Polícia Penal' },
 ];
 
 const STATIC_PAGES = [
   { path: '/', changefreq: 'weekly', priority: '1.0', comment: 'Página principal (Flutter Web)' },
-  { path: '/auth', changefreq: 'monthly', priority: '0.8', comment: 'Autenticação' },
   { path: '/landing', changefreq: 'monthly', priority: '0.8', comment: 'Landing in-app' },
   { path: '/mapa/visitante', changefreq: 'weekly', priority: '0.8', comment: 'Mapa público' },
   { path: '/help.html', changefreq: 'monthly', priority: '0.7', comment: 'Central de Ajuda (HTML)' },
-  { path: '/help.md', changefreq: 'monthly', priority: '0.6', comment: 'Central de Ajuda (Markdown)' },
   { path: '/termos.html', changefreq: 'yearly', priority: '0.6', comment: 'Termos de Uso (HTML)' },
-  { path: '/termos.md', changefreq: 'yearly', priority: '0.5', comment: 'Termos de Uso (Markdown)' },
   { path: '/privacidade.html', changefreq: 'yearly', priority: '0.6', comment: 'Política de Privacidade (HTML)' },
-  { path: '/privacidade.md', changefreq: 'yearly', priority: '0.5', comment: 'Política de Privacidade (Markdown)' },
 ];
 
 function urlEntry({ path: loc, changefreq, priority }) {
@@ -80,11 +77,8 @@ User-agent: *
 Allow: /
 Allow: /app/
 Allow: /help.html
-Allow: /help.md
 Allow: /termos.html
-Allow: /termos.md
 Allow: /privacidade.html
-Allow: /privacidade.md
 Allow: /llms.txt
 Allow: /llms-full.txt
 Allow: /mapa/visitante

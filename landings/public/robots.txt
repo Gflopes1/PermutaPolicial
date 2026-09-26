@@ -3,11 +3,8 @@ User-agent: *
 Allow: /
 Allow: /app/
 Allow: /help.html
-Allow: /help.md
 Allow: /termos.html
-Allow: /termos.md
 Allow: /privacidade.html
-Allow: /privacidade.md
 Allow: /llms.txt
 Allow: /llms-full.txt
 Allow: /mapa/visitante
