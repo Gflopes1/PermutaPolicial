@@ -41,15 +41,24 @@ function escapeXml(value) {
 
 const escapeHtml = escapeXml;
 
+function firstValue(raw) {
+  // ?i=1&i=2 chega como array no Express; usa o primeiro
+  return Array.isArray(raw) ? raw[0] : raw;
+}
+
 function normalizeCode(code) {
-  const c = String(code || '').trim();
+  // Tolera pontuação colada ao link em mensagens (ex.: "/r/ABC1234." ou "/r/ABC1234)")
+  const c = String(firstValue(code) ?? '').trim().replace(/[^A-Za-z0-9]+$/, '');
   return CODE_REGEX.test(c) ? c.toUpperCase() : null;
 }
 
 function normalizeIntencaoId(raw) {
-  if (raw === undefined || raw === null || raw === '') return null;
-  if (!/^\d{1,10}$/.test(String(raw))) return null;
-  const n = parseInt(raw, 10);
+  const v = firstValue(raw);
+  if (v === undefined || v === null || typeof v === 'object') return null;
+  // Aceita dígitos iniciais ("4579", "4579.", "4579)") — lixo colado pelo app de mensagens
+  const m = /^\s*(\d{1,10})(?!\d)/.exec(String(v));
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
   return Number.isSafeInteger(n) && n > 0 ? n : null;
 }
 
@@ -82,20 +91,26 @@ function lugar(nome, uf, mostrarUf) {
 
 class ShareIntentionService {
   async findCodeOwner(code) {
+    // Mesma consulta de referral.repository.findCodeByCode (usada por /api/referral/validate):
+    // códigos são gravados em maiúsculas; collation _ci + PAD SPACE cobre caixa/espaço à direita.
     const [rows] = await db.execute(
-      'SELECT user_id FROM referral_codes WHERE code = ? LIMIT 1',
+      'SELECT rc.user_id FROM referral_codes rc WHERE rc.code = ? LIMIT 1',
       [code]
     );
     return rows[0]?.user_id ?? null;
   }
 
-  /** Intenção somente se pertencer ao dono do código. Sem dados pessoais. */
+  /**
+   * Intenção somente se pertencer ao dono do código. Sem dados pessoais (nome/telefone/e-mail
+   * nunca são selecionados). `ocultar_no_mapa` NÃO exclui a intenção: no resto do sistema ele
+   * só esconde nome/telefone (permutas.repository mostra a intenção como "Usuário não
+   * identificado"), e aqui o próprio dono escolheu compartilhar o link.
+   */
   async findIntencaoForOwner(intencaoId, ownerId) {
     const [rows] = await db.execute(
       `SELECT
          i.id,
          i.tipo_intencao,
-         p.ocultar_no_mapa,
          f.sigla AS forca_sigla,
          pg.nome AS posto_nome,
          m_o.nome AS origem_nome,
@@ -123,11 +138,17 @@ class ShareIntentionService {
        LIMIT 1`,
       [intencaoId, ownerId]
     );
-    const row = rows[0];
-    if (!row) return null;
-    // Usuário que optou por ficar oculto no mapa: não expor detalhes da intenção.
-    if (Number(row.ocultar_no_mapa) === 1) return null;
-    return row;
+    return rows[0] || null;
+  }
+
+  /** Diagnóstico (só para log): a intenção existe? de quem é? */
+  async findIntencaoOwnerId(intencaoId) {
+    try {
+      const [rows] = await db.execute('SELECT policial_id FROM intencoes WHERE id = ? LIMIT 1', [intencaoId]);
+      return rows[0] ? rows[0].policial_id : null;
+    } catch (_) {
+      return undefined;
+    }
   }
 
   async getVerifiedCount() {
@@ -147,30 +168,58 @@ class ShareIntentionService {
 
   /**
    * Resolve o contexto de compartilhamento. Nunca lança por dados ausentes/erro de DB:
-   * cai para conteúdo genérico (o link precisa funcionar sempre).
+   * cai para conteúdo genérico (o link precisa funcionar sempre) e loga o motivo (console.warn).
+   *
+   * O código (formato válido) é SEMPRE mantido em ctx.code — og:url, preview.png e o redirect
+   * /auth/register?ref=CODE continuam carregando o ref mesmo se a busca falhar (o cadastro
+   * revalida o código no backend; código inexistente é ignorado sem erro).
+   * ctx.codeValid indica se o código existe em referral_codes; a intenção só é exibida quando
+   * pertence ao dono do código.
    */
   async resolveContext(rawCode, rawIntencaoId) {
     const code = normalizeCode(rawCode);
     const intencaoId = normalizeIntencaoId(rawIntencaoId);
-    const ctx = { code: null, intencaoId: null, info: null };
-    if (!code) return ctx;
+    const ctx = { code: null, codeValid: false, intencaoId: null, info: null, reason: null };
+    const tag = `code=${JSON.stringify(String(rawCode ?? '').slice(0, 40))} i=${JSON.stringify(String(rawIntencaoId ?? '').slice(0, 20))}`;
+    const fallback = (reason) => {
+      ctx.reason = reason;
+      console.warn(`[share-intention] Fallback genérico (${reason}) ${tag}`);
+      return ctx;
+    };
 
+    if (!code) return fallback('codigo_formato_invalido');
+    ctx.code = code;
+
+    let ownerId;
     try {
-      const ownerId = await this.findCodeOwner(code);
-      if (!ownerId) return ctx;
-      ctx.code = code;
-      if (intencaoId) {
-        const row = await this.findIntencaoForOwner(intencaoId, ownerId);
-        if (row) {
-          ctx.intencaoId = intencaoId;
-          ctx.info = this.describe(row);
-        }
-      }
+      ownerId = await this.findCodeOwner(code);
     } catch (err) {
-      console.error('[share-intention] Falha ao resolver contexto:', err.message);
-      // DB indisponível: mantém o código (o app Flutter valida na landing)
-      if (!ctx.code) ctx.code = code;
+      return fallback(`erro_db_referral_codes: ${err.code || ''} ${err.message}`);
     }
+    if (!ownerId) {
+      return fallback(`codigo_nao_encontrado_em_referral_codes (code='${code}')`);
+    }
+    ctx.codeValid = true;
+
+    if (!intencaoId) {
+      return fallback(rawIntencaoId === undefined ? 'sem_parametro_i' : 'parametro_i_invalido');
+    }
+
+    let row;
+    try {
+      row = await this.findIntencaoForOwner(intencaoId, ownerId);
+    } catch (err) {
+      return fallback(`erro_db_intencoes: ${err.code || ''} ${err.message}`);
+    }
+    if (!row) {
+      const realOwner = await this.findIntencaoOwnerId(intencaoId);
+      if (realOwner === null) return fallback(`intencao_${intencaoId}_nao_existe`);
+      if (realOwner === undefined) return fallback(`intencao_${intencaoId}_nao_encontrada_para_dono_${ownerId}`);
+      return fallback(`intencao_${intencaoId}_pertence_a_policial_${realOwner}_e_nao_ao_dono_do_codigo_${ownerId}`);
+    }
+
+    ctx.intencaoId = intencaoId;
+    ctx.info = this.describe(row);
     return ctx;
   }
 
