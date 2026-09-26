@@ -1,5 +1,7 @@
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+// Cache do fontconfig gravável (sharp/librsvg) antes de qualquer renderização de texto
+require('./core/utils/fontconfig-env');
 
 const logger = require('./core/utils/logger');
 const { validateConfig } = require('./core/config/config.validator');

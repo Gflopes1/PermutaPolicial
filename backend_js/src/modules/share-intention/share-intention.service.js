@@ -8,6 +8,8 @@
 
 const fs = require('fs').promises;
 const path = require('path');
+// Antes do sharp: evita "Fontconfig error: No writable cache directories" (usuário www sem HOME)
+require('../../core/utils/fontconfig-env');
 const sharp = require('sharp');
 const db = require('../../config/db');
 const { isAllowedFrontendOrigin, normalizeOrigin } = require('../../core/utils/frontend-url.utils');
